@@ -292,14 +292,20 @@ Every row has `logged_by` = caregiver id → attribution in activity feed.
 | Caregiver permission levels (read-only / admin) | ✅ |
 | Custom feeding types + tags | ✅ |
 
-### 7.3 Pricing (matches DreamBaby for bundle simplicity, longer trial)
+### 7.3 Pricing (matches DreamBaby — both apps repriced 2026-05-13)
 
 ```
 Monthly  $2.99 / 99฿
-Yearly   $14.99 / 499฿  (Save 58%)
-Lifetime $19.99 / 699฿     ← A/B test $24.99 after first 1k users [D11]
+Yearly   $19.99 / 599฿  ⭐ Most popular (Save 58%)
+Lifetime $29.99 / 899฿
 Trial    7 days (subscriptions only)  [D4]
 ```
+
+**DreamBaby also raised to same tiers** (pre-launch, zero migration friction).
+
+**Lifetime safety guarantee:** Both apps must never ship a per-user variable-cost feature (custom AI generation, cloud rendering, LLM-per-query). Content is library-based (pre-generated, stored in R2, shared by all users) so lifetime cost is bounded by production budget, not user count. See companion content strategy in DreamBaby memory.
+
+**Bundle (RevenueCat offering):** "Niyoko Baby Bundle Lifetime" = DreamBaby + DreamBook lifetime → **$44.99** (save $15 vs $59.98 separate).
 
 ### 7.4 Future bundle
 
@@ -724,7 +730,7 @@ Each senior gives: **red flag**, **what they'd change**, **open question**.
 | D8 | Mascot "Dreamer Bunny" + empty-state illustrations | ✅ | §8 |
 | D9 | Pediatrician test panel (3 pediatricians, $150 total) | ✅ | §18.6 |
 | D10 | TH freelance copywriter for store listing ($100) | ✅ | §8 |
-| D11 | Launch Lifetime $19.99, A/B $24.99 post-1k users | ✅ | §7.3 |
+| D11 | Pricing: $2.99/$19.99/$29.99 for both apps; bundle $44.99 lifetime; no per-user variable-cost features allowed (lifetime safety) | ✅ | §7.3 |
 | D12 | App icon outsourced illustrator (~$200) | ✅ | §8 |
 | D13 | Target age = 0–24 months (COPPA exposure reduction) | ✅ | §2.1 |
 | D14 | Kids-data privacy lawyer reviews PP+ToS before public launch | ✅ | §18.5 |
