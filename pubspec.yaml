@@ -1,0 +1,55 @@
+name: dreambook
+description: Baby daybook for new parents — privacy-first, family share.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State (hand-rolled providers in Plan A — codegen deferred to Plan B)
+  flutter_riverpod: ^3.3.1
+
+  # Routing
+  go_router: ^17.2.3
+
+  # Persistence (encrypted local DB)
+  sqflite_sqlcipher: ^3.4.0
+  flutter_secure_storage: ^10.2.0
+  shared_preferences: ^2.5.5
+
+  # i18n
+  intl: ^0.20.0
+
+  # Notifications (inexact only — never request SCHEDULE_EXACT_ALARM)
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.0
+  flutter_timezone: ^3.0.0
+
+  # Utilities
+  uuid: ^4.5.3
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  sqflite_common_ffi: ^2.3.3   # in-memory DB for tests
+
+flutter:
+  uses-material-design: true
+  generate: true   # triggers `flutter gen-l10n` on build
+  fonts:
+    - family: IBMPlexSansThai
+      fonts:
+        - asset: assets/fonts/IBMPlexSansThai-Regular.ttf
+        - asset: assets/fonts/IBMPlexSansThai-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansThai-SemiBold.ttf
+          weight: 600
