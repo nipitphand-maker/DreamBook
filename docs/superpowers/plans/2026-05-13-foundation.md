@@ -916,7 +916,7 @@ class ThemeModeController extends AsyncNotifier<ThemeModeState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kThemeModeKey, _encode(choice));
     state = AsyncData(
-      (state.valueOrNull ?? ThemeModeState.initial).copyWith(choice: choice),
+      (state.value ?? ThemeModeState.initial).copyWith(choice: choice),
     );
   }
 
@@ -924,7 +924,7 @@ class ThemeModeController extends AsyncNotifier<ThemeModeState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kRedTintKey, enabled);
     state = AsyncData(
-      (state.valueOrNull ?? ThemeModeState.initial)
+      (state.value ?? ThemeModeState.initial)
           .copyWith(redTintPreserveMelatonin: enabled),
     );
   }
@@ -959,7 +959,7 @@ bool _isNightHour(DateTime now) {
 
 final themeProvider = Provider<ThemeData>((ref) {
   final asyncState = ref.watch(themeModeControllerProvider);
-  final state = asyncState.valueOrNull ?? ThemeModeState.initial;
+  final state = asyncState.value ?? ThemeModeState.initial;
   final now = ref.watch(nowProvider)();
 
   switch (state.choice) {
