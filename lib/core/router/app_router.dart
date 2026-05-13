@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/share/presentation/share_invite_placeholder_screen.dart';
@@ -11,6 +12,7 @@ class AppRoutes {
   static const welcome      = '/welcome';
   static const home         = '/';
   static const shareInvite  = '/share/invite';
+  static const feedNew      = '/feed/new';
 }
 
 const _kOnboardingDoneKey = 'onboarding.done';
@@ -41,6 +43,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.shareInvite,
         builder: (_, __) => const ShareInvitePlaceholderScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.feedNew,
+        builder: (_, __) => const FeedScreen(),
       ),
     ],
   );
