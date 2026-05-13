@@ -43,7 +43,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     await prefs.setBool('onboarding.done', true);
 
     if (!mounted) return;
-    context.go(AppRoutes.home);
+    context.go(AppRoutes.feedNew);
   }
 
   @override
