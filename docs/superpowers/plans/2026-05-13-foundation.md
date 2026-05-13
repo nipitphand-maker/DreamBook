@@ -4,9 +4,9 @@
 
 **Goal:** Scaffold the DreamBook Flutter project (Android-first, iOS-ready) up to a runnable empty-baby-name app shell with theme, L10n, encrypted DB schema v1, secure key storage, inexact-only notifications, routing, and a one-handed Home screen showing the Quick-Log 2×2 grid + a Share/Invite placeholder.
 
-**Architecture:** Flutter + Riverpod 3.x (codegen) + go_router + sqflite_sqlcipher (AES key stored in Keychain / EncryptedSharedPreferences). Same stack as DreamBaby with three deliberate divergences: Android **minSdkVersion 23** (required by RC + secure_storage v10), Thai fonts **bundled locally** (offline-first), **Riverpod 3** with `@riverpod` codegen (greenfield freedom).
+**Architecture:** Flutter + Riverpod 3.x (hand-rolled) + go_router + sqflite_sqlcipher (AES key stored in Keychain / EncryptedSharedPreferences). Same stack as DreamBaby with three deliberate divergences: Android **minSdkVersion 23** (required by RC + secure_storage v10), Thai fonts **bundled locally** (offline-first), **Riverpod 3** without codegen in Plan A (Plan B+ may add freezed/json_serializable for model classes — currently excluded to avoid analyzer-range conflict with riverpod_generator on 2026-05-13).
 
-**Tech Stack:** Flutter 3.41+, Dart 3.10+, `flutter_riverpod ^3.3.1` + `riverpod_generator ^3` (dev), `go_router ^17.2.3`, `sqflite_sqlcipher ^3.4.0`, `flutter_secure_storage ^10.2.0`, `flutter_localizations` + `intl ^0.20.0`, `flutter_local_notifications ^21.0.0` (inexact only), `shared_preferences ^2.5.5`, `uuid ^4.5.3`, `freezed ^3.2.5` (dev) + `freezed_annotation ^3.1.0` + `json_serializable ^6.13.2` (dev) + `build_runner ^2.15.0` (dev).
+**Tech Stack:** Flutter 3.41+, Dart 3.10+, `flutter_riverpod ^3.3.1`, `go_router ^17.2.3`, `sqflite_sqlcipher ^3.4.0`, `flutter_secure_storage ^10.2.0`, `flutter_localizations` + `intl ^0.20.0`, `flutter_local_notifications ^21.0.0` (inexact only), `timezone ^0.11.0`, `flutter_timezone ^3.0.0`, `shared_preferences ^2.5.5`, `uuid ^4.5.3`. Plan A excludes codegen deps (freezed, json_serializable, riverpod_generator, build_runner) — Plan B reintroduces them after we pick a compatible version pair.
 
 **Non-goals for Plan A:** Supabase, E2E crypto, real invite code generation, Visit Summary PDF, RevenueCat paywall, multi-baby, vaccination log, daily summary math, log-entry CRUD beyond schema. Each is scoped to its own subsequent plan.
 
@@ -214,9 +214,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # State
+  # State (hand-rolled providers in Plan A — codegen deferred to Plan B)
   flutter_riverpod: ^3.3.1
-  riverpod_annotation: ^3.0.0
 
   # Routing
   go_router: ^17.2.3
@@ -231,27 +230,16 @@ dependencies:
 
   # Notifications (inexact only — never request SCHEDULE_EXACT_ALARM)
   flutter_local_notifications: ^21.0.0
-  timezone: ^0.9.4
+  timezone: ^0.11.0
   flutter_timezone: ^3.0.0
 
   # Utilities
   uuid: ^4.5.3
-  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-
-  build_runner: ^2.15.0
-  riverpod_generator: ^3.0.0
-  custom_lint: ^0.6.4
-  riverpod_lint: ^3.0.0
-
-  freezed: ^3.2.5
-  freezed_annotation: ^3.1.0
-  json_serializable: ^6.13.2
-
   sqflite_common_ffi: ^2.3.3   # in-memory DB for tests
 
 flutter:
