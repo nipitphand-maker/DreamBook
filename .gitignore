@@ -46,3 +46,4 @@ app.*.map.json
 
 # Generated localization
 lib/l10n/generated/
+lib/l10n/untranslated.txt
