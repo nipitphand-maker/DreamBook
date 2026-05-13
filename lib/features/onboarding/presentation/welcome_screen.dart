@@ -6,6 +6,8 @@ import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../baby/data/baby_repository.dart';
+import '../../baby/data/current_baby_provider.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
@@ -27,11 +29,19 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     // Activation-first: baby name is optional. Default 'Baby' if empty.
     // Routes to /home in Plan A; Plan B will retarget to /feed/new so the
     // primary CTA "Log a feed now" delivers immediate value.
-    final prefs = ref.read(sharedPreferencesProvider);
     final raw = _nameCtrl.text.trim();
     final name = raw.isEmpty ? 'Baby' : raw;
-    await prefs.setString('baby.name', name);
+
+    // Plan B: create the Baby row + flip the current-baby pointer.
+    final babyRepo = ref.read(babyRepositoryProvider);
+    final today = DateTime.now().toUtc();
+    final baby = await babyRepo.insert(name: name, dob: today);
+    await ref.read(currentBabyIdProvider.notifier).select(baby.id);
+
+    // Mark onboarding done.
+    final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setBool('onboarding.done', true);
+
     if (!mounted) return;
     context.go(AppRoutes.home);
   }
