@@ -1,4 +1,5 @@
 import 'package:dreambook/core/db/migrations/m001_initial.dart';
+import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -11,8 +12,8 @@ void main() {
   Future<Database> openMem() async {
     return databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
-      options: OpenDatabaseOptions(version: 1, onCreate: (db, _) async {
-        await Migrations([m001Initial]).runAll(db);
+      options: OpenDatabaseOptions(version: 2, onCreate: (db, _) async {
+        await Migrations([m001Initial, m002V2]).runAll(db);
       }),
     );
   }
@@ -73,6 +74,23 @@ void main() {
       }),
       throwsA(isA<DatabaseException>()),
     );
+    await db.close();
+  });
+
+  test('v2 adds thawed_at + parent_bottle_id + source to stash_bottle', () async {
+    final db = await openMem();
+    final cols = await db.rawQuery('PRAGMA table_info(stash_bottle)');
+    final names = cols.map((r) => r['name'] as String).toSet();
+    expect(names, containsAll({'thawed_at', 'parent_bottle_id', 'source'}));
+    await db.close();
+  });
+
+  test('v2 adds paused_duration_min to pump_session with default 0', () async {
+    final db = await openMem();
+    final cols = await db.rawQuery('PRAGMA table_info(pump_session)');
+    final pausedCol = cols.firstWhere((r) => r['name'] == 'paused_duration_min');
+    expect(pausedCol['dflt_value'], '0');
+    expect(pausedCol['notnull'], 1);
     await db.close();
   });
 }
