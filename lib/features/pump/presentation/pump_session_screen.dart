@@ -19,6 +19,7 @@ const _kTimerPausedAt = 'pump.timerPausedAt'; // ISO-8601 string
 const _kPausedDurSec = 'pump.timerPausedDurSec'; // int
 const _kSaveToStash = 'pump.saveToStash'; // bool
 const _kSide = 'pump.side'; // 'both'|'left'|'right'
+const _kPortionOz = 'settings.pump.portionOz'; // double, default 4.0
 
 // ---------------------------------------------------------------------------
 // Side enum
@@ -59,6 +60,10 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   double _leftOz = 0;
   double _rightOz = 0;
 
+  // --- Bottle splitting state ---
+  double _portionOz = 4.0;
+  List<double> _bottles = [];
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -79,6 +84,10 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
     // Restore stash preference
     _saveToStash = prefs.getBool(_kSaveToStash) ?? true;
+
+    // Restore portion oz preference
+    _portionOz = prefs.getDouble(_kPortionOz) ?? 4.0;
+    _bottles = _computeBottles();
 
     // Recover in-progress timer
     final startedAtStr = prefs.getString(_kTimerStartedAt);
@@ -232,7 +241,9 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
       rightOz: rightOz,
       durationMin: durationSec ~/ 60,
       note: note,
-      bottles: const [],
+      bottles: _saveToStash
+          ? _bottles.map((oz) => PendingBottle(oz: oz)).toList()
+          : const [],
     );
 
     // Clear all persisted pump timer keys
@@ -257,6 +268,33 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   Future<void> _persistSaveToStash(bool v) async {
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setBool(_kSaveToStash, v);
+  }
+
+  Future<void> _persistPortionOz(double v) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setDouble(_kPortionOz, v);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bottle splitting
+  // ---------------------------------------------------------------------------
+
+  /// Pure function — computes the bottle portion list from current state.
+  /// Call inside setState to avoid nested setState calls.
+  List<double> _computeBottles() {
+    if (!_saveToStash) return [];
+    final total = _leftOz + _rightOz;
+    if (total <= 0 || _portionOz <= 0) return [];
+    final result = <double>[];
+    double remaining = total;
+    while (remaining > 0.01) {
+      final portion = remaining >= _portionOz
+          ? _portionOz
+          : double.parse(remaining.toStringAsFixed(1));
+      result.add(portion);
+      remaining -= portion;
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------------------
@@ -344,8 +382,14 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                       side: _side,
                       leftOz: _leftOz,
                       rightOz: _rightOz,
-                      onLeftChanged: (v) => setState(() => _leftOz = v),
-                      onRightChanged: (v) => setState(() => _rightOz = v),
+                      onLeftChanged: (v) => setState(() {
+                        _leftOz = v;
+                        _bottles = _computeBottles();
+                      }),
+                      onRightChanged: (v) => setState(() {
+                        _rightOz = v;
+                        _bottles = _computeBottles();
+                      }),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Center(
@@ -376,12 +420,40 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                       value: _saveToStash,
                       onChanged: (v) {
                         final val = v ?? true;
-                        setState(() => _saveToStash = val);
+                        setState(() {
+                          _saveToStash = val;
+                          _bottles = _computeBottles();
+                        });
                         _persistSaveToStash(val);
                       },
                       title: Text(l10n.pumpSaveToStash),
                       contentPadding: EdgeInsets.zero,
                     ),
+                    // --- Bottle preview ---
+                    if (_saveToStash && (_leftOz + _rightOz) > 0) ...[
+                      _BottlePreviewSection(
+                        bottles: _bottles,
+                        portionOz: _portionOz,
+                        onPortionChanged: (v) {
+                          setState(() {
+                            _portionOz = v;
+                            _bottles = _computeBottles();
+                          });
+                          _persistPortionOz(v);
+                        },
+                        onRemoveBottle: (index) {
+                          setState(() {
+                            _bottles = List.of(_bottles)..removeAt(index);
+                          });
+                        },
+                        onAddBottle: () {
+                          setState(() {
+                            _bottles = List.of(_bottles)..add(_portionOz);
+                          });
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                     // --- Manual entry ---
                     TextButton(
                       onPressed: _showManualEntry,
@@ -621,6 +693,126 @@ class _BottomButtons extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bottle preview section
+// ---------------------------------------------------------------------------
+
+class _BottlePreviewSection extends StatelessWidget {
+  const _BottlePreviewSection({
+    required this.bottles,
+    required this.portionOz,
+    required this.onPortionChanged,
+    required this.onRemoveBottle,
+    required this.onAddBottle,
+  });
+
+  final List<double> bottles;
+  final double portionOz;
+  final ValueChanged<double> onPortionChanged;
+  final ValueChanged<int> onRemoveBottle;
+  final VoidCallback onAddBottle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header row: label + per-bottle stepper
+        Row(
+          children: [
+            Text(
+              'Bottle portions',
+              style:
+                  AppTypography.labelLarge(color: AppColors.inkSecondary),
+            ),
+            const Spacer(),
+            // Per-bottle stepper
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Per bottle:',
+                  style: AppTypography.labelLarge(color: AppColors.inkSecondary),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: portionOz <= 0.5
+                      ? null
+                      : () => onPortionChanged(
+                            double.parse(
+                                (portionOz - 0.5).toStringAsFixed(1)),
+                          ),
+                  icon: const Icon(Icons.remove),
+                ),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    '${portionOz.toStringAsFixed(1)} oz',
+                    style: AppTypography.numeric(size: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: portionOz >= 16
+                      ? null
+                      : () => onPortionChanged(
+                            double.parse(
+                                (portionOz + 0.5).toStringAsFixed(1)),
+                          ),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        // Chips row
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (int i = 0; i < bottles.length; i++)
+              _BottleChip(
+                oz: bottles[i],
+                onDeleted: () => onRemoveBottle(i),
+              ),
+          ],
+        ),
+        // Add bottle button
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: onAddBottle,
+            child: const Text('+ Add bottle'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BottleChip extends StatelessWidget {
+  const _BottleChip({required this.oz, required this.onDeleted});
+
+  final double oz;
+  final VoidCallback onDeleted;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputChip(
+      label: Text('${oz.toStringAsFixed(1)} oz'),
+      backgroundColor: AppColors.lightSuccess.withValues(alpha: 0.3),
+      onDeleted: onDeleted,
     );
   }
 }

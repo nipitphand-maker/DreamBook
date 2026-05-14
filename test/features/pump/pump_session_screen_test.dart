@@ -9,6 +9,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dreambook/l10n/generated/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
+// Bottle splitting logic (mirrors _computeBottles in pump_session_screen.dart)
+// ---------------------------------------------------------------------------
+
+List<double> computeBottles(double totalOz, double portionOz) {
+  if (totalOz <= 0 || portionOz <= 0) return [];
+  final result = <double>[];
+  double remaining = totalOz;
+  while (remaining > 0.01) {
+    final portion = remaining >= portionOz
+        ? portionOz
+        : double.parse(remaining.toStringAsFixed(1));
+    result.add(portion);
+    remaining -= portion;
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -78,6 +96,38 @@ void main() {
       // Elapsed display should not show 0:00 — it should show ~10 minutes
       // We check the timer text is NOT the zero state (00:00)
       expect(find.text('00:00'), findsNothing);
+    });
+
+    // Test 3: Unit test — computeBottles splitting logic
+    test('computeBottles splits total oz into correct portions', () {
+      expect(computeBottles(10.0, 4.0), [4.0, 4.0, 2.0]);
+      expect(computeBottles(8.0, 4.0), [4.0, 4.0]);
+      expect(computeBottles(0.0, 4.0), []);
+      expect(computeBottles(3.5, 4.0), [3.5]);
+    });
+
+    // Test 4: Widget test — bottle chips appear when saveToStash=true and oz > 0
+    testWidgets('bottle chips appear when saveToStash=true and oz > 0',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({'pump.saveToStash': true});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(_wrapScreen(const PumpSessionScreen(), prefs));
+      await tester.pump();
+
+      // Tap the Left oz + button a few times to set left oz > 0
+      // The + button for Left oz is the first IconButton.filled with add icon
+      final addButtons = find.byIcon(Icons.add);
+      // There are two stepper add buttons (Left + Right), tap the first (Left)
+      await tester.tap(addButtons.first);
+      await tester.pump();
+      await tester.tap(addButtons.first);
+      await tester.pump();
+      await tester.tap(addButtons.first);
+      await tester.pump();
+
+      // After 3 taps × 0.5 oz = 1.5 oz total — saveToStash is true → chips shown
+      expect(find.byType(InputChip), findsAtLeastNWidgets(1));
     });
   });
 }
