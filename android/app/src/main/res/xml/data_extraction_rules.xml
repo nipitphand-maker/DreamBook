@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-  <cloud-backup><exclude domain="root" path="."/></cloud-backup>
-  <device-transfer><exclude domain="root" path="."/></device-transfer>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="FlutterSecureStorage"/>
+        <exclude domain="database" path="dreambook.db"/>
+        <exclude domain="database" path="dreambook.db-journal"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="FlutterSecureStorage"/>
+        <exclude domain="database" path="dreambook.db"/>
+        <exclude domain="database" path="dreambook.db-journal"/>
+    </device-transfer>
 </data-extraction-rules>
