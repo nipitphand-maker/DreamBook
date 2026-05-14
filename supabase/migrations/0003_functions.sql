@@ -40,3 +40,50 @@ begin
   );
 end;
 $$;
+
+create or replace function public.revoke_caregiver_atomic(
+  p_caller_device_fp bytea,
+  p_target_device_fp bytea
+) returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_caller public.family_devices%rowtype;
+  v_target public.family_devices%rowtype;
+  v_new_version int;
+  v_survivors json;
+begin
+  select * into v_caller from public.family_devices where device_fp = p_caller_device_fp;
+  if not found or v_caller.role <> 'admin' or v_caller.revoked_at is not null then
+    raise exception '403';
+  end if;
+  select * into v_target from public.family_devices where device_fp = p_target_device_fp;
+  if not found or v_target.family_id <> v_caller.family_id then
+    raise exception '404';
+  end if;
+
+  update public.family_devices
+    set revoked_at = now(), wipe_requested_at = now()
+    where device_fp = p_target_device_fp;
+
+  update public.families
+    set current_key_version = current_key_version + 1
+    where id = v_caller.family_id
+    returning current_key_version into v_new_version;
+
+  select json_agg(json_build_object(
+    'device_fp', encode(device_fp, 'base64'),
+    'device_pub_key', encode(device_pub_key, 'base64')
+  )) into v_survivors
+  from public.family_devices
+  where family_id = v_caller.family_id
+    and revoked_at is null
+    and device_fp <> p_target_device_fp;
+
+  return json_build_object(
+    'new_key_version', v_new_version,
+    'survivors', coalesce(v_survivors, '[]'::json)
+  );
+end;
+$$;

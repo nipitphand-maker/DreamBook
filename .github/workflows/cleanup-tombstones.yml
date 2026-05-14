@@ -1,0 +1,12 @@
+name: cleanup_tombstones
+on:
+  schedule:
+    - cron: "0 4 * * *"
+jobs:
+  hit:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SUPABASE_FUNCTIONS_URL }}/cleanup_tombstones"
