@@ -326,7 +326,8 @@ class FakeSupabaseServer implements SyncServer {
   }
 
   /// Edge Function: revoke_caregiver.
-  Future<List<Map<String, dynamic>>> revokeCaregiver({
+  @override
+  Future<RevokeResult> revokeCaregiver({
     required String callerDeviceFp,
     required String targetDeviceFp,
   }) async {
@@ -342,16 +343,37 @@ class FakeSupabaseServer implements SyncServer {
     target.wipeRequestedAt = DateTime.now().toUtc();
     final family = families[target.familyId]!;
     family.currentKeyVersion += 1;
-    return devices.values
+    final survivors = devices.values
         .where((d) =>
             d.familyId == family.id &&
             d.revokedAt == null &&
             d.deviceFp != targetDeviceFp)
-        .map((d) => {
-              'device_fp': d.deviceFp,
-              'device_pub_key': d.devicePubKey,
-            })
+        .map((d) => SurvivorDevice(
+              deviceFp: d.deviceFp,
+              devicePubKey: d.devicePubKey,
+            ))
         .toList();
+    return RevokeResult(
+      newKeyVersion: family.currentKeyVersion,
+      survivors: survivors,
+    );
+  }
+
+  @override
+  Future<void> insertKeyDistribution({
+    required String familyId,
+    required String recipientDeviceFp,
+    required int keyVersion,
+    required Uint8List wrappedKey,
+  }) async {
+    keyDistribution.add(
+      FakeKeyDistributionRow(
+        familyId: familyId,
+        recipientDeviceFp: recipientDeviceFp,
+        keyVersion: keyVersion,
+        wrappedKey: wrappedKey,
+      ),
+    );
   }
 
   void _maybeFail() {

@@ -1,5 +1,22 @@
 import 'dart:typed_data';
 
+/// A surviving caregiver device returned by the `revoke_caregiver` Edge
+/// Function. The admin uses [devicePubKey] to wrap K_family_v2 with X25519.
+class SurvivorDevice {
+  const SurvivorDevice({required this.deviceFp, required this.devicePubKey});
+  final String deviceFp;
+  final Uint8List devicePubKey;
+}
+
+/// Result of an atomic server-side revoke: the new key version (already
+/// bumped by the Edge Function) and the list of survivors who need a
+/// freshly wrapped K_family_v(n+1).
+class RevokeResult {
+  const RevokeResult({required this.newKeyVersion, required this.survivors});
+  final int newKeyVersion;
+  final List<SurvivorDevice> survivors;
+}
+
 /// Wire-level representation of a key_distribution row addressed to one device.
 class KeyDistributionEnvelope {
   const KeyDistributionEnvelope({
@@ -75,5 +92,24 @@ abstract class SyncServer {
   /// a key rotation to receive the new K_family from the admin.
   Future<List<KeyDistributionEnvelope>> pullKeyDistribution({
     required String recipientDeviceFp,
+  });
+
+  /// Atomically revokes [targetDeviceFp] and bumps the family's
+  /// `current_key_version` server-side. Returns the new key version plus
+  /// the surviving caregiver devices (admin must X25519-wrap K_family_vN
+  /// for each survivor).
+  Future<RevokeResult> revokeCaregiver({
+    required String callerDeviceFp,
+    required String targetDeviceFp,
+  });
+
+  /// Writes a single wrapped-key row to `key_distribution`. Used by the
+  /// admin during the rotation fan-out to deliver the new K_family_vN
+  /// envelope to each surviving device.
+  Future<void> insertKeyDistribution({
+    required String familyId,
+    required String recipientDeviceFp,
+    required int keyVersion,
+    required Uint8List wrappedKey,
   });
 }

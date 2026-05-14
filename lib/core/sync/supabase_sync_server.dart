@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'sync_error.dart';
 import 'sync_server.dart';
 
 /// Production implementation of [SyncServer] backed by the real Supabase client.
@@ -135,5 +137,57 @@ class SupabaseSyncServer implements SyncServer {
             Uint8List.fromList((m['wrapped_key'] as List).cast<int>()),
       );
     }).toList();
+  }
+
+  @override
+  Future<RevokeResult> revokeCaregiver({
+    required String callerDeviceFp,
+    required String targetDeviceFp,
+  }) async {
+    final response = await _client.functions.invoke(
+      'revoke_caregiver',
+      body: {'target_device_fp': targetDeviceFp},
+    );
+    final status = response.status;
+    if (status != 200) {
+      throw SyncHttpError(status, _stringify(response.data));
+    }
+    final body = response.data as Map<String, dynamic>;
+    final survivors = (body['survivors'] as List).map((s) {
+      final m = s as Map<String, dynamic>;
+      return SurvivorDevice(
+        deviceFp: m['device_fp'] as String,
+        devicePubKey: base64Decode(m['device_pub_key'] as String),
+      );
+    }).toList();
+    return RevokeResult(
+      newKeyVersion: body['new_key_version'] as int,
+      survivors: survivors,
+    );
+  }
+
+  @override
+  Future<void> insertKeyDistribution({
+    required String familyId,
+    required String recipientDeviceFp,
+    required int keyVersion,
+    required Uint8List wrappedKey,
+  }) async {
+    await _client.from('key_distribution').insert({
+      'family_id': familyId,
+      'recipient_device_fp': recipientDeviceFp,
+      'key_version': keyVersion,
+      'wrapped_key': wrappedKey,
+    });
+  }
+
+  String _stringify(Object? data) {
+    if (data == null) return '';
+    if (data is String) return data;
+    try {
+      return jsonEncode(data);
+    } catch (_) {
+      return data.toString();
+    }
   }
 }

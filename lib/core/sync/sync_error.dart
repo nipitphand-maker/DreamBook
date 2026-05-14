@@ -29,3 +29,13 @@ class SyncEnvelopeTamper implements Exception {
   @override
   String toString() => 'SyncEnvelopeTamper: $message';
 }
+
+/// Non-2xx response from a server endpoint (e.g. an Edge Function). The
+/// caller can inspect [statusCode] to decide whether to retry.
+class SyncHttpError implements Exception {
+  const SyncHttpError(this.statusCode, this.body);
+  final int statusCode;
+  final String body;
+  @override
+  String toString() => 'SyncHttpError($statusCode): $body';
+}
