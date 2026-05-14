@@ -9,7 +9,7 @@ import 'package:uuid/uuid.dart';
 /// representing the upgrading user's family. `device_pub_key` column is
 /// added to `caregiver` for the handshake fan-out flow.
 Future<void> m003V3(Database db) async {
-  final syncable = const [
+  const syncable = [
     'baby',
     'caregiver',
     'pump_session',
@@ -26,7 +26,7 @@ Future<void> m003V3(Database db) async {
   await db.transaction((txn) async {
     for (final t in syncable) {
       await txn.execute("ALTER TABLE $t ADD COLUMN family_id TEXT NOT NULL DEFAULT ''");
-      await txn.execute("ALTER TABLE $t ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1");
+      await txn.execute('ALTER TABLE $t ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1');
     }
 
     await txn.execute('ALTER TABLE caregiver ADD COLUMN device_pub_key BLOB');

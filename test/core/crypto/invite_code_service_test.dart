@@ -70,7 +70,7 @@ void main() {
         familyKey: familyKey,
         familyId: familyId,
       );
-      expect(
+      await expectLater(
         () => service.unwrapFamilyKey(
           code: 'WRNG-CODE',
           salt: wrapped.salt,

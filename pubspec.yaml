@@ -40,6 +40,9 @@ dependencies:
   cryptography: ^2.7.0
   cryptography_flutter: ^2.3.2
 
+  # Supabase (Plan C-2) — anonymous auth + REST + Realtime over ws
+  supabase_flutter: ^2.9.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

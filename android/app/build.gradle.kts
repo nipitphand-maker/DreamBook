@@ -35,6 +35,9 @@ android {
             // ProGuard rules are linked but minification stays off until a real
             // release signing config is wired up. The rules will be loaded
             // automatically once isMinifyEnabled = true.
+            // TODO(release): set isMinifyEnabled = true when the real signing
+            //   config replaces the debug-key fallback. ProGuard rules already
+            //   linked in proguardFiles below; they only load when minify is on.
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -27,8 +27,8 @@ void main() {
       final plaintext = utf8.encode('hello');
       final aad = utf8.encode('feed|id|1|fam|1');
       final ct = await envelope.seal(plaintext, key, aad);
-      final tamperedAad = utf8.encode('feed|id|2|fam|1'); // version bumped
-      expect(
+      final tamperedAad = utf8.encode('feed|id|2|fam|1');
+      await expectLater(
         () => envelope.open(ct, key, tamperedAad),
         throwsA(isA<SecretBoxAuthenticationError>()),
       );
@@ -39,7 +39,7 @@ void main() {
       final aad = utf8.encode('feed|id|1|fam|1');
       final ct = await envelope.seal(plaintext, key, aad);
       final otherKey = await AesGcm.with256bits().newSecretKey();
-      expect(
+      await expectLater(
         () => envelope.open(ct, otherKey, aad),
         throwsA(isA<SecretBoxAuthenticationError>()),
       );

@@ -47,3 +47,8 @@ app.*.map.json
 # Generated localization
 lib/l10n/generated/
 lib/l10n/untranslated.txt
+
+# Plan C-2 — local Supabase config + secrets
+.env
+supabase/.branches/
+supabase/.temp/
