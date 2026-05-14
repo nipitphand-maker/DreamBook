@@ -21,6 +21,20 @@ After applying, the `public` schema should contain:
 - key_distribution
 
 ## RLS smoke checklist
-- Unauthenticated insert into `encrypted_rows` must fail with RLS error
-- Device with `revoked_at IS NOT NULL` must not be able to insert rows
-- Device can only read `key_distribution` rows where `recipient_device_fp` matches its own fingerprint
+
+Run against local Supabase (`psql postgres://postgres:postgres@localhost:54322/postgres`):
+
+```sql
+-- Test 1: unauthenticated insert rejected
+set role anon;
+insert into encrypted_rows
+  (family_id, table_name, record_id, version, key_version,
+   ciphertext, aad_hash, written_by_device)
+values
+  ('00000000-0000-0000-0000-000000000000', 'feed', 'x', 1, 1,
+   '\x00', '\x00', '\x00');
+-- Expected: ERROR — new row violates row-level security policy
+```
+
+- Device with `revoked_at IS NOT NULL` fails encrypted_rows insert (fd.revoked_at is null check)
+- Device reads only its own `key_distribution` rows (recipient_device_fp = decode(auth.uid()::text, 'hex'))
