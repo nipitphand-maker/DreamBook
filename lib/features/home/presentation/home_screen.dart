@@ -21,6 +21,11 @@ class HomeScreen extends ConsumerWidget {
         title: Text(l10n.appName),
         actions: [
           IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.go(AppRoutes.settings),
+          ),
+          IconButton(
             tooltip: l10n.shareInviteCta,
             icon: const Icon(Icons.person_add_alt_1_outlined),
             onPressed: () => context.go(AppRoutes.shareInvite),

@@ -5,6 +5,7 @@ import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/pump/presentation/pump_session_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/share/presentation/share_invite_placeholder_screen.dart';
 import '../providers/shared_preferences_provider.dart';
 
@@ -15,6 +16,7 @@ class AppRoutes {
   static const shareInvite  = '/share/invite';
   static const feedNew      = '/feed/new';
   static const pumpNew      = '/pump/new';
+  static const settings     = '/settings';
 }
 
 const _kOnboardingDoneKey = 'onboarding.done';
@@ -53,6 +55,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.pumpNew,
         builder: (_, __) => const PumpSessionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (_, __) => const SettingsScreen(),
       ),
     ],
   );
