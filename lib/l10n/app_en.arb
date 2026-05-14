@@ -196,6 +196,7 @@
   "vaccinationAddVaccine": "Add vaccine",
   "vaccinationEmptyState": "No vaccinations logged yet. Tap + to add the first.",
   "vaccinationVaccineName": "Vaccine name",
+  "vaccinationVaccineNameRequired": "Please enter a vaccine name.",
   "vaccinationDateLabel": "Date given",
   "vaccinationClinicLabel": "Clinic (optional)",
   "vaccinationNotesLabel": "Notes (optional)",

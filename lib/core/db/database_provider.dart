@@ -23,12 +23,16 @@ final appDatabaseProvider = FutureProvider<Database>((ref) async {
     password: key,
     version: migrations.currentVersion,
     onConfigure: (db) async {
+      // foreign_keys must be set before any DML — safe in onConfigure.
       await db.execute('PRAGMA foreign_keys = ON');
+    },
+    onCreate: (db, _) => migrations.runAll(db),
+    onUpgrade: (db, oldV, newV) => migrations.runFrom(db, oldV, newV),
+    onOpen: (db) async {
+      // WAL + security PRAGMAs run after SQLCipher key is applied.
       await db.execute('PRAGMA journal_mode = WAL');
       await db.execute('PRAGMA secure_delete = ON');
       await db.execute('PRAGMA synchronous = NORMAL');
     },
-    onCreate: (db, _) => migrations.runAll(db),
-    onUpgrade: (db, oldV, newV) => migrations.runFrom(db, oldV, newV),
   );
 });

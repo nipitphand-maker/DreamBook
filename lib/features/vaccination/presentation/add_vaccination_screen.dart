@@ -152,7 +152,7 @@ class _AddVaccinationScreenState
                     textInputAction: TextInputAction.next,
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return l10n.vaccinationVaccineName;
+                        return l10n.vaccinationVaccineNameRequired;
                       }
                       return null;
                     },

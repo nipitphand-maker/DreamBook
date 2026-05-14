@@ -36,12 +36,13 @@ serve(async (req) => {
     code_hash: string;
     salt: string;
     wrapped_key: string;
-    expires_at: string;
   } | null;
 
-  if (!body?.family_id || !body.code_hash || !body.salt || !body.wrapped_key || !body.expires_at) {
+  if (!body?.family_id || !body.code_hash || !body.salt || !body.wrapped_key) {
     return new Response(JSON.stringify({ error: "missing fields" }), { status: 400 });
   }
+  // expires_at is always server-computed (1 hour TTL) — never trust the client. (SEC-002)
+  const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -66,7 +67,7 @@ serve(async (req) => {
     family_id: body.family_id,
     salt: saltBytes,
     wrapped_key: wrappedBytes,
-    expires_at: body.expires_at,
+    expires_at: expiresAt,
   });
 
   if (insertErr) {

@@ -30,5 +30,5 @@ final dreamBabyBridgeServiceProvider =
     Provider<DreamBabyBridgeService>((_) => DreamBabyBridgeService());
 
 final dreamBabyInstalledProvider = FutureProvider<bool>((ref) {
-  return ref.read(dreamBabyBridgeServiceProvider).isInstalled();
+  return ref.watch(dreamBabyBridgeServiceProvider).isInstalled();
 });

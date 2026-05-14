@@ -196,6 +196,7 @@
   "vaccinationAddVaccine": "เพิ่มวัคซีน",
   "vaccinationEmptyState": "ยังไม่มีบันทึกวัคซีน แตะปุ่ม + เพื่อเพิ่มครั้งแรก",
   "vaccinationVaccineName": "ชื่อวัคซีน",
+  "vaccinationVaccineNameRequired": "กรุณาระบุชื่อวัคซีน",
   "vaccinationDateLabel": "วันที่ฉีด",
   "vaccinationClinicLabel": "คลินิก / โรงพยาบาล (ไม่จำเป็น)",
   "vaccinationNotesLabel": "บันทึกเพิ่มเติม (ไม่จำเป็น)",
