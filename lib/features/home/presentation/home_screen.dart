@@ -5,6 +5,7 @@ import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/feed/data/feed_providers.dart';
 import 'package:dreambook/features/pump/data/pump_providers.dart';
+import 'package:dreambook/features/stash/data/stash_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,6 +44,7 @@ class HomeScreen extends ConsumerWidget {
               _TodayHeroCard(babyId: babyId),
               const SizedBox(height: AppSpacing.xs),
               const _CaregiverActivityPill(),
+              if (babyId != null) _StashSummaryCard(babyId: babyId),
               const SizedBox(height: AppSpacing.md),
               _TodayTimelineRow(babyId: babyId),
               if (babyId != null) _LastPumpChip(babyId: babyId),
@@ -160,6 +162,34 @@ class _CaregiverActivityPill extends StatelessWidget {
             style: AppTypography.labelLarge(color: AppColors.inkSecondary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StashSummaryCard extends ConsumerWidget {
+  const _StashSummaryCard({required this.babyId});
+  final String babyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final totalOz = ref.watch(stashTotalOzProvider(babyId)).value ?? 0.0;
+    final oldest = ref.watch(stashOldestProvider(babyId)).value;
+    if (totalOz <= 0) return const SizedBox.shrink();
+
+    String subtitle = '${totalOz.toStringAsFixed(1)} oz in stash';
+    if (oldest != null) {
+      final days = DateTime.now().difference(oldest.pumpedAt).inDays;
+      subtitle += ' · oldest ${days}d';
+    }
+
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.ac_unit, color: AppColors.lavender700),
+        title: const Text('Freezer Stash'),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.go(AppRoutes.stash),
       ),
     );
   }

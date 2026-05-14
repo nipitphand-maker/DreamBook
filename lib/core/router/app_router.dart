@@ -7,6 +7,7 @@ import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/pump/presentation/pump_session_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/share/presentation/share_invite_placeholder_screen.dart';
+import '../../features/stash/presentation/stash_list_screen.dart';
 import '../providers/shared_preferences_provider.dart';
 
 class AppRoutes {
@@ -17,6 +18,7 @@ class AppRoutes {
   static const feedNew      = '/feed/new';
   static const pumpNew      = '/pump/new';
   static const settings     = '/settings';
+  static const stash        = '/stash';
 }
 
 const _kOnboardingDoneKey = 'onboarding.done';
@@ -59,6 +61,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (_, __) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.stash,
+        builder: (_, __) => const StashListScreen(),
       ),
     ],
   );
