@@ -30,6 +30,7 @@ void main() {
   test('system + nighttime hour → dark theme', () async {
     final c = makeContainer(now: () => DateTime(2026, 5, 13, 2, 0));
     await c.read(themeModeControllerProvider.future);
+    await c.read(themeModeControllerProvider.notifier).setChoice(UserThemeChoice.system);
     final theme = c.read(themeProvider);
     expect(theme.brightness, Brightness.dark);
   });
@@ -37,6 +38,7 @@ void main() {
   test('system + nighttime + redTint toggle → nightTint surface', () async {
     final c = makeContainer(now: () => DateTime(2026, 5, 13, 3, 0));
     await c.read(themeModeControllerProvider.future);
+    await c.read(themeModeControllerProvider.notifier).setChoice(UserThemeChoice.system);
     await c.read(themeModeControllerProvider.notifier).toggleRedTint(true);
     final theme = c.read(themeProvider);
     expect(theme.colorScheme.surface, const Color(0xFF1A0C06));

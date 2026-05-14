@@ -317,6 +317,7 @@
   "syncStatusSyncedJustNow": "Synced just now",
   "syncStatusNeverSynced": "Not synced yet",
   "syncStatusRealtimeDegraded": "Live sync offline — tap ↻",
+  "syncStatusError": "Sync failed — tap ↻",
 
   "summaryPickDate": "Pick a date",
   "summaryToday": "Today",

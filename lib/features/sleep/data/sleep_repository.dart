@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -89,6 +90,7 @@ class SleepRepository {
 
     _ref.invalidate(sleepTodayProvider(babyId));
     _ref.invalidate(sleepActiveProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return sleep;
   }
 
@@ -122,7 +124,7 @@ class SleepRepository {
       final durationMin = endedAt.toUtc().difference(startedAt).inMinutes;
       final newVersion = (rows.first['version']! as int) + 1;
 
-      await txn.rawUpdate(
+      final affected = await txn.rawUpdate(
         '''
         UPDATE sleep
         SET ended_at     = ?,
@@ -133,6 +135,9 @@ class SleepRepository {
         ''',
         [endedAtStr, durationMin, nowStr, newVersion, id],
       );
+      if (affected == 0) {
+        throw StateError('Sleep session already ended by concurrent write');
+      }
 
       await txn.insert(
         'sync_state',
@@ -158,7 +163,53 @@ class SleepRepository {
 
     _ref.invalidate(sleepTodayProvider(babyId));
     _ref.invalidate(sleepActiveProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return updated;
+  }
+
+  /// Insert a completed past sleep session with known start + end times.
+  /// Calculates durationMin automatically. Writes sync_state dirty.
+  Future<Sleep> insertPast({
+    required String babyId,
+    required DateTime startedAt,
+    required DateTime endedAt,
+    SleepLocation? location,
+    String? note,
+  }) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc();
+    final durationMin = endedAt.toUtc().difference(startedAt.toUtc()).inMinutes;
+    final sleep = Sleep(
+      id: _uuid.v4(),
+      babyId: babyId,
+      startedAt: startedAt.toUtc(),
+      endedAt: endedAt.toUtc(),
+      durationMin: durationMin,
+      location: location,
+      note: note,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await db.transaction((txn) async {
+      await txn.insert('sleep', sleep.toRow());
+      await txn.insert(
+        'sync_state',
+        {
+          'record_id': sleep.id,
+          'table_name': 'sleep',
+          'version': sleep.version,
+          'updated_at': now.toIso8601String(),
+          'dirty': 1,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+
+    _ref.invalidate(sleepTodayProvider(babyId));
+    _ref.invalidate(sleepActiveProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
+    return sleep;
   }
 
   /// Soft-delete: stamps `deleted_at`, bumps version, marks `sync_state` dirty.
@@ -203,6 +254,7 @@ class SleepRepository {
 
     _ref.invalidate(sleepTodayProvider(babyId));
     _ref.invalidate(sleepActiveProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 }
 

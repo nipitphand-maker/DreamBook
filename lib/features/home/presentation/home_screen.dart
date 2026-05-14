@@ -540,6 +540,22 @@ class _SyncStatusRow extends StatelessWidget {
         ),
       );
     }
+    if (syncStatus.lastError != null && !syncStatus.inFlight) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+        child: Row(
+          children: [
+            const Icon(Icons.sync_problem, size: 12, color: AppColors.peach700),
+            const SizedBox(width: 4),
+            Text(
+              l10n.syncStatusError,
+              style: AppTypography.bodyMedium(color: AppColors.peach700),
+            ),
+          ],
+        ),
+      );
+    }
     final lastSynced = syncStatus.lastSyncedAt;
     if (syncStatus.inFlight || lastSynced == null) return const SizedBox.shrink();
     final diff = DateTime.now().toUtc().difference(lastSynced);

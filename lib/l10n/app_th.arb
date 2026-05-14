@@ -317,6 +317,7 @@
   "syncStatusSyncedJustNow": "ซิงก์แล้วเมื่อสักครู่",
   "syncStatusNeverSynced": "ยังไม่เคยซิงก์",
   "syncStatusRealtimeDegraded": "ซิงค์ live ออฟไลน์ — แตะ ↻",
+  "syncStatusError": "ซิงค์ล้มเหลว — แตะ ↻",
 
   "summaryPickDate": "เลือกวันที่",
   "summaryToday": "วันนี้",

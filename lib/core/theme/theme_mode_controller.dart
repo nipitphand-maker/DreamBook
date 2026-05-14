@@ -26,7 +26,7 @@ class ThemeModeState {
       );
 
   static const initial = ThemeModeState(
-    choice: UserThemeChoice.system,
+    choice: UserThemeChoice.light,
     redTintPreserveMelatonin: false,
   );
 }
