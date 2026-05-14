@@ -35,6 +35,9 @@ Future<void> main() async {
   // 4. Stable device_id for caregiver attribution (Plan C uses for invite handshake).
   final deviceId = await _getOrCreateDeviceId(prefs);
 
+  // TODO(c2): register ref.read(syncLifecycleControllerProvider) as
+  // WidgetsBindingObserver in the app root widget once Task 16 wires
+  // SyncWorker + SupabaseSyncServer + caregiver-onboarded family/device.
   runApp(
     ProviderScope(
       overrides: [

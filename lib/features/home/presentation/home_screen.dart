@@ -1,6 +1,7 @@
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/router/app_router.dart';
+import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
@@ -42,39 +43,54 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSpacing.sm),
-              _TodayHeroCard(babyId: babyId),
-              const SizedBox(height: AppSpacing.xs),
-              const _CaregiverActivityPill(),
-              if (babyId != null) _ActiveSleepBanner(babyId: babyId),
-              if (babyId != null) _StashSummaryCard(babyId: babyId),
-              const SizedBox(height: AppSpacing.md),
-              _TodayTimelineRow(babyId: babyId),
-              if (babyId != null) _LastPumpChip(babyId: babyId),
-              const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                    child: Text(
-                      l10n.shareJustYou,
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMedium(
-                        color: AppColors.inkSecondary,
+        child: RefreshIndicator(
+          onRefresh: () =>
+              ref.read(syncLifecycleControllerProvider).syncNow(),
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: ConstrainedBox(
+                constraints:
+                    BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppSpacing.sm),
+                      _TodayHeroCard(babyId: babyId),
+                      const SizedBox(height: AppSpacing.xs),
+                      const _CaregiverActivityPill(),
+                      if (babyId != null) _ActiveSleepBanner(babyId: babyId),
+                      if (babyId != null) _StashSummaryCard(babyId: babyId),
+                      const SizedBox(height: AppSpacing.md),
+                      _TodayTimelineRow(babyId: babyId),
+                      if (babyId != null) _LastPumpChip(babyId: babyId),
+                      const SizedBox(height: AppSpacing.md),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg),
+                            child: Text(
+                              l10n.shareJustYou,
+                              textAlign: TextAlign.center,
+                              style: AppTypography.bodyMedium(
+                                color: AppColors.inkSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const _QuickLogGrid(),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
                   ),
                 ),
               ),
-              const _QuickLogGrid(),
-              const SizedBox(height: AppSpacing.lg),
-            ],
+            ),
           ),
         ),
       ),
