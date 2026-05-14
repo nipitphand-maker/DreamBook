@@ -102,7 +102,7 @@ void main() {
     test('computeBottles splits total oz into correct portions', () {
       expect(computeBottles(10.0, 4.0), [4.0, 4.0, 2.0]);
       expect(computeBottles(8.0, 4.0), [4.0, 4.0]);
-      expect(computeBottles(0.0, 4.0), []);
+      expect(computeBottles(0.0, 4.0), <double>[]);
       expect(computeBottles(3.5, 4.0), [3.5]);
     });
 

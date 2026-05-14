@@ -9,7 +9,7 @@ class SecureKeyService {
   static const _dbKeyAlias = 'dreambook_db_key_v1';
 
   static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
