@@ -7,6 +7,9 @@ import 'package:dreambook/core/crypto/family_key_service.dart';
 import 'package:dreambook/core/db/migrations/m001_initial.dart';
 import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/m003_v3.dart';
+import 'package:dreambook/core/db/migrations/m004_v4.dart';
+import 'package:dreambook/core/db/migrations/m005_daily_note.dart';
+import 'package:dreambook/core/db/migrations/m006_sync_written_by.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/sync/encrypted_row.dart';
 import 'package:dreambook/core/sync/sync_worker.dart';
@@ -32,9 +35,9 @@ void main() {
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 6,
         onCreate: (d, _) async {
-          await Migrations([m001Initial, m002V2, m003V3]).runAll(d);
+          await Migrations([m001Initial, m002V2, m003V3, m004V4, m005DailyNote, m006SyncWrittenBy]).runAll(d);
         },
       ),
     );
@@ -195,6 +198,132 @@ void main() {
       expect(ok, isNotEmpty);
       final bad = await db.query('feed', where: 'id = ?', whereArgs: ['feed-bad']);
       expect(bad, isEmpty);
+    });
+
+    test('same-version row with older updated_at is rejected (LWW)', () async {
+      // b1 baby already seeded in setUp
+      await db.insert('feed', {
+        'id': 'conflict-feed',
+        'baby_id': 'b1',
+        'type': 'breast',
+        'started_at': '2026-05-14T09:00:00.000Z',
+        'note': 'local-note',
+        'created_at': '2026-05-14T09:00:00.000Z',
+        'updated_at': '2026-05-14T10:00:00.000Z', // local is NEWER
+        'version': 1,
+        'family_id': familyId,
+        'key_version': 1,
+      });
+      await db.insert('sync_state', {
+        'record_id': 'conflict-feed',
+        'table_name': 'feed',
+        'version': 1,
+        'updated_at': '2026-05-14T10:00:00.000Z',
+        'dirty': 0,
+        'last_synced_at': '2026-05-14T10:00:00.000Z',
+        'written_by_device': localDeviceFp,
+      });
+
+      // Remote row has same version but older updated_at — local should win
+      final key = (await familyKeys.read(familyId: familyId))!;
+      final plaintext = {
+        'id': 'conflict-feed',
+        'baby_id': 'b1',
+        'type': 'breast',
+        'started_at': '2026-05-14T09:00:00.000Z',
+        'note': 'remote-note',
+        'created_at': '2026-05-14T09:00:00.000Z',
+        'updated_at': '2026-05-14T08:00:00.000Z', // remote is OLDER
+        'version': 1,
+        'family_id': familyId,
+        'key_version': 1,
+        'deleted_at': null,
+      };
+      final aad = EncryptedRow.aadFor(
+        tableName: 'feed', recordId: 'conflict-feed',
+        version: 1, familyId: familyId, keyVersion: 1,
+      );
+      final ct = await CryptoEnvelope().seal(
+        utf8.encode(jsonEncode(plaintext)),
+        SecretKey(key.bytes), utf8.encode(aad),
+      );
+      final aadHash = Uint8List.fromList(
+        (await Blake2b().hash(utf8.encode(aad))).bytes,
+      );
+      server.encryptedRows.add(FakeEncryptedRow(
+        id: const Uuid().v4(),
+        familyId: familyId, tableName: 'feed',
+        recordId: 'conflict-feed', version: 1, keyVersion: 1,
+        ciphertext: ct, aadHash: aadHash,
+        writtenByDevice: remoteDeviceFp,
+        updatedAt: DateTime.now().toUtc(),
+      ));
+
+      await worker.pullOnce();
+      final rows = await db.query('feed', where: "id = 'conflict-feed'");
+      expect(rows.first['note'], 'local-note'); // local wins
+    });
+
+    test('same-version row with newer updated_at replaces local (LWW)', () async {
+      await db.insert('feed', {
+        'id': 'conflict-feed2',
+        'baby_id': 'b1',
+        'type': 'breast',
+        'started_at': '2026-05-14T09:00:00.000Z',
+        'note': 'stale-local',
+        'created_at': '2026-05-14T09:00:00.000Z',
+        'updated_at': '2026-05-14T08:00:00.000Z', // local is OLDER
+        'version': 1,
+        'family_id': familyId,
+        'key_version': 1,
+      });
+      await db.insert('sync_state', {
+        'record_id': 'conflict-feed2',
+        'table_name': 'feed',
+        'version': 1,
+        'updated_at': '2026-05-14T08:00:00.000Z',
+        'dirty': 0,
+        'last_synced_at': '2026-05-14T08:00:00.000Z',
+        'written_by_device': localDeviceFp,
+      });
+
+      final key = (await familyKeys.read(familyId: familyId))!;
+      final plaintext = {
+        'id': 'conflict-feed2',
+        'baby_id': 'b1',
+        'type': 'breast',
+        'started_at': '2026-05-14T09:00:00.000Z',
+        'note': 'fresh-remote',
+        'created_at': '2026-05-14T09:00:00.000Z',
+        'updated_at': '2026-05-14T10:00:00.000Z', // remote is NEWER
+        'version': 1,
+        'family_id': familyId,
+        'key_version': 1,
+        'deleted_at': null,
+      };
+      final aad = EncryptedRow.aadFor(
+        tableName: 'feed', recordId: 'conflict-feed2',
+        version: 1, familyId: familyId, keyVersion: 1,
+      );
+      final ct = await CryptoEnvelope().seal(
+        utf8.encode(jsonEncode(plaintext)),
+        SecretKey(key.bytes), utf8.encode(aad),
+      );
+      final aadHash = Uint8List.fromList(
+        (await Blake2b().hash(utf8.encode(aad))).bytes,
+      );
+      server.encryptedRows.add(FakeEncryptedRow(
+        id: const Uuid().v4(),
+        familyId: familyId, tableName: 'feed',
+        recordId: 'conflict-feed2', version: 1, keyVersion: 1,
+        ciphertext: ct, aadHash: aadHash,
+        writtenByDevice: remoteDeviceFp,
+        updatedAt: DateTime.now().toUtc(),
+      ));
+
+      await worker.pullOnce();
+      final rows = await db.query('feed', where: "id = 'conflict-feed2'");
+      expect(rows.first['note'], 'fresh-remote'); // remote wins
     });
   });
 }

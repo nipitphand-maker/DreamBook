@@ -1,7 +1,9 @@
+import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
+import 'package:dreambook/core/sync/sync_status_provider.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/baby_repository.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
@@ -22,25 +24,22 @@ class HomeScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final babyId = ref.watch(currentBabyIdProvider);
 
+    final syncStatus = ref.watch(syncStatusProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: _BabySwitcherTitle(babyId: babyId),
         actions: [
-          IconButton(
-            tooltip: 'Daily Summary',
-            icon: const Icon(Icons.bar_chart_outlined),
-            onPressed: () => context.go(AppRoutes.summary),
+          _SyncButton(syncStatus: syncStatus),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+            ),
+            icon: const Icon(Icons.group_add_outlined, size: 18),
+            label: Text('+ ${l10n.shareTitle}'),
+            onPressed: () => context.push(AppRoutes.caregivers),
           ),
-          IconButton(
-            tooltip: 'Settings',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.go(AppRoutes.settings),
-          ),
-          IconButton(
-            tooltip: l10n.shareInviteCta,
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => context.go(AppRoutes.shareInvite),
-          ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: SafeArea(
@@ -55,51 +54,23 @@ class HomeScreen extends ConsumerWidget {
               child: ConstrainedBox(
                 constraints:
                     BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppSpacing.sm),
-                      _TodayHeroCard(babyId: babyId),
-                      const SizedBox(height: AppSpacing.xs),
-                      const _CaregiverActivityPill(),
-                      if (babyId != null) _ActiveSleepBanner(babyId: babyId),
-                      if (babyId != null) _StashSummaryCard(babyId: babyId),
-                      const SizedBox(height: AppSpacing.md),
-                      _TodayTimelineRow(babyId: babyId),
-                      if (babyId != null) _LastPumpChip(babyId: babyId),
-                      const SizedBox(height: AppSpacing.md),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.lg),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  l10n.shareJustYou,
-                                  textAlign: TextAlign.center,
-                                  style: AppTypography.bodyMedium(
-                                    color: AppColors.inkSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                TextButton(
-                                  onPressed: () =>
-                                      context.go(AppRoutes.shareClaim),
-                                  child: Text(l10n.joinHaveCode),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const _QuickLogGrid(),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppSpacing.sm),
+                    _TodayHeroCard(babyId: babyId),
+                    _SyncStatusRow(syncStatus: syncStatus),
+                    const SizedBox(height: AppSpacing.xs),
+                    const _CaregiverActivityPill(),
+                    if (babyId != null) _ActiveSleepBanner(babyId: babyId),
+                    if (babyId != null) _StashSummaryCard(babyId: babyId),
+                    const SizedBox(height: AppSpacing.md),
+                    _TodayTimelineRow(babyId: babyId),
+                    if (babyId != null) _LastPumpChip(babyId: babyId),
+                    const SizedBox(height: AppSpacing.md),
+                    const _QuickLogGrid(),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
                 ),
               ),
             ),
@@ -215,7 +186,7 @@ class _ActiveSleepBanner extends ConsumerWidget {
     final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
     final elapsed = h > 0 ? '${h}h ${m}m' : '${diff.inMinutes}m';
     return GestureDetector(
-      onTap: () => context.go(AppRoutes.sleep),
+      onTap: () => context.push(AppRoutes.sleep),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         padding: const EdgeInsets.symmetric(
@@ -229,7 +200,7 @@ class _ActiveSleepBanner extends ConsumerWidget {
             const Icon(Icons.bedtime_outlined,
                 color: AppColors.sage700, size: 18),
             const SizedBox(width: AppSpacing.xs),
-            Text('Sleeping · $elapsed',
+            Text(context.l10n.homeSleepingStatus(elapsed),
                 style: AppTypography.labelLarge(color: AppColors.sage700)),
             const Spacer(),
             const Icon(Icons.chevron_right,
@@ -281,8 +252,8 @@ class _StashSummaryCard extends ConsumerWidget {
 
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.ac_unit, color: AppColors.lavender700),
-        title: const Text('Freezer Stash'),
+        leading: const Icon(Icons.ac_unit, color: AppColors.sage700),
+        title: Text(context.l10n.stashTitle),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => context.go(AppRoutes.stash),
@@ -409,22 +380,22 @@ class _QuickLogGrid extends StatelessWidget {
         _QuickLogButton(
           icon: Icons.water_drop_outlined,
           label: l10n.homeQuickLogFeed,
-          onTap: () => context.go(AppRoutes.feedNew),
+          onTap: () => context.push(AppRoutes.feedNew),
         ),
         _QuickLogButton(
           icon: Icons.compress_outlined,
           label: l10n.homeQuickLogPump,
-          onTap: () => context.go(AppRoutes.pumpNew),
+          onTap: () => context.push(AppRoutes.pumpNew),
         ),
         _QuickLogButton(
           icon: Icons.baby_changing_station_outlined,
           label: l10n.homeQuickLogDiaper,
-          onTap: () => context.go(AppRoutes.diaperNew),
+          onTap: () => context.push(AppRoutes.diaperNew),
         ),
         _QuickLogButton(
           icon: Icons.bedtime_outlined,
           label: l10n.homeQuickLogSleep,
-          onTap: () => context.go(AppRoutes.sleep),
+          onTap: () => context.push(AppRoutes.sleep),
         ),
       ],
     );
@@ -521,8 +492,82 @@ class _BabySwitcherTitle extends ConsumerWidget {
   }
 }
 
+class _SyncButton extends ConsumerWidget {
+  const _SyncButton({required this.syncStatus});
+  final SyncStatus syncStatus;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    if (syncStatus.inFlight) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return IconButton(
+      icon: const Icon(Icons.sync),
+      tooltip: l10n.syncButtonTooltip,
+      onPressed: () => ref.read(syncLifecycleControllerProvider).syncNow(),
+    );
+  }
+}
+
+class _SyncStatusRow extends StatelessWidget {
+  const _SyncStatusRow({required this.syncStatus});
+  final SyncStatus syncStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (syncStatus.realtimeDegraded) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+        child: Row(
+          children: [
+            const Icon(Icons.wifi_off, size: 12, color: AppColors.peach700),
+            const SizedBox(width: 4),
+            Text(
+              l10n.syncStatusRealtimeDegraded,
+              style: AppTypography.bodyMedium(color: AppColors.peach700),
+            ),
+          ],
+        ),
+      );
+    }
+    final lastSynced = syncStatus.lastSyncedAt;
+    if (syncStatus.inFlight || lastSynced == null) return const SizedBox.shrink();
+    final diff = DateTime.now().toUtc().difference(lastSynced);
+    final label = diff.inMinutes < 1
+        ? l10n.syncStatusSyncedJustNow
+        : l10n.syncStatusSyncedMinutes(diff.inMinutes);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline,
+              size: 12, color: AppColors.inkSecondary),
+          const SizedBox(width: 4),
+          Text(label,
+              style: AppTypography.bodyMedium(color: AppColors.inkSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
 /// Async list of all active babies (kept private to the home screen — the
 /// switcher reads the repo directly).
+///
+/// B-4: Watches [appDatabaseProvider] so any DB change invalidates this
+/// provider and forces a fresh list() call rather than serving stale data.
 final _babiesListProvider = FutureProvider<List<Baby>>((ref) async {
+  ref.watch(appDatabaseProvider); // invalidate when DB state changes
   return ref.read(babyRepositoryProvider).list();
 });

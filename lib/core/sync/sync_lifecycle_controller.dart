@@ -198,6 +198,7 @@ final syncLifecycleControllerProvider =
   final realtime = RealtimeSubscriber(
     server: server,
     onIncomingRow: worker.onIncomingRow,
+    onError: (_) => ref.read(syncStatusProvider.notifier).markRealtimeDegraded(),
   );
   realtime.connect(familyId: familyId).ignore();
   ref.onDispose(realtime.disconnect);

@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../crypto/crypto_envelope.dart';
 import '../crypto/family_key_service.dart';
+import 'conflict_resolver.dart';
 import 'encrypted_row.dart';
 import 'sync_error.dart';
 import 'sync_server.dart';
@@ -127,6 +128,7 @@ class SyncWorker {
         {
           'dirty': 0,
           'last_synced_at': DateTime.now().toUtc().toIso8601String(),
+          'written_by_device': deviceFp,
         },
         where: 'record_id = ? AND table_name = ?',
         whereArgs: [recordId, tableName],
@@ -194,14 +196,50 @@ class SyncWorker {
     if (rowId != null) {
       final existing = await db.query(
         row.tableName,
-        columns: ['version'],
+        columns: ['version', 'updated_at'],
         where: 'id = ?',
         whereArgs: [rowId],
         limit: 1,
       );
-      if (existing.isNotEmpty &&
-          (existing.first['version'] as int? ?? 0) >= row.version) {
-        return;
+      if (existing.isNotEmpty) {
+        final localVersion = existing.first['version'] as int? ?? 0;
+        if (localVersion > row.version) return;
+        if (localVersion == row.version) {
+          // Same version — use LWW ConflictResolver so all replicas
+          // settle on the same winner (updated_at, then device_fp tie-break).
+          final syncMeta = await db.query(
+            'sync_state',
+            columns: ['written_by_device'],
+            where: 'record_id = ? AND table_name = ?',
+            whereArgs: [rowId, row.tableName],
+            limit: 1,
+          );
+          final localTs = DateTime.tryParse(
+                existing.first['updated_at'] as String? ?? '') ??
+              DateTime.utc(2000);
+          final remoteTs = DateTime.tryParse(
+                plaintext['updated_at'] as String? ?? '') ??
+              DateTime.utc(2000);
+          final localFp = syncMeta.isNotEmpty
+              ? (syncMeta.first['written_by_device'] as String? ?? deviceFp)
+              : deviceFp;
+          final outcome = ConflictResolver.decide(
+            ResolverRow(
+              version: localVersion,
+              updatedAt: localTs,
+              writtenByDevice: localFp,
+              deleted: false,
+            ),
+            ResolverRow(
+              version: row.version,
+              updatedAt: remoteTs,
+              writtenByDevice: row.writtenByDevice,
+              deleted: row.deletedAt != null,
+            ),
+          );
+          if (outcome == ResolveOutcome.keepLocal) return;
+        }
+        // localVersion < row.version: fall through to apply
       }
     }
 
@@ -240,6 +278,7 @@ class SyncWorker {
           'updated_at': row.updatedAt.toIso8601String(),
           'dirty': 0,
           'last_synced_at': DateTime.now().toUtc().toIso8601String(),
+          'written_by_device': row.writtenByDevice,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );

@@ -5,22 +5,26 @@ class SyncStatus {
     this.inFlight = false,
     this.lastSyncedAt,
     this.lastError,
+    this.realtimeDegraded = false,
   });
 
   final bool inFlight;
   final DateTime? lastSyncedAt;
   final Object? lastError;
+  final bool realtimeDegraded;
 
   SyncStatus copyWith({
     bool? inFlight,
     DateTime? lastSyncedAt,
     Object? lastError,
     bool clearError = false,
+    bool? realtimeDegraded,
   }) =>
       SyncStatus(
         inFlight: inFlight ?? this.inFlight,
         lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
         lastError: clearError ? null : (lastError ?? this.lastError),
+        realtimeDegraded: realtimeDegraded ?? this.realtimeDegraded,
       );
 }
 
@@ -33,11 +37,20 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
   }
 
   void completeSync({required DateTime at}) {
-    state = state.copyWith(inFlight: false, lastSyncedAt: at, clearError: true);
+    state = state.copyWith(
+      inFlight: false,
+      lastSyncedAt: at,
+      clearError: true,
+      realtimeDegraded: false, // successful sync implies channel is ok
+    );
   }
 
   void failSync(Object error) {
     state = state.copyWith(inFlight: false, lastError: error);
+  }
+
+  void markRealtimeDegraded() {
+    state = state.copyWith(realtimeDegraded: true);
   }
 }
 

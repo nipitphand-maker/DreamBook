@@ -15,23 +15,28 @@ class RealtimeSubscriber {
   RealtimeSubscriber({
     required this.server,
     required this.onIncomingRow,
+    this.onError,
   });
 
   final SyncServer server;
   final IncomingRowHandler onIncomingRow;
+  final void Function(Object error)? onError;
 
   StreamSubscription<RemoteEncryptedRow>? _sub;
 
   Future<void> connect({required String familyId}) async {
     await disconnect();
-    _sub = server.realtimeStream(familyId: familyId).listen((row) async {
-      try {
-        await onIncomingRow(row);
-      } catch (_) {
-        // Swallow — handler errors should not kill the subscription.
-        // SyncWorker._applyIncoming already discards bad rows silently.
-      }
-    });
+    _sub = server.realtimeStream(familyId: familyId).listen(
+      (row) async {
+        try {
+          await onIncomingRow(row);
+        } catch (_) {
+          // Swallow — handler errors should not kill the subscription.
+          // SyncWorker._applyIncoming already discards bad rows silently.
+        }
+      },
+      onError: (Object error) => onError?.call(error),
+    );
   }
 
   Future<void> disconnect() async {

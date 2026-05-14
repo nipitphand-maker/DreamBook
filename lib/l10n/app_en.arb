@@ -316,6 +316,7 @@
   "@syncStatusSyncedMinutes": { "placeholders": { "minutes": { "type": "int" } } },
   "syncStatusSyncedJustNow": "Synced just now",
   "syncStatusNeverSynced": "Not synced yet",
+  "syncStatusRealtimeDegraded": "Live sync offline — tap ↻",
 
   "summaryPickDate": "Pick a date",
   "summaryToday": "Today",
