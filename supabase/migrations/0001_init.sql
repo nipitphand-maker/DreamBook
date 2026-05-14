@@ -22,6 +22,7 @@ create table public.family_devices (
 );
 
 create index family_devices_by_family on public.family_devices (family_id);
+create index family_devices_revoked on public.family_devices (family_id, revoked_at) where revoked_at is not null;
 
 create table public.encrypted_rows (
   id uuid primary key default uuid_generate_v4(),
@@ -62,6 +63,8 @@ create table public.key_distribution (
   delivered_at timestamptz not null default now(),
   primary key (family_id, recipient_device_fp, key_version)
 );
+
+create index key_distribution_by_device on public.key_distribution (recipient_device_fp, family_id, key_version);
 
 alter table public.families enable row level security;
 alter table public.family_devices enable row level security;
