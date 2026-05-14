@@ -56,3 +56,6 @@ supabase/.temp/
 # Agent skills + lockfile (local installs)
 .agents/
 skills-lock.json
+
+# MCP local config (contains access token)
+.mcp.json
