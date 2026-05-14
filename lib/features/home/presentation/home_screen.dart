@@ -6,6 +6,7 @@ import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
 import 'package:dreambook/features/feed/data/feed_providers.dart';
 import 'package:dreambook/features/pump/data/pump_providers.dart';
+import 'package:dreambook/features/sleep/data/sleep_repository.dart';
 import 'package:dreambook/features/stash/data/stash_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +46,7 @@ class HomeScreen extends ConsumerWidget {
               _TodayHeroCard(babyId: babyId),
               const SizedBox(height: AppSpacing.xs),
               const _CaregiverActivityPill(),
+              if (babyId != null) _ActiveSleepBanner(babyId: babyId),
               if (babyId != null) _StashSummaryCard(babyId: babyId),
               const SizedBox(height: AppSpacing.md),
               _TodayTimelineRow(babyId: babyId),
@@ -107,6 +109,19 @@ class _TodayHeroCard extends ConsumerWidget {
               data: (n) => '$n',
             );
 
+    final sleepMinText = babyId == null
+        ? '—'
+        : ref.watch(sleepMinutesTodayProvider(babyId!)).when(
+              loading: () => '—',
+              error: (_, __) => '—',
+              data: (min) {
+                if (min == 0) return '0 hr';
+                final h = min ~/ 60;
+                final m = min % 60;
+                return h > 0 ? '${h}h ${m}m' : '${m}m';
+              },
+            );
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -115,7 +130,7 @@ class _TodayHeroCard extends ConsumerWidget {
           children: [
             _Stat(label: l10n.homeQuickLogFeed, value: feedOzText),
             _Stat(label: l10n.homeQuickLogDiaper, value: diaperCountText),
-            _Stat(label: l10n.homeQuickLogSleep, value: '0 hr'),
+            _Stat(label: l10n.homeQuickLogSleep, value: sleepMinText),
             _Stat(label: l10n.homeQuickLogPump, value: pumpCountText),
           ],
         ),
@@ -150,6 +165,45 @@ class _Stat extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ActiveSleepBanner extends ConsumerWidget {
+  const _ActiveSleepBanner({required this.babyId});
+  final String babyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(sleepActiveProvider(babyId)).value;
+    if (active == null) return const SizedBox.shrink();
+    final diff = DateTime.now().difference(active.startedAt);
+    final h = diff.inHours;
+    final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
+    final elapsed = h > 0 ? '${h}h ${m}m' : '${diff.inMinutes}m';
+    return GestureDetector(
+      onTap: () => context.go(AppRoutes.sleep),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.sage700.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.bedtime_outlined,
+                color: AppColors.sage700, size: 18),
+            const SizedBox(width: AppSpacing.xs),
+            Text('Sleeping · $elapsed',
+                style: AppTypography.labelLarge(color: AppColors.sage700)),
+            const Spacer(),
+            const Icon(Icons.chevron_right,
+                color: AppColors.sage700, size: 16),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -337,7 +391,7 @@ class _QuickLogGrid extends StatelessWidget {
         _QuickLogButton(
           icon: Icons.bedtime_outlined,
           label: l10n.homeQuickLogSleep,
-          onTap: () {},
+          onTap: () => context.go(AppRoutes.sleep),
         ),
       ],
     );
