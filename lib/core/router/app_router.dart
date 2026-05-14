@@ -10,6 +10,7 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/share/presentation/share_invite_placeholder_screen.dart';
 import '../../features/sleep/presentation/sleep_timer_screen.dart';
 import '../../features/stash/presentation/stash_list_screen.dart';
+import '../../features/summary/presentation/daily_summary_screen.dart';
 import '../providers/shared_preferences_provider.dart';
 
 class AppRoutes {
@@ -23,6 +24,7 @@ class AppRoutes {
   static const stash        = '/stash';
   static const diaperNew    = '/diaper/new';
   static const sleep        = '/sleep';
+  static const summary      = '/summary';
 }
 
 const _kOnboardingDoneKey = 'onboarding.done';
@@ -77,6 +79,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.sleep,
         builder: (_, __) => const SleepTimerScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.summary,
+        builder: (_, __) => const DailySummaryScreen(),
       ),
     ],
   );
