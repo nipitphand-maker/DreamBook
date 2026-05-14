@@ -1,14 +1,31 @@
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SettingsScreen extends ConsumerWidget {
+const _kPortionOz = 'settings.pump.portionOz';
+
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  double _portionOz = 4.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _portionOz =
+        ref.read(sharedPreferencesProvider).getDouble(_kPortionOz) ?? 4.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final prefs = ref.watch(unitPreferencesProvider);
     final notifier = ref.read(unitPreferencesProvider.notifier);
 
@@ -75,6 +92,45 @@ class SettingsScreen extends ConsumerWidget {
               ButtonSegment(value: WeekStart.monday, label: Text('Mon')),
             ],
             onSelectionChanged: (s) => notifier.setWeekStart(s.first),
+          ),
+          const _SectionHeader(title: 'Pumping'),
+          ListTile(
+            title: const Text('Default bottle size'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: _portionOz <= 0.5
+                      ? null
+                      : () {
+                          final next = double.parse(
+                              (_portionOz - 0.5).toStringAsFixed(1));
+                          setState(() => _portionOz = next);
+                          ref
+                              .read(sharedPreferencesProvider)
+                              .setDouble(_kPortionOz, next);
+                        },
+                  icon: const Icon(Icons.remove),
+                ),
+                Text(
+                  '${_portionOz.toStringAsFixed(1)} oz',
+                  style: AppTypography.numeric(size: 14),
+                ),
+                IconButton(
+                  onPressed: _portionOz >= 16.0
+                      ? null
+                      : () {
+                          final next = double.parse(
+                              (_portionOz + 0.5).toStringAsFixed(1));
+                          setState(() => _portionOz = next);
+                          ref
+                              .read(sharedPreferencesProvider)
+                              .setDouble(_kPortionOz, next);
+                        },
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
           ),
           const _SectionHeader(title: 'About'),
           const ListTile(
