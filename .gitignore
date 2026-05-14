@@ -52,3 +52,7 @@ lib/l10n/untranslated.txt
 .env
 supabase/.branches/
 supabase/.temp/
+
+# Agent skills + lockfile (local installs)
+.agents/
+skills-lock.json
