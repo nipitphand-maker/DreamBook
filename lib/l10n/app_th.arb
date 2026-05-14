@@ -190,5 +190,24 @@
   "settingsPremiumSubtitle": "เก็บได้หลายเบบี้ ส่ง PDF ให้คุณหมอ และระบบผู้ดูแลครบ",
   "settingsPremiumActive": "พรีเมียม ✓ ใช้งานอยู่",
 
-  "stashCapReachedMessage": "แผนฟรีเก็บนมได้สูงสุด 20 ขวด อัปเกรดเพื่อเก็บได้ไม่จำกัด"
+  "stashCapReachedMessage": "แผนฟรีเก็บนมได้สูงสุด 20 ขวด อัปเกรดเพื่อเก็บได้ไม่จำกัด",
+
+  "vaccinationTitle": "บันทึกวัคซีน",
+  "vaccinationAddVaccine": "เพิ่มวัคซีน",
+  "vaccinationEmptyState": "ยังไม่มีบันทึกวัคซีน แตะปุ่ม + เพื่อเพิ่มครั้งแรก",
+  "vaccinationVaccineName": "ชื่อวัคซีน",
+  "vaccinationDateLabel": "วันที่ฉีด",
+  "vaccinationClinicLabel": "คลินิก / โรงพยาบาล (ไม่จำเป็น)",
+  "vaccinationNotesLabel": "บันทึกเพิ่มเติม (ไม่จำเป็น)",
+  "vaccinationSaveCta": "บันทึก",
+  "vaccinationDeleteConfirm": "ลบบันทึกวัคซีนนี้?",
+
+  "visitReportTitle": "รายงานสำหรับพบหมอ",
+  "visitReportRangeDays": "{days, select, 7{7 วันล่าสุด} 14{14 วันล่าสุด} 30{30 วันล่าสุด} other{{days} วันล่าสุด}}",
+  "@visitReportRangeDays": { "placeholders": { "days": { "type": "String" } } },
+  "visitReportConcernsLabel": "สิ่งที่ต้องการถามคุณหมอ (ไม่จำเป็น)",
+  "visitReportGenerateCta": "สร้าง PDF",
+  "visitReportSharing": "กำลังเตรียม PDF…",
+
+  "settingsVaccinations": "วัคซีน"
 }

@@ -190,5 +190,24 @@
   "settingsPremiumSubtitle": "Unlimited babies, visit PDF & caregiver roles",
   "settingsPremiumActive": "Premium ✓ Active",
 
-  "stashCapReachedMessage": "Free tier: 20 bottles max. Upgrade for unlimited storage."
+  "stashCapReachedMessage": "Free tier: 20 bottles max. Upgrade for unlimited storage.",
+
+  "vaccinationTitle": "Vaccination Log",
+  "vaccinationAddVaccine": "Add vaccine",
+  "vaccinationEmptyState": "No vaccinations logged yet. Tap + to add the first.",
+  "vaccinationVaccineName": "Vaccine name",
+  "vaccinationDateLabel": "Date given",
+  "vaccinationClinicLabel": "Clinic (optional)",
+  "vaccinationNotesLabel": "Notes (optional)",
+  "vaccinationSaveCta": "Save",
+  "vaccinationDeleteConfirm": "Delete this vaccination record?",
+
+  "visitReportTitle": "Visit Report",
+  "visitReportRangeDays": "{days, select, 7{Last 7 days} 14{Last 14 days} 30{Last 30 days} other{Last {days} days}}",
+  "@visitReportRangeDays": { "placeholders": { "days": { "type": "String" } } },
+  "visitReportConcernsLabel": "Concerns to discuss (optional)",
+  "visitReportGenerateCta": "Generate PDF",
+  "visitReportSharing": "Preparing PDF…",
+
+  "settingsVaccinations": "Vaccinations"
 }

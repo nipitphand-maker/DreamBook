@@ -176,12 +176,7 @@ class _VisitPdfButton extends StatelessWidget {
       child: FilledButton.icon(
         icon: const Icon(Icons.picture_as_pdf_outlined),
         label: Text(l10n.summaryGeneratePdf),
-        onPressed: () {
-          // Placeholder: actual PDF generation lands in Plan E.
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.summaryGeneratePdf)),
-          );
-        },
+        onPressed: () => context.push(AppRoutes.visitReport),
       ),
     );
   }

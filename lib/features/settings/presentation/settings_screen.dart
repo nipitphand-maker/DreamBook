@@ -30,6 +30,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final prefs = ref.watch(unitPreferencesProvider);
     final notifier = ref.read(unitPreferencesProvider.notifier);
 
@@ -136,6 +137,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+          const _SectionHeader(title: 'Health'),
+          ListTile(
+            leading: const Icon(Icons.vaccines_outlined),
+            title: Text(l10n.settingsVaccinations),
+            trailing: const Icon(Icons.chevron_right, color: AppColors.inkSecondary),
+            onTap: () => context.push(AppRoutes.vaccination),
           ),
           const _SectionHeader(title: 'About'),
           const ListTile(
