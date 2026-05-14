@@ -1,13 +1,18 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'app.dart';
+import 'core/crypto/device_identity_service.dart';
+import 'core/env.dart';
 import 'core/providers/device_id_provider.dart';
 import 'core/providers/shared_preferences_provider.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/secure_key_service.dart';
+import 'core/sync/supabase_client_service.dart';
 
 const _kDeviceIdKey = 'device.id';
 
@@ -18,6 +23,18 @@ Future<String> _getOrCreateDeviceId(SharedPreferences prefs) async {
     await prefs.setString(_kDeviceIdKey, id);
   }
   return id;
+}
+
+/// Loads the bundled `.env` asset. Returns null when the asset is missing
+/// (e.g. CI / fresh checkout without secrets) so the app can still boot —
+/// the sync layer detects no Supabase client and falls back to local-only.
+Future<Env?> _loadEnv() async {
+  try {
+    final content = await rootBundle.loadString('assets/.env');
+    return Env.fromString(content);
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<void> main() async {
@@ -35,9 +52,18 @@ Future<void> main() async {
   // 4. Stable device_id for caregiver attribution (Plan C uses for invite handshake).
   final deviceId = await _getOrCreateDeviceId(prefs);
 
-  // TODO(c2): register ref.read(syncLifecycleControllerProvider) as
-  // WidgetsBindingObserver in the app root widget once Task 16 wires
-  // SyncWorker + SupabaseSyncServer + caregiver-onboarded family/device.
+  // 5. Supabase: initialise the client + ensure anonymous session, then
+  //    create the device-level Ed25519 keypair used for the invite
+  //    handshake. Missing .env (no secrets bundled) skips Supabase init
+  //    so local-only flows still work.
+  const secureStorage = FlutterSecureStorage();
+  final env = await _loadEnv();
+  if (env != null) {
+    await SupabaseClientService.initialize(env: env, storage: secureStorage);
+    await SupabaseClientService.instance.ensureAnonymousSession();
+    await DeviceIdentityService(secureStorage).getOrCreate();
+  }
+
   runApp(
     ProviderScope(
       overrides: [

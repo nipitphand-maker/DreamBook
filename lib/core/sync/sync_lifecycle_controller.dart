@@ -1,6 +1,16 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
+import '../crypto/crypto_envelope.dart';
+import '../crypto/family_key_service.dart';
+import '../db/database_provider.dart';
+import '../providers/device_id_provider.dart';
+import '../providers/shared_preferences_provider.dart';
+import 'supabase_client_service.dart';
+import 'supabase_sync_server.dart';
+import 'sync_server.dart';
 import 'sync_status_provider.dart';
 import 'sync_worker.dart';
 
@@ -68,10 +78,102 @@ class SyncLifecycleController extends WidgetsBindingObserver {
   }
 }
 
-/// Placeholder provider so [HomeScreen]'s pull-to-refresh + main.dart wiring
-/// compile against a stable API surface. Task 16 will override this in the
-/// app root with a real instance constructed from the active
-/// [SyncWorker] + [SupabaseSyncServer].
-final syncLifecycleControllerProvider = Provider<SyncLifecycleController>((ref) {
-  throw UnimplementedError('syncLifecycleControllerProvider not wired yet');
+/// SharedPreferences key under which the active family id is stored after
+/// caregiver onboarding (Plan C). When absent, the device hasn't joined a
+/// family yet and sync is a no-op.
+const String kFamilyIdPrefsKey = 'family.id';
+
+/// Controller variant used before caregiver onboarding has produced a
+/// `family.id`. [syncNow] returns immediately and the
+/// WidgetsBindingObserver lifecycle hook is a no-op — registering still
+/// works, but pull-to-refresh + app-resume don't talk to Supabase.
+class _NoOpSyncLifecycleController extends SyncLifecycleController {
+  _NoOpSyncLifecycleController({required super.resolveStatus})
+      : super(worker: _UnusedSyncWorker._());
+
+  @override
+  Future<void> syncNow() async {
+    // Intentionally empty — there is no family to sync against yet.
+  }
+
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    // Intentionally empty.
+  }
+}
+
+/// Sentinel SyncWorker handed to the no-op controller. It is never invoked
+/// (the no-op controller overrides both syncNow + didChangeAppLifecycleState),
+/// but the parent constructor still requires a non-null worker reference.
+class _UnusedSyncWorker extends SyncWorker {
+  _UnusedSyncWorker._()
+      : super(
+          db: _UnusedDatabase(),
+          server: _UnusedSyncServer(),
+          familyKeys: FamilyKeyService.forTest(_UnusedSecureStorage()),
+          envelope: CryptoEnvelope(),
+          familyId: '',
+          deviceFp: '',
+        );
+}
+
+class _UnusedDatabase implements Database {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw StateError('No-op sync controller — worker should never run');
+}
+
+class _UnusedSyncServer implements SyncServer {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw StateError('No-op sync controller — server should never run');
+}
+
+class _UnusedSecureStorage {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw StateError('No-op sync controller — storage should never run');
+}
+
+/// Returns a real [SyncLifecycleController] once SharedPreferences contains
+/// a `family.id`. Until then returns a [_NoOpSyncLifecycleController] —
+/// pull-to-refresh + the WidgetsBindingObserver attachment still succeed,
+/// they just don't talk to Supabase.
+///
+/// Task 16 will dispose + rebuild this provider after caregiver onboarding
+/// writes `family.id` into prefs (the consumer can `ref.invalidate`).
+final syncLifecycleControllerProvider =
+    Provider<SyncLifecycleController>((ref) {
+  final prefs = ref.read(sharedPreferencesProvider);
+  final familyId = prefs.getString(kFamilyIdPrefsKey);
+
+  if (familyId == null || familyId.isEmpty) {
+    return _NoOpSyncLifecycleController(
+      resolveStatus: () => ref.read(syncStatusProvider.notifier),
+    );
+  }
+
+  // Family is onboarded — build a real worker against the live Supabase
+  // client. appDatabaseProvider is a FutureProvider, so we read its current
+  // value. Caregiver onboarding only stores family.id after the DB is
+  // already open, so .requireValue is safe here.
+  final db = ref.read(appDatabaseProvider).requireValue;
+  // NOTE: AndroidOptions(encryptedSharedPreferences:true) is the spec-mandated
+  // value but it's now deprecated upstream (flutter_secure_storage ^10
+  // auto-migrates to custom ciphers; the flag is ignored). Use defaults.
+  const secureStorage = FlutterSecureStorage();
+  final familyKeys = FamilyKeyService(secureStorage);
+  final deviceFp = ref.read(deviceIdProvider);
+  final server = SupabaseSyncServer(SupabaseClientService.instance.client);
+
+  final worker = SyncWorker(
+    db: db,
+    server: server,
+    familyKeys: familyKeys,
+    envelope: CryptoEnvelope(),
+    familyId: familyId,
+    deviceFp: deviceFp,
+  );
+
+  return SyncLifecycleController.fromRef(ref: ref, worker: worker);
 });
