@@ -217,6 +217,24 @@ class FakeSupabaseServer implements SyncServer {
         .toList();
   }
 
+  @override
+  Stream<RemoteEncryptedRow> realtimeStream({required String familyId}) {
+    return realtime.stream
+        .where((row) => row.familyId == familyId)
+        .map((row) => RemoteEncryptedRow(
+              tableName: row.tableName,
+              recordId: row.recordId,
+              version: row.version,
+              keyVersion: row.keyVersion,
+              familyId: row.familyId,
+              ciphertext: row.ciphertext,
+              aadHash: row.aadHash,
+              writtenByDevice: row.writtenByDevice,
+              updatedAt: row.updatedAt,
+              deletedAt: row.deletedAt,
+            ));
+  }
+
   // ── Legacy pull (kept for backwards compat in existing tests) ───────────
 
   /// Pull encrypted rows updated after [sinceUtc] for [familyId].

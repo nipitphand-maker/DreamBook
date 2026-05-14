@@ -52,4 +52,8 @@ abstract class SyncServer {
     required String familyId,
     DateTime? since,
   });
+
+  /// Stream of rows for [familyId] arriving via Realtime. Production
+  /// implementation wraps a Supabase channel; tests wrap an in-memory stream.
+  Stream<RemoteEncryptedRow> realtimeStream({required String familyId});
 }
