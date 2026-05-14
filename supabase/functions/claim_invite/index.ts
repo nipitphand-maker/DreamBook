@@ -8,7 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { blake2b } from "https://deno.land/x/[email protected]/blake2b.ts";
+import { blake2b } from "https://esm.sh/blakejs@1.2.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -53,7 +53,7 @@ serve(async (req) => {
   }
 
   const normalised = normaliseCode(body.code);
-  const codeHashHex = hexFromBytes(blake2b(new TextEncoder().encode(normalised), 64));
+  const codeHashHex = hexFromBytes(blake2b(new TextEncoder().encode(normalised), undefined, 64));
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false },

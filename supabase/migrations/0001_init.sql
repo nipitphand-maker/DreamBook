@@ -1,10 +1,8 @@
 -- DreamBook Plan C-2 — encrypted backend schema.
 -- All data tables hold ciphertext only; plaintext never leaves the device.
 
-create extension if not exists "uuid-ossp";
-
 create table public.families (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   current_key_version int not null default 1,
   created_at timestamptz not null default now()
 );
@@ -25,7 +23,7 @@ create index family_devices_by_family on public.family_devices (family_id);
 create index family_devices_revoked on public.family_devices (family_id, revoked_at) where revoked_at is not null;
 
 create table public.encrypted_rows (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families(id) on delete cascade,
   table_name text not null,
   record_id text not null,
