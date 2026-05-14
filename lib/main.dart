@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -62,6 +63,20 @@ Future<void> main() async {
     await SupabaseClientService.initialize(env: env, storage: secureStorage);
     await SupabaseClientService.instance.ensureAnonymousSession();
     await DeviceIdentityService(secureStorage).getOrCreate();
+  }
+
+  // 6. RevenueCat — Android public API key. Wrapped in try/catch so missing
+  //    Play Services on emulator / dev devices never blocks app boot.
+  //    `isPremiumProvider` handles the not-configured case via try/catch too.
+  try {
+    await Purchases.setLogLevel(LogLevel.error);
+    await Purchases.configure(
+      PurchasesConfiguration('goog_AjoINZEXfCpIXYfKgLbWXTPnCdt'),
+    );
+  } catch (_) {
+    // RC init failed (e.g. emulator without Play Services). App still boots;
+    // premium gates will resolve to `false` and paywall will surface an
+    // empty offering rather than crashing.
   }
 
   runApp(

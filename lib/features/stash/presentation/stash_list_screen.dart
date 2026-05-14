@@ -1,10 +1,17 @@
+import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/premium_provider.dart';
+import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/stash/data/stash_providers.dart';
 import 'package:dreambook/features/stash/data/stash_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+/// Free-tier maximum number of active stash bottles.
+const int kStashFreeTierCap = 20;
 
 /// Displays all available stash bottles for the current baby, FIFO ordered.
 ///
@@ -25,7 +32,7 @@ class StashListScreen extends ConsumerWidget {
             tooltip: 'Add bottle',
             onPressed: babyId == null
                 ? null
-                : () => _showAddBottleSheet(context, ref, babyId),
+                : () => _handleAddBottle(context, ref, babyId),
           ),
         ],
       ),
@@ -33,6 +40,28 @@ class StashListScreen extends ConsumerWidget {
           ? const _NoBabyPlaceholder()
           : _StashBody(babyId: babyId),
     );
+  }
+
+  /// Counts active bottles, gates on free-tier cap, then either opens the
+  /// add-bottle sheet or routes to the paywall.
+  void _handleAddBottle(
+    BuildContext context,
+    WidgetRef ref,
+    String babyId,
+  ) {
+    final isPremium = ref.read(isPremiumProvider).value ?? false;
+    final activeCount =
+        ref.read(stashAvailableProvider(babyId)).value?.length ?? 0;
+
+    if (!isPremium && activeCount >= kStashFreeTierCap) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.stashCapReachedMessage)),
+      );
+      context.push(AppRoutes.premium);
+      return;
+    }
+
+    _showAddBottleSheet(context, ref, babyId);
   }
 
   void _showAddBottleSheet(

@@ -23,15 +23,21 @@ class PremiumGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final premiumAsync = ref.watch(isPremiumProvider);
+
+    Widget locked() => GestureDetector(
+          onTap: () => context.push(AppRoutes.premium),
+          child: lockedChild ?? const _DefaultLockedWidget(),
+        );
+
     return premiumAsync.when(
-      data: (isPremium) => isPremium
-          ? child
-          : GestureDetector(
-              onTap: () => context.push(AppRoutes.premium),
-              child: lockedChild ?? const _DefaultLockedWidget(),
-            ),
+      data: (isPremium) => isPremium ? child : locked(),
+      // While RC entitlement is loading we briefly show the unlocked child to
+      // avoid a flicker on cold start — the loading window is typically <1s.
       loading: () => child,
-      error: (_, __) => child,
+      // On error (network, RC outage), fail CLOSED — show locked, not
+      // unlocked. Otherwise an offline / RC outage would grant Premium to
+      // everyone. The gate is one tap from the paywall so this is safe.
+      error: (_, __) => locked(),
     );
   }
 }

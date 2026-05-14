@@ -59,6 +59,27 @@ class BabyRepository {
     return baby;
   }
 
+  /// Alias for [insert] — preferred name for Plan D multi-baby UI.
+  ///
+  /// Plan B introduced [insert]; Plan D's Multi-baby team uses [create]. Both
+  /// names persist to keep existing tests + callers green.
+  Future<Baby> create({
+    required String name,
+    String? nickname,
+    required DateTime dob,
+    BabySex? sex,
+    String? photoPath,
+    PreferredUnit preferredUnit = PreferredUnit.oz,
+  }) =>
+      insert(
+        name: name,
+        nickname: nickname,
+        dob: dob,
+        sex: sex,
+        photoPath: photoPath,
+        preferredUnit: preferredUnit,
+      );
+
   /// Returns the single non-deleted baby (Plan B is single-baby UI).
   /// Returns null if no babies exist yet.
   Future<Baby?> getActive() async {
@@ -83,6 +104,9 @@ class BabyRepository {
     );
     return rows.map(Baby.fromRow).toList(growable: false);
   }
+
+  /// Alias for [list] — preferred name for Plan D multi-baby UI.
+  Future<List<Baby>> getAll() => list();
 
   /// Soft-delete: sets deleted_at, bumps version, marks sync_state dirty.
   Future<void> softDelete(String id) async {

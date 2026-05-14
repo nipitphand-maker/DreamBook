@@ -1,11 +1,15 @@
+import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/widgets/premium_gate.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/feed/data/feed_repository.dart' show feedTodayProvider;
 import 'package:dreambook/features/summary/data/summary_provider.dart';
 import 'package:dreambook/features/summary/presentation/feed_sparkline.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 /// Today's aggregated daily summary screen.
@@ -139,10 +143,46 @@ class _SummaryBody extends ConsumerWidget {
                 color: AppColors.inkSecondary,
               ),
               const SizedBox(height: AppSpacing.lg),
+
+              // Visit PDF (premium)
+              _VisitPdfButton(babyId: babyId),
+              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Generate Visit PDF action. Premium-gated — non-premium users see the
+/// locked variant which routes to the paywall on tap. The unlocked variant
+/// is a placeholder until Plan E wires the actual PDF generator.
+class _VisitPdfButton extends StatelessWidget {
+  const _VisitPdfButton({required this.babyId});
+
+  final String babyId;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return PremiumGate(
+      lockedChild: FilledButton.icon(
+        icon: const Icon(Icons.lock_outline),
+        label: Text(l10n.summaryGeneratePdf),
+        onPressed: () => context.push(AppRoutes.premium),
+        style: FilledButton.styleFrom(backgroundColor: Colors.grey),
+      ),
+      child: FilledButton.icon(
+        icon: const Icon(Icons.picture_as_pdf_outlined),
+        label: Text(l10n.summaryGeneratePdf),
+        onPressed: () {
+          // Placeholder: actual PDF generation lands in Plan E.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.summaryGeneratePdf)),
+          );
+        },
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/features/baby/data/baby_repository.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
 import 'package:dreambook/features/feed/data/feed_providers.dart';
@@ -23,7 +24,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.appName),
+        title: _BabySwitcherTitle(babyId: babyId),
         actions: [
           IconButton(
             tooltip: 'Daily Summary',
@@ -470,3 +471,58 @@ class _QuickLogButton extends StatelessWidget {
     );
   }
 }
+
+/// AppBar title that shows the current baby's name with a chevron, tappable
+/// to open the multi-baby switcher at [AppRoutes.babies].
+///
+/// Falls back to the app name when no baby is selected yet (e.g. before the
+/// onboarding insert resolves).
+class _BabySwitcherTitle extends ConsumerWidget {
+  const _BabySwitcherTitle({required this.babyId});
+  final String? babyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    if (babyId == null) {
+      return Text(l10n.appName);
+    }
+    final babies = ref.watch(_babiesListProvider).value;
+    final baby = babies?.firstWhere(
+      (b) => b.id == babyId,
+      orElse: () => babies.first,
+    );
+    final display = baby == null
+        ? l10n.appName
+        : (baby.nickname?.isNotEmpty == true ? baby.nickname! : baby.name);
+    return InkWell(
+      onTap: () => context.push(AppRoutes.babies),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                display,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xxs),
+            const Icon(Icons.arrow_drop_down, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Async list of all active babies (kept private to the home screen — the
+/// switcher reads the repo directly).
+final _babiesListProvider = FutureProvider<List<Baby>>((ref) async {
+  return ref.read(babyRepositoryProvider).list();
+});

@@ -1,9 +1,13 @@
+import 'package:dreambook/core/l10n/l10n_ext.dart';
+import 'package:dreambook/core/providers/premium_provider.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
+import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 const _kPortionOz = 'settings.pump.portionOz';
 
@@ -37,6 +41,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         children: [
+          const _PremiumTile(),
           const _SectionHeader(title: 'Measurements'),
           _UnitTile<VolumeUnit>(
             label: 'Volume',
@@ -146,6 +151,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Top-of-settings premium upsell.
+///
+/// Non-premium users see a tappable "Get DreamBook Premium" ListTile that
+/// routes to the paywall. Premium users see a non-tappable "Premium ✓ Active"
+/// confirmation. While entitlement is loading, renders nothing.
+class _PremiumTile extends ConsumerWidget {
+  const _PremiumTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final premiumAsync = ref.watch(isPremiumProvider);
+
+    return premiumAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (isPremium) {
+        if (isPremium) {
+          return ListTile(
+            leading: const Icon(
+              Icons.check_circle_outline,
+              color: AppColors.sage700,
+            ),
+            title: Text(l10n.settingsPremiumActive),
+          );
+        }
+        return ListTile(
+          leading: const Icon(
+            Icons.workspace_premium_outlined,
+            color: AppColors.lavender700,
+          ),
+          title: Text(l10n.settingsPremiumCta),
+          subtitle: Text(l10n.settingsPremiumSubtitle),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push(AppRoutes.premium),
+        );
+      },
     );
   }
 }

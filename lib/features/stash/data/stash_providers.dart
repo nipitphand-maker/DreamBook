@@ -33,3 +33,14 @@ final stashOldestProvider =
         (bottles) => bottles.isEmpty ? null : bottles.first,
       ),
 );
+
+/// Count of active (non-consumed, non-discarded, non-deleted) stash bottles
+/// for [babyId]. Plan D Gating team uses this to enforce the free-tier cap
+/// (20 bottles) and route to the paywall.
+///
+/// Returns `0` while loading or on error — fail-safe for gating logic so a
+/// transient DB read does not accidentally unlock the cap.
+final activeStashCountProvider = Provider.family<int, String>(
+  (ref, babyId) =>
+      ref.watch(stashAvailableProvider(babyId)).value?.length ?? 0,
+);
