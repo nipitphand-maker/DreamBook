@@ -22,6 +22,9 @@ serve(async (req) => {
   const callerHex = userData.user.id.replace(/-/g, "");
   const body = await req.json().catch(() => null) as { target_device_fp: string } | null;
   if (!body?.target_device_fp) return new Response("Bad Request", { status: 400 });
+  if (!/^[0-9a-f]{32}$/i.test(body.target_device_fp)) {
+    return new Response("Bad Request", { status: 400 });
+  }
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   const { data, error } = await admin.rpc("revoke_caregiver_atomic", {
@@ -31,6 +34,7 @@ serve(async (req) => {
   if (error) {
     if (error.message.includes("403")) return new Response("Forbidden", { status: 403 });
     if (error.message.includes("404")) return new Response("Not Found", { status: 404 });
+    if (error.message.includes("409")) return new Response("Conflict", { status: 409 });
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
   return new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });

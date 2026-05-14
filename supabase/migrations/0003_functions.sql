@@ -62,6 +62,9 @@ begin
   if not found or v_target.family_id <> v_caller.family_id then
     raise exception '404';
   end if;
+  if v_target.device_fp = v_caller.device_fp then
+    raise exception '409';
+  end if;
 
   update public.family_devices
     set revoked_at = now(), wipe_requested_at = now()
