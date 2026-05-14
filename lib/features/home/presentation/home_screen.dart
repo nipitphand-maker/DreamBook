@@ -3,6 +3,7 @@ import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
+import 'package:dreambook/features/diaper/data/diaper_repository.dart';
 import 'package:dreambook/features/feed/data/feed_providers.dart';
 import 'package:dreambook/features/pump/data/pump_providers.dart';
 import 'package:dreambook/features/stash/data/stash_providers.dart';
@@ -98,6 +99,14 @@ class _TodayHeroCard extends ConsumerWidget {
               data: (n) => '$n',
             );
 
+    final diaperCountText = babyId == null
+        ? '—'
+        : ref.watch(diaperCountTodayProvider(babyId!)).when(
+              loading: () => '—',
+              error: (_, __) => '—',
+              data: (n) => '$n',
+            );
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -105,7 +114,7 @@ class _TodayHeroCard extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _Stat(label: l10n.homeQuickLogFeed, value: feedOzText),
-            _Stat(label: l10n.homeQuickLogDiaper, value: '0'),
+            _Stat(label: l10n.homeQuickLogDiaper, value: diaperCountText),
             _Stat(label: l10n.homeQuickLogSleep, value: '0 hr'),
             _Stat(label: l10n.homeQuickLogPump, value: pumpCountText),
           ],
@@ -323,7 +332,7 @@ class _QuickLogGrid extends StatelessWidget {
         _QuickLogButton(
           icon: Icons.baby_changing_station_outlined,
           label: l10n.homeQuickLogDiaper,
-          onTap: () {},
+          onTap: () => context.go(AppRoutes.diaperNew),
         ),
         _QuickLogButton(
           icon: Icons.bedtime_outlined,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/diaper/presentation/diaper_log_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
@@ -19,6 +20,7 @@ class AppRoutes {
   static const pumpNew      = '/pump/new';
   static const settings     = '/settings';
   static const stash        = '/stash';
+  static const diaperNew    = '/diaper/new';
 }
 
 const _kOnboardingDoneKey = 'onboarding.done';
@@ -65,6 +67,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.stash,
         builder: (_, __) => const StashListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.diaperNew,
+        builder: (_, __) => const DiaperLogScreen(),
       ),
     ],
   );
