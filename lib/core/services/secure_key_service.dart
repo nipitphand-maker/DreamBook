@@ -10,7 +10,12 @@ class SecureKeyService {
 
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+    iOptions: IOSOptions(
+      // first_unlock_this_device: accessible after first unlock; does not
+      // migrate to new device (device-bound, per spec §6.1 item 2).
+      // ignore: prefer_const_constructors
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
 
   /// Returns the encryption key for sqflite_sqlcipher. Generates one on

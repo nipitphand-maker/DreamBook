@@ -32,6 +32,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // ProGuard rules are linked but minification stays off until a real
+            // release signing config is wired up. The rules will be loaded
+            // automatically once isMinifyEnabled = true.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
