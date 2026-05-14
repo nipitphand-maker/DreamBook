@@ -49,6 +49,8 @@ class SyncWorker {
   final String familyId;
   final String deviceFp;
 
+  DateTime? _lastPullAt;
+
   /// Drains the dirty queue once. Throws [SyncNetworkError] on transport
   /// failure (caller retries) or [SyncRlsReject] on server-side denial
   /// (caller stops worker and surfaces a modal).
@@ -123,5 +125,86 @@ class SyncWorker {
         whereArgs: [recordId, tableName],
       );
     }
+  }
+
+  /// Pulls every encrypted row for this family written since the last pull,
+  /// decrypts each via [envelope], verifies aad_hash against expected AAD,
+  /// then upserts the plaintext into the owning local table. Rows whose
+  /// aad_hash doesn't recompute are discarded (silent — tamper).
+  /// Rows that fail to decrypt (wrong key) are discarded; the loop
+  /// continues to the next row.
+  Future<void> pullOnce() async {
+    final rows = await server.pullRows(familyId: familyId, since: _lastPullAt);
+    for (final row in rows) {
+      await _applyIncoming(row);
+    }
+    if (rows.isNotEmpty) {
+      _lastPullAt = rows
+          .map((r) => r.updatedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+    }
+  }
+
+  /// Called by RealtimeSubscriber (Task 7) when a row arrives via websocket.
+  Future<void> onIncomingRow(RemoteEncryptedRow row) => _applyIncoming(row);
+
+  Future<void> _applyIncoming(RemoteEncryptedRow row) async {
+    final key = await familyKeys.read(familyId: familyId);
+    if (key == null) return;
+
+    final expectedAad = EncryptedRow.aadFor(
+      tableName: row.tableName,
+      recordId: row.recordId,
+      version: row.version,
+      familyId: row.familyId,
+      keyVersion: row.keyVersion,
+    );
+    final expectedHash = Uint8List.fromList(
+      (await Blake2b().hash(utf8.encode(expectedAad))).bytes,
+    );
+    if (!_constantTimeEquals(expectedHash, row.aadHash)) {
+      // Tampered metadata — discard silently.
+      return;
+    }
+    Uint8List plaintextBytes;
+    try {
+      plaintextBytes = await envelope.open(
+        Uint8List.fromList(row.ciphertext),
+        SecretKey(key.bytes),
+        utf8.encode(expectedAad),
+      );
+    } catch (_) {
+      // Wrong key / modified ciphertext — discard, continue loop.
+      return;
+    }
+    final plaintext = jsonDecode(utf8.decode(plaintextBytes)) as Map<String, Object?>;
+    await db.transaction((txn) async {
+      await txn.insert(
+        row.tableName,
+        plaintext,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await txn.insert(
+        'sync_state',
+        {
+          'record_id': row.recordId,
+          'table_name': row.tableName,
+          'version': row.version,
+          'updated_at': row.updatedAt.toIso8601String(),
+          'dirty': 0,
+          'last_synced_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+  }
+
+  static bool _constantTimeEquals(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a[i] ^ b[i];
+    }
+    return diff == 0;
   }
 }
