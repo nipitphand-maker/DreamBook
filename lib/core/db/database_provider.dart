@@ -5,10 +5,11 @@ import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../services/secure_key_service.dart';
 import 'migrations/m001_initial.dart';
 import 'migrations/m002_v2.dart';
+import 'migrations/m003_v3.dart';
 import 'migrations/migrations.dart';
 
 final migrationsProvider = Provider<Migrations>(
-  (_) => Migrations([m001Initial, m002V2]),
+  (_) => Migrations([m001Initial, m002V2, m003V3]),
 );
 
 final appDatabaseProvider = FutureProvider<Database>((ref) async {
