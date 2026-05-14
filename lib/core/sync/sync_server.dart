@@ -1,5 +1,19 @@
 import 'dart:typed_data';
 
+/// Wire-level representation of a key_distribution row addressed to one device.
+class KeyDistributionEnvelope {
+  const KeyDistributionEnvelope({
+    required this.familyId,
+    required this.recipientDeviceFp,
+    required this.keyVersion,
+    required this.wrappedKey,
+  });
+  final String familyId;
+  final String recipientDeviceFp;
+  final int keyVersion;
+  final Uint8List wrappedKey;
+}
+
 /// Wire-level representation of an encrypted_rows row when it comes back
 /// from the server. Plaintext is recovered separately by [SyncWorker].
 class RemoteEncryptedRow {
@@ -56,4 +70,10 @@ abstract class SyncServer {
   /// Stream of rows for [familyId] arriving via Realtime. Production
   /// implementation wraps a Supabase channel; tests wrap an in-memory stream.
   Stream<RemoteEncryptedRow> realtimeStream({required String familyId});
+
+  /// Returns the wrapped-key envelopes addressed to this device. Used after
+  /// a key rotation to receive the new K_family from the admin.
+  Future<List<KeyDistributionEnvelope>> pullKeyDistribution({
+    required String recipientDeviceFp,
+  });
 }

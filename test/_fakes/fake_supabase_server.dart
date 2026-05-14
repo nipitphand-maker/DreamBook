@@ -254,8 +254,8 @@ class FakeSupabaseServer implements SyncServer {
         .toList();
   }
 
-  /// Pull wrapped-key rows for one device.
-  List<FakeKeyDistributionRow> pullKeyDistribution({
+  /// Pull wrapped-key rows for one device (internal — keeps device auth check).
+  List<FakeKeyDistributionRow> pullKeyDistributionInternal({
     required String recipientDeviceFp,
   }) {
     final device = devices[recipientDeviceFp];
@@ -264,6 +264,21 @@ class FakeSupabaseServer implements SyncServer {
     }
     return keyDistribution
         .where((r) => r.recipientDeviceFp == recipientDeviceFp)
+        .toList();
+  }
+
+  @override
+  Future<List<KeyDistributionEnvelope>> pullKeyDistribution({
+    required String recipientDeviceFp,
+  }) async {
+    return keyDistribution
+        .where((r) => r.recipientDeviceFp == recipientDeviceFp)
+        .map((r) => KeyDistributionEnvelope(
+              familyId: r.familyId,
+              recipientDeviceFp: r.recipientDeviceFp,
+              keyVersion: r.keyVersion,
+              wrappedKey: r.wrappedKey,
+            ))
         .toList();
   }
 

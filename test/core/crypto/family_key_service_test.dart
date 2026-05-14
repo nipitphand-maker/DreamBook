@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dreambook/core/crypto/family_key_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -41,6 +43,25 @@ void main() {
       await service.generate(familyId: 'fam-1', keyVersion: 1);
       await service.clear(familyId: 'fam-1');
       expect(await service.read(familyId: 'fam-1'), isNull);
+    });
+
+    test('install() persists externally-derived 32-byte key', () async {
+      final bytes = Uint8List.fromList(List<int>.generate(32, (i) => 0x10 + i));
+      await service.install(familyId: 'fam-X', bytes: bytes, keyVersion: 7);
+      final back = await service.read(familyId: 'fam-X');
+      expect(back!.bytes, bytes);
+      expect(back.keyVersion, 7);
+    });
+
+    test('install() rejects non-32-byte payload', () async {
+      expect(
+        () => service.install(
+          familyId: 'fam-X',
+          bytes: Uint8List(16),
+          keyVersion: 1,
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }

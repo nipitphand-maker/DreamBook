@@ -70,6 +70,19 @@ class FamilyKeyService {
     return FamilyKey(bytes: bytes, keyVersion: nextVersion);
   }
 
+  /// Installs an externally-derived 32-byte key (e.g. from key_distribution
+  /// after a rotation). Replaces any existing entry for [familyId].
+  Future<void> install({
+    required String familyId,
+    required Uint8List bytes,
+    required int keyVersion,
+  }) async {
+    if (bytes.length != 32) {
+      throw ArgumentError('K_family must be exactly 32 bytes');
+    }
+    await _write(familyId: familyId, bytes: bytes, keyVersion: keyVersion);
+  }
+
   /// Removes the entry. Called on revocation/wipe paths.
   Future<void> clear({required String familyId}) async {
     await _storage.delete(key: _alias(familyId));
