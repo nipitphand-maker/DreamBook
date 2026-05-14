@@ -113,6 +113,10 @@
   "joinConnecting": "Connecting…",
   "joinConnected": "Connected to {babyName}'s daybook",
   "@joinConnected": { "placeholders": { "babyName": { "type": "String" } } },
+  "joinTitle": "Join a Family",
+  "joinConnectButton": "Connect",
+  "shareInviteRegenerate": "New code",
+  "shareBootstrapping": "Setting up family sharing…",
 
   "summaryTitle": "Summary",
   "summaryDailyTotals": "Today's totals",

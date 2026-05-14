@@ -7,7 +7,8 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/pump/presentation/pump_session_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
-import '../../features/share/presentation/share_invite_placeholder_screen.dart';
+import '../../features/share/presentation/claim_invite_screen.dart';
+import '../../features/share/presentation/share_invite_screen.dart';
 import '../../features/sleep/presentation/sleep_timer_screen.dart';
 import '../../features/stash/presentation/stash_list_screen.dart';
 import '../../features/summary/presentation/daily_summary_screen.dart';
@@ -18,6 +19,7 @@ class AppRoutes {
   static const welcome      = '/welcome';
   static const home         = '/';
   static const shareInvite  = '/share/invite';
+  static const shareClaim   = '/share/claim';
   static const feedNew      = '/feed/new';
   static const pumpNew      = '/pump/new';
   static const settings     = '/settings';
@@ -54,7 +56,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.shareInvite,
-        builder: (_, __) => const ShareInvitePlaceholderScreen(),
+        builder: (_, __) => const ShareInviteScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.shareClaim,
+        builder: (_, __) => const ClaimInviteScreen(),
       ),
       GoRoute(
         path: AppRoutes.feedNew,

@@ -74,12 +74,23 @@ class HomeScreen extends ConsumerWidget {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.lg),
-                            child: Text(
-                              l10n.shareJustYou,
-                              textAlign: TextAlign.center,
-                              style: AppTypography.bodyMedium(
-                                color: AppColors.inkSecondary,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  l10n.shareJustYou,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.bodyMedium(
+                                    color: AppColors.inkSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                TextButton(
+                                  onPressed: () =>
+                                      context.go(AppRoutes.shareClaim),
+                                  child: Text(l10n.joinHaveCode),
+                                ),
+                              ],
                             ),
                           ),
                         ),

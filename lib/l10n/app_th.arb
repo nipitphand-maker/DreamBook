@@ -113,6 +113,10 @@
   "joinConnecting": "กำลังเชื่อมต่อ…",
   "joinConnected": "เชื่อมต่อกับสมุดบันทึกของ {babyName} แล้ว",
   "@joinConnected": { "placeholders": { "babyName": { "type": "String" } } },
+  "joinTitle": "เข้าร่วมครอบครัว",
+  "joinConnectButton": "เชื่อมต่อ",
+  "shareInviteRegenerate": "สร้างรหัสใหม่",
+  "shareBootstrapping": "กำลังตั้งค่าการแชร์…",
 
   "summaryTitle": "สรุป",
   "summaryDailyTotals": "ยอดรวมวันนี้",
