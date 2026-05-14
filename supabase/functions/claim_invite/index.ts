@@ -62,7 +62,7 @@ serve(async (req) => {
   // Begin atomic claim via SQL function — wrap in a stored procedure for transactionality.
   const { data, error } = await admin.rpc("claim_invite_atomic", {
     p_code_hash: codeHashHex,
-    p_device_fp: deviceFpHex,
+    p_device_fp: Uint8Array.from(deviceFpHex.match(/.{2}/g)!.map((b) => parseInt(b, 16))),
     p_device_pub_key: bytesFromBase64(body.device_pub_key),
   });
 
