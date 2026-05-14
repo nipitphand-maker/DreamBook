@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:dreambook/core/sync/sync_error.dart';
+import 'package:dreambook/core/sync/sync_server.dart';
+
 /// Represents an encrypted_rows row as the fake server stores it.
 class FakeEncryptedRow {
   FakeEncryptedRow({
@@ -95,7 +98,7 @@ class FakeKeyDistributionRow {
 /// implementation is deliberately strict: every check that production RLS or
 /// an Edge Function performs is also performed here, so tests catch the same
 /// mistakes locally as they would against the real server.
-class FakeSupabaseServer {
+class FakeSupabaseServer implements SyncServer {
   final Map<String, FakeFamily> families = {};
   final Map<String, FakeDevice> devices = {}; // keyed by deviceFp
   final List<FakeEncryptedRow> encryptedRows = [];
@@ -113,7 +116,7 @@ class FakeSupabaseServer {
   ///
   /// Returns the inserted row on success. Throws [FakeHttpException] with a
   /// status code if the operation is rejected.
-  Future<FakeEncryptedRow> insertEncryptedRow({
+  Future<FakeEncryptedRow> insertEncryptedRowInternal({
     required FakeEncryptedRow row,
     required String authDeviceFp,
   }) async {
@@ -140,8 +143,84 @@ class FakeSupabaseServer {
     return row;
   }
 
+  // ── SyncServer interface ────────────────────────────────────────────────
+
+  @override
+  Future<void> insertEncryptedRow({
+    required String id,
+    required String familyId,
+    required String tableName,
+    required String recordId,
+    required int version,
+    required int keyVersion,
+    required Uint8List ciphertext,
+    required Uint8List aadHash,
+    required String writtenByDevice,
+    required DateTime updatedAt,
+    DateTime? deletedAt,
+  }) async {
+    // Delegate to the existing internal-helper insert; we'll find auth from
+    // writtenByDevice (production has auth.uid()::bytea, here we trust the
+    // value passed because tests construct it explicitly).
+    final row = FakeEncryptedRow(
+      id: id,
+      familyId: familyId,
+      tableName: tableName,
+      recordId: recordId,
+      version: version,
+      keyVersion: keyVersion,
+      ciphertext: ciphertext,
+      aadHash: aadHash,
+      writtenByDevice: writtenByDevice,
+      updatedAt: updatedAt,
+      deletedAt: deletedAt,
+    );
+    // Use writtenByDevice as the auth identity for the RLS-equivalent check.
+    // Translate FakeHttpException / FakeNetworkException into SyncServer
+    // interface error types so SyncWorker never needs to import test fakes.
+    try {
+      await insertEncryptedRowInternal(row: row, authDeviceFp: writtenByDevice);
+    } on FakeNetworkException catch (e) {
+      throw SyncNetworkError(e);
+    } on FakeHttpException catch (e) {
+      if (e.statusCode == 403) {
+        throw SyncRlsReject(e.message);
+      }
+      throw SyncNetworkError(e);
+    }
+  }
+
+  @override
+  Future<List<RemoteEncryptedRow>> pullRows({
+    required String familyId,
+    DateTime? since,
+  }) async {
+    // For test convenience, allow any caller to pull (no auth gate here).
+    // The push path's RLS check is what tests exercise; pull-side RLS is
+    // covered separately in integration tests that set up devices.
+    final filtered = encryptedRows.where((r) =>
+        r.familyId == familyId &&
+        (since == null || r.updatedAt.isAfter(since)));
+    return filtered
+        .map((r) => RemoteEncryptedRow(
+              tableName: r.tableName,
+              recordId: r.recordId,
+              version: r.version,
+              keyVersion: r.keyVersion,
+              familyId: r.familyId,
+              ciphertext: r.ciphertext,
+              aadHash: r.aadHash,
+              writtenByDevice: r.writtenByDevice,
+              updatedAt: r.updatedAt,
+              deletedAt: r.deletedAt,
+            ))
+        .toList();
+  }
+
+  // ── Legacy pull (kept for backwards compat in existing tests) ───────────
+
   /// Pull encrypted rows updated after [sinceUtc] for [familyId].
-  List<FakeEncryptedRow> pullRows({
+  List<FakeEncryptedRow> pullRowsInternal({
     required String familyId,
     required String authDeviceFp,
     DateTime? sinceUtc,
