@@ -46,6 +46,9 @@ dependencies:
   # QR code display (Plan C-3) — invite code QR widget
   qr_flutter: ^4.1.0
 
+  # Subscriptions (Plan D) — RevenueCat in-app purchases
+  purchases_flutter: ^8.7.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
