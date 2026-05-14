@@ -1,3 +1,4 @@
+import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/core/widgets/premium_gate.dart';
@@ -51,8 +52,8 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to generate PDF. Please try again.'),
+          SnackBar(
+            content: Text(context.l10n.visitReportErrorGenerate),
           ),
         );
       }
@@ -63,8 +64,9 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Visit Report')),
+      appBar: AppBar(title: Text(l10n.visitReportTitle)),
       body: PremiumGate(
         lockedChild: Center(
           child: Padding(
@@ -79,14 +81,14 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Visit Report is a Premium feature.',
+                  l10n.visitReportLockedMessage,
                   style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FilledButton(
                   onPressed: () => context.push(AppRoutes.premium),
-                  child: const Text('Get Premium'),
+                  child: Text(l10n.premiumCtaBuy),
                 ),
               ],
             ),
@@ -97,17 +99,17 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Date range',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              l10n.visitReportDateRangeLabel,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Center(
               child: SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 7, label: Text('7 days')),
-                  ButtonSegment(value: 14, label: Text('14 days')),
-                  ButtonSegment(value: 30, label: Text('30 days')),
+                segments: [
+                  ButtonSegment(value: 7, label: Text(l10n.visitReportRangeDays('7'))),
+                  ButtonSegment(value: 14, label: Text(l10n.visitReportRangeDays('14'))),
+                  ButtonSegment(value: 30, label: Text(l10n.visitReportRangeDays('30'))),
                 ],
                 selected: {_rangeDays},
                 onSelectionChanged: (s) =>
@@ -119,9 +121,9 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
               controller: _concernsController,
               maxLines: 4,
               maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Concerns to discuss (optional)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.visitReportConcernsLabel,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
@@ -136,7 +138,7 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
                       ),
                     )
                   : const Icon(Icons.picture_as_pdf_outlined),
-              label: Text(_isGenerating ? 'Preparing PDF…' : 'Generate PDF'),
+              label: Text(_isGenerating ? l10n.visitReportSharing : l10n.visitReportGenerateCta),
               onPressed: _isGenerating ? null : _generate,
             ),
           ],

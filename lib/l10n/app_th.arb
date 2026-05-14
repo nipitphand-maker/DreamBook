@@ -209,5 +209,33 @@
   "visitReportGenerateCta": "สร้าง PDF",
   "visitReportSharing": "กำลังเตรียม PDF…",
 
-  "settingsVaccinations": "วัคซีน"
+  "settingsVaccinations": "วัคซีน",
+
+  "visitReportLockedMessage": "Visit Report เป็นฟีเจอร์ Premium",
+  "visitReportDateRangeLabel": "ช่วงเวลา",
+  "visitReportErrorGenerate": "สร้าง PDF ไม่สำเร็จ กรุณาลองใหม่",
+
+  "summaryLoadError": "โหลดสรุปไม่สำเร็จ",
+  "summaryNoBabyProfile": "ยังไม่มีข้อมูลเด็ก",
+  "summaryFeedingLabel": "นมแม่/ขวดนม",
+  "summaryDiapersLabel": "ผ้าอ้อม",
+  "summarySleepingNow": "กำลังนอน",
+  "summaryPumpLabel": "ปั๊มนม",
+
+  "errorNoBabyProfile": "ยังไม่ได้เลือกเด็ก",
+
+  "settingsSectionMeasurements": "การวัด",
+  "settingsSectionDisplay": "การแสดงผล",
+  "settingsSectionPumping": "การปั๊มนม",
+  "settingsSectionHealth": "สุขภาพ",
+  "settingsSectionAbout": "เกี่ยวกับ",
+  "settingsVolumeLabel": "ปริมาตร",
+  "settingsWeightLabel": "น้ำหนัก",
+  "settingsLengthLabel": "ความยาว",
+  "settingsTempLabel": "อุณหภูมิ",
+  "settingsTimeFormatLabel": "รูปแบบเวลา",
+  "settingsWeekStartLabel": "สัปดาห์เริ่มต้นวัน",
+  "settingsBottleSizeLabel": "ขนาดขวดเริ่มต้น",
+  "settingsVersion": "เวอร์ชัน",
+  "settingsPrivacyPolicy": "นโยบายความเป็นส่วนตัว"
 }

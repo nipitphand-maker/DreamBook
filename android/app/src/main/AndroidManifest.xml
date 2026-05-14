@@ -45,5 +45,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- DreamBaby bridge (Plan F) — install check + cross-app launch -->
+        <package android:name="com.dreambaby.dreambaby"/>
     </queries>
 </manifest>

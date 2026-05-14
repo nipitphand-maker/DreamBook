@@ -209,5 +209,33 @@
   "visitReportGenerateCta": "Generate PDF",
   "visitReportSharing": "Preparing PDF…",
 
-  "settingsVaccinations": "Vaccinations"
+  "settingsVaccinations": "Vaccinations",
+
+  "visitReportLockedMessage": "Visit Report is a Premium feature.",
+  "visitReportDateRangeLabel": "Date range",
+  "visitReportErrorGenerate": "Failed to generate PDF. Please try again.",
+
+  "summaryLoadError": "Error loading summary.",
+  "summaryNoBabyProfile": "No baby profile found.",
+  "summaryFeedingLabel": "Feeding",
+  "summaryDiapersLabel": "Diapers",
+  "summarySleepingNow": "sleeping now",
+  "summaryPumpLabel": "Pump",
+
+  "errorNoBabyProfile": "No baby selected.",
+
+  "settingsSectionMeasurements": "Measurements",
+  "settingsSectionDisplay": "Display",
+  "settingsSectionPumping": "Pumping",
+  "settingsSectionHealth": "Health",
+  "settingsSectionAbout": "About",
+  "settingsVolumeLabel": "Volume",
+  "settingsWeightLabel": "Weight",
+  "settingsLengthLabel": "Length",
+  "settingsTempLabel": "Temperature",
+  "settingsTimeFormatLabel": "Time format",
+  "settingsWeekStartLabel": "Week starts on",
+  "settingsBottleSizeLabel": "Default bottle size",
+  "settingsVersion": "Version",
+  "settingsPrivacyPolicy": "Privacy Policy"
 }

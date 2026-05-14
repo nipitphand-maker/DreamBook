@@ -30,7 +30,7 @@ class VaccinationLogScreen extends ConsumerWidget {
               child: const Icon(Icons.add),
             ),
       body: babyId == null
-          ? const Center(child: Text('No baby profile.'))
+          ? Center(child: Text(l10n.errorNoBabyProfile))
           : ref.watch(vaccinationListProvider(babyId)).when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (_, __) => Center(child: Text(l10n.errorGeneric)),

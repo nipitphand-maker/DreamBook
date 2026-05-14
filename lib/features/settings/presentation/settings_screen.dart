@@ -37,15 +37,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Settings'),
+        title: Text(l10n.tabSettings),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         children: [
           const _PremiumTile(),
-          const _SectionHeader(title: 'Measurements'),
+          _SectionHeader(title: l10n.settingsSectionMeasurements),
           _UnitTile<VolumeUnit>(
-            label: 'Volume',
+            label: l10n.settingsVolumeLabel,
             selected: {prefs.volume},
             segments: const [
               ButtonSegment(value: VolumeUnit.oz, label: Text('oz')),
@@ -54,7 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onSelectionChanged: (s) => notifier.setVolume(s.first),
           ),
           _UnitTile<WeightUnit>(
-            label: 'Weight',
+            label: l10n.settingsWeightLabel,
             selected: {prefs.weight},
             segments: const [
               ButtonSegment(value: WeightUnit.lbOz, label: Text('lb + oz')),
@@ -63,7 +63,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onSelectionChanged: (s) => notifier.setWeight(s.first),
           ),
           _UnitTile<LengthUnit>(
-            label: 'Length',
+            label: l10n.settingsLengthLabel,
             selected: {prefs.length},
             segments: const [
               ButtonSegment(value: LengthUnit.inches, label: Text('in')),
@@ -72,7 +72,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onSelectionChanged: (s) => notifier.setLength(s.first),
           ),
           _UnitTile<TempUnit>(
-            label: 'Temperature',
+            label: l10n.settingsTempLabel,
             selected: {prefs.temp},
             segments: const [
               ButtonSegment(value: TempUnit.fahrenheit, label: Text('°F')),
@@ -80,9 +80,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
             onSelectionChanged: (s) => notifier.setTemp(s.first),
           ),
-          const _SectionHeader(title: 'Display'),
+          _SectionHeader(title: l10n.settingsSectionDisplay),
           _UnitTile<TimeFormat>(
-            label: 'Time format',
+            label: l10n.settingsTimeFormatLabel,
             selected: {prefs.timeFormat},
             segments: const [
               ButtonSegment(value: TimeFormat.h12, label: Text('12h')),
@@ -91,7 +91,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onSelectionChanged: (s) => notifier.setTimeFormat(s.first),
           ),
           _UnitTile<WeekStart>(
-            label: 'Week starts on',
+            label: l10n.settingsWeekStartLabel,
             selected: {prefs.weekStart},
             segments: const [
               ButtonSegment(value: WeekStart.sunday, label: Text('Sun')),
@@ -99,9 +99,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
             onSelectionChanged: (s) => notifier.setWeekStart(s.first),
           ),
-          const _SectionHeader(title: 'Pumping'),
+          _SectionHeader(title: l10n.settingsSectionPumping),
           ListTile(
-            title: const Text('Default bottle size'),
+            title: Text(l10n.settingsBottleSizeLabel),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -138,22 +138,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
-          const _SectionHeader(title: 'Health'),
+          _SectionHeader(title: l10n.settingsSectionHealth),
           ListTile(
             leading: const Icon(Icons.vaccines_outlined),
             title: Text(l10n.settingsVaccinations),
             trailing: const Icon(Icons.chevron_right, color: AppColors.inkSecondary),
             onTap: () => context.push(AppRoutes.vaccination),
           ),
-          const _SectionHeader(title: 'About'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Version'),
-            subtitle: Text('1.0.0 (build 1)'),
+          _SectionHeader(title: l10n.settingsSectionAbout),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(l10n.settingsVersion),
+            subtitle: const Text('1.0.0 (build 1)'),
           ),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Privacy Policy'),
+            title: Text(l10n.settingsPrivacyPolicy),
             trailing: const Icon(Icons.open_in_new_outlined, size: 16),
             onTap: () {},
           ),

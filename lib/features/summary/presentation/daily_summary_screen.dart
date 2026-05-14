@@ -20,6 +20,7 @@ class DailySummaryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final babyId = ref.watch(currentBabyIdProvider);
     final now = DateTime.now();
     final dateLabel = DateFormat('EEEE, MMMM d').format(now);
@@ -27,7 +28,7 @@ class DailySummaryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Today'),
+        title: Text(l10n.today),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.md),
@@ -54,7 +55,7 @@ class _NoBabyPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'No baby profile found.',
+        context.l10n.summaryNoBabyProfile,
         style: AppTypography.bodyLarge(color: AppColors.inkSecondary),
       ),
     );
@@ -69,6 +70,7 @@ class _SummaryBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final summaryAsync = ref.watch(dailySummaryProvider(babyId));
     final feedListAsync = ref.watch(feedTodayProvider(babyId));
 
@@ -76,7 +78,7 @@ class _SummaryBody extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
         child: Text(
-          'Error loading summary.',
+          l10n.summaryLoadError,
           style: AppTypography.bodyLarge(color: AppColors.inkSecondary),
         ),
       ),
@@ -96,7 +98,7 @@ class _SummaryBody extends ConsumerWidget {
               // Feeding
               _SummaryCard(
                 icon: Icons.water_drop_outlined,
-                label: 'Feeding',
+                label: l10n.summaryFeedingLabel,
                 value: summary.feedFormatted,
                 color: AppColors.lavender700,
               ),
@@ -110,7 +112,7 @@ class _SummaryBody extends ConsumerWidget {
               // Pump
               _SummaryCard(
                 icon: Icons.compress_outlined,
-                label: 'Pump',
+                label: l10n.summaryPumpLabel,
                 value: '${summary.pumpCount} sessions',
                 color: AppColors.peach700,
               ),
@@ -119,7 +121,7 @@ class _SummaryBody extends ConsumerWidget {
               // Diaper
               _SummaryCard(
                 icon: Icons.baby_changing_station_outlined,
-                label: 'Diapers',
+                label: l10n.summaryDiapersLabel,
                 value: '${summary.diaperCount} changes',
                 color: AppColors.honey700,
               ),
@@ -128,9 +130,9 @@ class _SummaryBody extends ConsumerWidget {
               // Sleep
               _SummaryCard(
                 icon: Icons.bedtime_outlined,
-                label: 'Sleep',
+                label: l10n.homeQuickLogSleep,
                 value: summary.sleepFormatted +
-                    (summary.babyIsAsleep ? ' · sleeping now' : ''),
+                    (summary.babyIsAsleep ? ' · ${l10n.summarySleepingNow}' : ''),
                 color: AppColors.sage700,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -138,7 +140,7 @@ class _SummaryBody extends ConsumerWidget {
               // Stash
               _SummaryCard(
                 icon: Icons.ac_unit,
-                label: 'Freezer stash',
+                label: l10n.stashTitle,
                 value: summary.stashFormatted,
                 color: AppColors.inkSecondary,
               ),

@@ -53,6 +53,9 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.13.0
 
+  # Cross-app bridge (Plan F) — launch DreamBaby from DreamBook
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
