@@ -1,11 +1,17 @@
+// revoke_caregiver Edge Function — Plan C-3.
+// Body: { target_device_fp: hex32 }
+// Looks up the caller's real device_fp via family_devices (auth_user_id match),
+// then calls revoke_caregiver_atomic via the service role.
+
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-function hexToUint8Array(hex: string): Uint8Array {
-  return Uint8Array.from(hex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+function toByteaHex(hex: string): string {
+  return "\\x" + hex.replace(/^\\x/, "");
 }
 
 serve(async (req) => {
@@ -13,13 +19,34 @@ serve(async (req) => {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) return new Response("Unauthorized", { status: 401 });
 
-  const userClient = createClient(SUPABASE_URL, authHeader.replace("Bearer ", ""), {
+  // Authenticate the caller via their JWT.
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false },
   });
   const { data: userData } = await userClient.auth.getUser();
   if (!userData?.user) return new Response("Unauthorized", { status: 401 });
 
-  const callerHex = userData.user.id.replace(/-/g, "");
+  // Resolve the caller's cryptographic device_fp from family_devices.
+  // device_fp is SHA-256(pubkey)[0:16] — NOT the auth user UUID.
+  const { data: callerDevice, error: deviceErr } = await userClient
+    .from("family_devices")
+    .select("device_fp")
+    .eq("auth_user_id", userData.user.id)
+    .is("revoked_at", null)
+    .limit(1)
+    .single();
+
+  if (deviceErr || !callerDevice?.device_fp) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  // PostgREST returns bytea as "\x{hex}" string.
+  const callerFpHex = String(callerDevice.device_fp).replace(/^\\x/, "");
+  if (!/^[0-9a-f]{32}$/i.test(callerFpHex)) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const body = await req.json().catch(() => null) as { target_device_fp: string } | null;
   if (!body?.target_device_fp) return new Response("Bad Request", { status: 400 });
   if (!/^[0-9a-f]{32}$/i.test(body.target_device_fp)) {
@@ -28,8 +55,8 @@ serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   const { data, error } = await admin.rpc("revoke_caregiver_atomic", {
-    p_caller_device_fp: hexToUint8Array(callerHex),
-    p_target_device_fp: hexToUint8Array(body.target_device_fp),
+    p_caller_device_fp: toByteaHex(callerFpHex),
+    p_target_device_fp: toByteaHex(body.target_device_fp),
   });
   if (error) {
     if (error.message.includes("403")) return new Response("Forbidden", { status: 403 });

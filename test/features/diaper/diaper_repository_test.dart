@@ -3,9 +3,12 @@ import 'package:dreambook/core/db/migrations/m001_initial.dart';
 import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/device_id_provider.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -14,8 +17,11 @@ void main() {
   late Database db;
   late ProviderContainer container;
   late DiaperRepository repo;
+  late SharedPreferences prefs;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
@@ -29,6 +35,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWith((_) async => db),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        deviceIdProvider.overrideWithValue('test-device-fp'),
       ],
     );
     repo = container.read(diaperRepositoryProvider);

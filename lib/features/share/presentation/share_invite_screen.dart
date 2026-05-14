@@ -5,17 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/crypto/device_identity_service.dart';
 import '../../../core/crypto/family_key_service.dart';
 import '../../../core/crypto/invite_code_service.dart';
+import '../../../core/db/database_provider.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
+import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../baby/data/baby_repository.dart';
 
 const _kFamilyIdKey = 'family.id';
+// Server enforces 1-hour TTL in create_invite_fn SQL — must match.
 const Duration _kInviteTtl = Duration(hours: 1);
 
 // Plan C spec mandates encrypted shared preferences on Android; the
@@ -42,8 +46,6 @@ class ShareInviteScreen extends ConsumerStatefulWidget {
 }
 
 class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
-  // Placeholder until Plan D introduces real baby name into the share flow.
-  static const String _babyNamePlaceholder = 'Baby';
 
   _ScreenStatus _status = _ScreenStatus.bootstrapping;
   String? _errorMessage;
@@ -94,31 +96,45 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
   Future<String> _ensureFamily() async {
     final prefs = ref.read(sharedPreferencesProvider);
     final existing = prefs.getString(_kFamilyIdKey);
+    final supa = Supabase.instance.client;
+
     if (existing != null && existing.isNotEmpty) {
       // Self-heal: if we have a family id but no key locally, regenerate.
       final stored = await _familyKeys.read(familyId: existing);
       if (stored == null) {
         await _familyKeys.generate(familyId: existing, keyVersion: 1);
       }
+      // Self-heal: if session is missing (e.g. installed when anonymous
+      // sign-ins were disabled), re-authenticate and re-call bootstrap so
+      // auth_user_id is written into family_devices and RLS works.
+      if (supa.auth.currentSession == null) {
+        try {
+          await supa.auth.signInAnonymously();
+          final identity = await _identity.getOrCreate();
+          await supa.functions.invoke(
+            'bootstrap_family',
+            body: {'device_pub_key': base64Encode(identity.publicKeyBytes)},
+          );
+          ref.invalidate(syncLifecycleControllerProvider);
+          ref.read(syncLifecycleControllerProvider).syncNow().ignore();
+        } catch (e) {
+          debugPrint('[DreamBook] session self-heal failed: $e');
+        }
+      }
       return existing;
     }
 
     // Ensure anonymous session is live before invoking Edge Function.
-    final supa = Supabase.instance.client;
     if (supa.auth.currentSession == null) {
       await supa.auth.signInAnonymously();
     }
 
     final identity = await _identity.getOrCreate();
+    // functions.invoke() throws FunctionException on non-2xx — no status check needed.
     final resp = await supa.functions.invoke(
       'bootstrap_family',
       body: {'device_pub_key': base64Encode(identity.publicKeyBytes)},
     );
-    if (resp.status != 200 && resp.status != 201) {
-      throw Exception(
-        'bootstrap_family failed (${resp.status}): ${resp.data}',
-      );
-    }
     final data = resp.data;
     if (data is! Map || data['family_id'] is! String) {
       throw Exception('bootstrap_family returned unexpected payload');
@@ -127,6 +143,10 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
     await prefs.setString(_kFamilyIdKey, familyId);
     // First key for a fresh family is always version 1.
     await _familyKeys.generate(familyId: familyId, keyVersion: 1);
+    // Rebuild sync controller from no-op → real worker now that family.id exists,
+    // then push local data so caregivers can pull it immediately after joining.
+    ref.invalidate(syncLifecycleControllerProvider);
+    ref.read(syncLifecycleControllerProvider).syncNow().ignore();
     return familyId;
   }
 
@@ -152,24 +172,22 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
       familyKey: familyKey.bytes,
       familyId: familyId,
     );
+    final identity = await _identity.getOrCreate();
+    // expires_at is server-enforced (1hr TTL); keep local copy for countdown only.
     final expiresAt = DateTime.now().toUtc().add(_kInviteTtl);
 
     final supa = Supabase.instance.client;
-    final resp = await supa.functions.invoke(
+    // functions.invoke() throws FunctionException on non-2xx — no status check needed.
+    await supa.functions.invoke(
       'create_invite',
       body: {
         'family_id': familyId,
         'code_hash': codeHashHex,
         'salt': base64Encode(wrapped.salt),
         'wrapped_key': base64Encode(wrapped.wrappedKeyEnvelope),
-        'expires_at': expiresAt.toIso8601String(),
+        'device_pub_key': base64Encode(identity.publicKeyBytes),
       },
     );
-    if (resp.status != 200 && resp.status != 201) {
-      throw Exception(
-        'create_invite failed (${resp.status}): ${resp.data}',
-      );
-    }
 
     if (!mounted) return;
     setState(() {
@@ -183,21 +201,32 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
 
   void _startTicker() {
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+    // 20-second interval for tighter countdown accuracy (was 30 s).
+    _ticker = Timer.periodic(const Duration(seconds: 20), (_) {
       final expiresAt = _expiresAt;
       if (expiresAt == null) return;
       final remaining = expiresAt.difference(DateTime.now().toUtc());
       if (!mounted) return;
+      if (remaining <= Duration.zero) {
+        _ticker?.cancel();
+        setState(() {
+          _minutesRemaining = 0;
+          _status = _ScreenStatus.error;
+          _errorMessage = context.l10n.shareInviteExpired;
+        });
+        return;
+      }
       setState(() {
         _minutesRemaining = remaining.inMinutes.clamp(0, _kInviteTtl.inMinutes);
       });
-      if (remaining <= Duration.zero) {
-        _ticker?.cancel();
-      }
     });
   }
 
   Future<void> _onRegenerate() async {
+    // Guard against concurrent calls: a second tap while generating would
+    // create a second active invite row in the DB.
+    if (_status == _ScreenStatus.generating) return;
+
     final prefs = ref.read(sharedPreferencesProvider);
     final familyId = prefs.getString(_kFamilyIdKey);
     if (familyId == null) {
@@ -215,7 +244,7 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
     }
   }
 
-  Future<void> _onShare() async {
+  Future<void> _onCopy() async {
     final code = _code;
     if (code == null) return;
     await Clipboard.setData(ClipboardData(text: code));
@@ -225,9 +254,17 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
     );
   }
 
+  Future<void> _onShare() async {
+    final code = _code;
+    if (code == null) return;
+    await Share.share('Join my DreamBook family! Use code: $code');
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final babyName =
+        ref.watch(_activeBabyNameProvider).value ?? l10n.appName;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.shareTitle)),
       body: SafeArea(
@@ -246,8 +283,9 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
               ),
             _ScreenStatus.ready => _ReadyView(
                 code: _code!,
-                babyName: _babyNamePlaceholder,
+                babyName: babyName,
                 minutesRemaining: _minutesRemaining,
+                onCopy: _onCopy,
                 onShare: _onShare,
                 onRegenerate: _onRegenerate,
               ),
@@ -259,6 +297,13 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
 }
 
 enum _ScreenStatus { bootstrapping, generating, ready, error }
+
+final _activeBabyNameProvider = FutureProvider<String?>((ref) async {
+  ref.watch(appDatabaseProvider);
+  final baby = await ref.read(babyRepositoryProvider).getActive();
+  if (baby == null) return null;
+  return baby.nickname?.isNotEmpty == true ? baby.nickname! : baby.name;
+});
 
 class _LoadingView extends StatelessWidget {
   const _LoadingView({required this.message});
@@ -320,6 +365,7 @@ class _ReadyView extends StatelessWidget {
     required this.code,
     required this.babyName,
     required this.minutesRemaining,
+    required this.onCopy,
     required this.onShare,
     required this.onRegenerate,
   });
@@ -327,7 +373,8 @@ class _ReadyView extends StatelessWidget {
   final String code;
   final String babyName;
   final int minutesRemaining;
-  final VoidCallback onShare;
+  final Future<void> Function() onCopy;
+  final Future<void> Function() onShare;
   final Future<void> Function() onRegenerate;
 
   @override
@@ -336,49 +383,55 @@ class _ReadyView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.lg),
         Text(
           l10n.shareInviteHeadline(babyName),
           textAlign: TextAlign.center,
           style: AppTypography.headlineMedium(color: AppColors.inkPrimary),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-            ),
-            child: QrImageView(
-              data: code,
-              size: 200,
-              backgroundColor: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.xl),
         Text(
           l10n.shareInviteCodeLabel,
           textAlign: TextAlign.center,
           style: AppTypography.labelLarge(color: AppColors.inkSecondary),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        SelectableText(
-          code,
-          textAlign: TextAlign.center,
-          style: AppTypography.statHero(color: AppColors.lavender700),
+        const SizedBox(height: AppSpacing.sm),
+        GestureDetector(
+          onTap: onCopy,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.neutralMuted,
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
+            child: Text(
+              code,
+              textAlign: TextAlign.center,
+              style: AppTypography.statHero(color: AppColors.lavender700),
+            ),
+          ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.sm),
         Center(
           child: Chip(
             label: Text(l10n.shareInviteExpiresIn(minutesRemaining)),
+            labelStyle: AppTypography.labelLarge(color: AppColors.inkSecondary),
             backgroundColor: AppColors.neutralMuted,
             side: BorderSide.none,
           ),
         ),
         const Spacer(),
         FilledButton.icon(
+          onPressed: onCopy,
+          icon: const Icon(Icons.copy_outlined),
+          label: Text(l10n.shareInviteCopy),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        OutlinedButton.icon(
           onPressed: onShare,
           icon: const Icon(Icons.share_outlined),
           label: Text(l10n.shareInviteShareVia),

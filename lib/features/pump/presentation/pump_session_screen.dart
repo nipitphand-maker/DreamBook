@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
+import 'package:dreambook/core/providers/unit_preferences_provider.dart';
+import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/pump/data/pump_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dreambook/core/router/app_router.dart';
 import 'package:go_router/go_router.dart';
 
 // ---------------------------------------------------------------------------
@@ -167,7 +170,6 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
       _elapsed = _currentElapsed;
     });
     await prefs.setString(_kTimerPausedAt, now.toIso8601String());
-    await prefs.setInt(_kPausedDurSec, _pausedTotalSec);
   }
 
   Future<void> _onStop() async {
@@ -217,7 +219,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
     if (babyId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No baby selected')),
+        SnackBar(content: Text(context.l10n.errorNoBabyProfile)),
       );
       return;
     }
@@ -253,7 +255,11 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
     unawaited(HapticFeedback.lightImpact());
     if (!mounted) return;
-    context.pop();
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.home);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -287,10 +293,12 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
     if (total <= 0 || _portionOz <= 0) return [];
     final result = <double>[];
     double remaining = total;
-    while (remaining > 0.01) {
+    int guard = 0;
+    while (remaining > 0.01 && guard++ < 200) {
       final portion = remaining >= _portionOz
           ? _portionOz
           : double.parse(remaining.toStringAsFixed(1));
+      if (portion <= 0) break;
       result.add(portion);
       remaining -= portion;
     }
@@ -301,11 +309,12 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   // Manual entry sheet
   // ---------------------------------------------------------------------------
 
-  void _showManualEntry() {
+  void _showManualEntry(VolumeUnit unit) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => _ManualEntrySheet(
+        unit: unit,
         onSave: (startedAt, durationMinutes, leftOz, rightOz) {
           Navigator.of(ctx).pop();
           _save(
@@ -336,6 +345,11 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
   double get _totalOz => _leftOz + _rightOz;
 
+  String _fmtTotal(VolumeUnit unit) {
+    if (unit == VolumeUnit.oz) return 'Total: ${_totalOz.toStringAsFixed(1)} oz';
+    return 'Total: ${(_totalOz * _mlPerOz).round()} ml';
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -343,6 +357,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final unit = ref.watch(unitPreferencesProvider).volume;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.pumpScreenTitle)),
@@ -377,11 +392,12 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                       },
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    // --- Oz steppers ---
+                    // --- Volume steppers ---
                     _OzSteppers(
                       side: _side,
                       leftOz: _leftOz,
                       rightOz: _rightOz,
+                      unit: unit,
                       onLeftChanged: (v) => setState(() {
                         _leftOz = v;
                         _bottles = _computeBottles();
@@ -394,7 +410,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                     const SizedBox(height: AppSpacing.xs),
                     Center(
                       child: Text(
-                        'Total: ${_totalOz.toStringAsFixed(1)} oz',
+                        _fmtTotal(unit),
                         style: AppTypography.bodyMedium(
                             color: AppColors.inkSecondary),
                       ),
@@ -434,6 +450,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                       _BottlePreviewSection(
                         bottles: _bottles,
                         portionOz: _portionOz,
+                        unit: unit,
                         onPortionChanged: (v) {
                           setState(() {
                             _portionOz = v;
@@ -456,8 +473,8 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                     ],
                     // --- Manual entry ---
                     TextButton(
-                      onPressed: _showManualEntry,
-                      child: const Text('+ Add past pump'),
+                      onPressed: () => _showManualEntry(unit),
+                      child: Text(context.l10n.pumpAddPast),
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
@@ -490,6 +507,19 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 }
 
 // ---------------------------------------------------------------------------
+// Volume conversion helpers
+// ---------------------------------------------------------------------------
+
+const _mlPerOz = 29.5735;
+
+double _stepFor(VolumeUnit u) => u == VolumeUnit.oz ? 0.5 : 5.0 / _mlPerOz;
+double _maxFor(VolumeUnit u) => u == VolumeUnit.oz ? 16.0 : 500.0 / _mlPerOz;
+
+String _fmtVol(double oz, VolumeUnit u) => u == VolumeUnit.oz
+    ? '${oz.toStringAsFixed(1)} oz'
+    : '${(oz * _mlPerOz).round()} ml';
+
+// ---------------------------------------------------------------------------
 // Side toggle widget
 // ---------------------------------------------------------------------------
 
@@ -501,11 +531,12 @@ class _SideToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return SegmentedButton<_Side>(
-      segments: const [
-        ButtonSegment(value: _Side.both, label: Text('Both')),
-        ButtonSegment(value: _Side.left, label: Text('L only')),
-        ButtonSegment(value: _Side.right, label: Text('R only')),
+      segments: [
+        ButtonSegment(value: _Side.both, label: Text(l10n.pumpBothSides)),
+        ButtonSegment(value: _Side.left, label: Text(l10n.pumpLeftOnly)),
+        ButtonSegment(value: _Side.right, label: Text(l10n.pumpRightOnly)),
       ],
       selected: {side},
       onSelectionChanged: (s) => onChanged(s.first),
@@ -522,6 +553,7 @@ class _OzSteppers extends StatelessWidget {
     required this.side,
     required this.leftOz,
     required this.rightOz,
+    required this.unit,
     required this.onLeftChanged,
     required this.onRightChanged,
   });
@@ -529,6 +561,7 @@ class _OzSteppers extends StatelessWidget {
   final _Side side;
   final double leftOz;
   final double rightOz;
+  final VolumeUnit unit;
   final ValueChanged<double> onLeftChanged;
   final ValueChanged<double> onRightChanged;
 
@@ -537,18 +570,10 @@ class _OzSteppers extends StatelessWidget {
     return Column(
       children: [
         if (side == _Side.both || side == _Side.left)
-          _OzRow(
-            label: 'Left (oz)',
-            value: leftOz,
-            onChanged: onLeftChanged,
-          ),
+          _OzRow(label: 'Left', value: leftOz, unit: unit, onChanged: onLeftChanged),
         if (side == _Side.both) const SizedBox(height: AppSpacing.sm),
         if (side == _Side.both || side == _Side.right)
-          _OzRow(
-            label: 'Right (oz)',
-            value: rightOz,
-            onChanged: onRightChanged,
-          ),
+          _OzRow(label: 'Right', value: rightOz, unit: unit, onChanged: onRightChanged),
       ],
     );
   }
@@ -558,15 +583,19 @@ class _OzRow extends StatelessWidget {
   const _OzRow({
     required this.label,
     required this.value,
+    required this.unit,
     required this.onChanged,
   });
 
   final String label;
-  final double value;
+  final double value; // always stored in oz
+  final VolumeUnit unit;
   final ValueChanged<double> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final step = _stepFor(unit);
+    final max = _maxFor(unit);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -580,21 +609,25 @@ class _OzRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         IconButton.filled(
-          onPressed: value <= 0.0 ? null : () => onChanged(value - 0.5),
+          onPressed: value <= 0.0 ? null : () => onChanged(
+            double.parse((value - step).clamp(0.0, max).toStringAsFixed(5)),
+          ),
           icon: const Icon(Icons.remove),
         ),
         const SizedBox(width: AppSpacing.sm),
         SizedBox(
-          width: 56,
+          width: 68,
           child: Text(
-            value.toStringAsFixed(1),
-            style: AppTypography.numeric(size: 20, weight: FontWeight.w600),
+            _fmtVol(value, unit),
+            style: AppTypography.numeric(size: 18, weight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
         IconButton.filled(
-          onPressed: () => onChanged(value + 0.5),
+          onPressed: value >= max ? null : () => onChanged(
+            double.parse((value + step).clamp(0.0, max).toStringAsFixed(5)),
+          ),
           icon: const Icon(Icons.add),
         ),
       ],
@@ -612,12 +645,12 @@ class _WarningChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Chip(
-      backgroundColor: Color(0xFFFFC107),
+      backgroundColor: Color(0x40CC8020), // lightWarning at ~25% opacity
       label: Text(
         'Unusually high volume — double-check?',
-        style: TextStyle(color: Colors.black87),
+        style: TextStyle(color: AppColors.honey700),
       ),
-      avatar: Icon(Icons.warning_amber_rounded, color: Colors.black87),
+      avatar: Icon(Icons.warning_amber_rounded, color: AppColors.honey700),
     );
   }
 }
@@ -651,7 +684,7 @@ class _BottomButtons extends StatelessWidget {
       // Not started yet — full-width Start button
       return FilledButton(
         onPressed: onStart,
-        child: const Text('Start'),
+        child: Text(context.l10n.pumpStart),
       );
     }
 
@@ -662,14 +695,14 @@ class _BottomButtons extends StatelessWidget {
           Expanded(
             child: OutlinedButton(
               onPressed: onStop,
-              child: const Text('Stop'),
+              child: Text(context.l10n.pumpStop),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: FilledButton(
               onPressed: onPause,
-              child: const Text('Pause'),
+              child: Text(context.l10n.pumpPause),
             ),
           ),
         ],
@@ -682,14 +715,14 @@ class _BottomButtons extends StatelessWidget {
         Expanded(
           child: OutlinedButton(
             onPressed: onResume,
-            child: const Text('Resume'),
+            child: Text(context.l10n.pumpResume),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: FilledButton(
             onPressed: onSave,
-            child: const Text('Save'),
+            child: Text(context.l10n.actionSave),
           ),
         ),
       ],
@@ -705,13 +738,15 @@ class _BottlePreviewSection extends StatelessWidget {
   const _BottlePreviewSection({
     required this.bottles,
     required this.portionOz,
+    required this.unit,
     required this.onPortionChanged,
     required this.onRemoveBottle,
     required this.onAddBottle,
   });
 
   final List<double> bottles;
-  final double portionOz;
+  final double portionOz; // always in oz
+  final VolumeUnit unit;
   final ValueChanged<double> onPortionChanged;
   final ValueChanged<int> onRemoveBottle;
   final VoidCallback onAddBottle;
@@ -743,18 +778,18 @@ class _BottlePreviewSection extends StatelessWidget {
                   iconSize: 18,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: portionOz <= 0.5
+                  onPressed: portionOz <= 0.0
                       ? null
                       : () => onPortionChanged(
                             double.parse(
-                                (portionOz - 0.5).toStringAsFixed(1)),
+                                (portionOz - _stepFor(unit)).clamp(0.0, _maxFor(unit)).toStringAsFixed(5)),
                           ),
                   icon: const Icon(Icons.remove),
                 ),
                 SizedBox(
-                  width: 40,
+                  width: 52,
                   child: Text(
-                    '${portionOz.toStringAsFixed(1)} oz',
+                    _fmtVol(portionOz, unit),
                     style: AppTypography.numeric(size: 14),
                     textAlign: TextAlign.center,
                   ),
@@ -763,11 +798,11 @@ class _BottlePreviewSection extends StatelessWidget {
                   iconSize: 18,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: portionOz >= 16
+                  onPressed: portionOz >= _maxFor(unit)
                       ? null
                       : () => onPortionChanged(
                             double.parse(
-                                (portionOz + 0.5).toStringAsFixed(1)),
+                                (portionOz + _stepFor(unit)).clamp(0.0, _maxFor(unit)).toStringAsFixed(5)),
                           ),
                   icon: const Icon(Icons.add),
                 ),
@@ -784,6 +819,7 @@ class _BottlePreviewSection extends StatelessWidget {
             for (int i = 0; i < bottles.length; i++)
               _BottleChip(
                 oz: bottles[i],
+                unit: unit,
                 onDeleted: () => onRemoveBottle(i),
               ),
           ],
@@ -793,7 +829,7 @@ class _BottlePreviewSection extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: TextButton(
             onPressed: onAddBottle,
-            child: const Text('+ Add bottle'),
+            child: Text(context.l10n.pumpAddBottle),
           ),
         ),
       ],
@@ -802,15 +838,16 @@ class _BottlePreviewSection extends StatelessWidget {
 }
 
 class _BottleChip extends StatelessWidget {
-  const _BottleChip({required this.oz, required this.onDeleted});
+  const _BottleChip({required this.oz, required this.unit, required this.onDeleted});
 
-  final double oz;
+  final double oz; // always in oz
+  final VolumeUnit unit;
   final VoidCallback onDeleted;
 
   @override
   Widget build(BuildContext context) {
     return InputChip(
-      label: Text('${oz.toStringAsFixed(1)} oz'),
+      label: Text(_fmtVol(oz, unit)),
       backgroundColor: AppColors.lightSuccess.withValues(alpha: 0.3),
       onDeleted: onDeleted,
     );
@@ -822,8 +859,9 @@ class _BottleChip extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ManualEntrySheet extends StatefulWidget {
-  const _ManualEntrySheet({required this.onSave});
+  const _ManualEntrySheet({required this.unit, required this.onSave});
 
+  final VolumeUnit unit;
   final void Function(
     DateTime startedAt,
     int durationMinutes,
@@ -857,10 +895,29 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
     );
   }
 
-  String _fmtTime(DateTime dt) {
+  String _fmtDateTime(DateTime dt) {
+    final date = '${dt.day}/${dt.month}/${dt.year}';
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
+    return '$date  $h:$m';
+  }
+
+  Future<void> _pickStartedAt() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _startedAt,
+      firstDate: now.subtract(const Duration(days: 30)),
+      lastDate: now,
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_startedAt),
+    );
+    if (time == null) return;
+    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (!picked.isAfter(now)) setState(() => _startedAt = picked);
   }
 
   @override
@@ -881,32 +938,22 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
             style: AppTypography.titleLarge(color: AppColors.inkPrimary),
           ),
           const SizedBox(height: AppSpacing.md),
-          // Started at
+          // Started at — tappable date/time picker
           Row(
             children: [
+              const Icon(Icons.schedule, size: 18, color: AppColors.inkSecondary),
+              const SizedBox(width: AppSpacing.xs),
               Text(
-                'Started at:',
+                'Started at: ',
                 style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _startedAt =
-                        _startedAt.subtract(const Duration(minutes: 15));
-                  });
-                },
-                icon: const Icon(Icons.remove),
-              ),
-              Text(_fmtTime(_startedAt),
-                  style: AppTypography.numeric(size: 18)),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _startedAt = _startedAt.add(const Duration(minutes: 15));
-                  });
-                },
-                icon: const Icon(Icons.add),
+              GestureDetector(
+                onTap: _pickStartedAt,
+                child: Text(
+                  _fmtDateTime(_startedAt),
+                  style: AppTypography.bodyMedium(color: AppColors.lavender700)
+                      .copyWith(decoration: TextDecoration.underline),
+                ),
               ),
             ],
           ),
@@ -936,16 +983,18 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          // Oz steppers
+          // Volume steppers
           _OzRow(
-            label: 'Left (oz)',
+            label: 'Left',
             value: _leftOz,
+            unit: widget.unit,
             onChanged: (v) => setState(() => _leftOz = v),
           ),
           const SizedBox(height: AppSpacing.xs),
           _OzRow(
-            label: 'Right (oz)',
+            label: 'Right',
             value: _rightOz,
+            unit: widget.unit,
             onChanged: (v) => setState(() => _rightOz = v),
           ),
           const SizedBox(height: AppSpacing.lg),

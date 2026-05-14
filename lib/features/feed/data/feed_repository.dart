@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -102,6 +103,7 @@ class FeedRepository {
     });
 
     _ref.invalidate(feedTodayProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return feed;
   }
 
@@ -141,6 +143,7 @@ class FeedRepository {
     });
 
     _ref.invalidate(feedTodayProvider(next.babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return next;
   }
 
@@ -185,6 +188,7 @@ class FeedRepository {
     });
 
     _ref.invalidate(feedTodayProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 }
 

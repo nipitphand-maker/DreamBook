@@ -22,6 +22,7 @@ const List<String> _syncableTables = [
   'diaper',
   'sleep',
   'vaccination',
+  'daily_note',
 ];
 
 /// Push (Task 5) + pull (Task 6) of encrypted rows. Tests inject a
@@ -97,10 +98,16 @@ class SyncWorker {
         (await Blake2b().hash(utf8.encode(aad))).bytes,
       );
 
+      // Deterministic UUID v5 so retries always produce the same id — the
+      // upsert in SupabaseSyncServer can then use the PK as the conflict key.
+      final pushId = const Uuid().v5(
+        Namespace.url.value,
+        '$familyId:$tableName:$recordId:$version',
+      );
       // SyncServer.insertEncryptedRow translates transport errors into
       // SyncNetworkError / SyncRlsReject — no catch needed here.
       await server.insertEncryptedRow(
-        id: const Uuid().v4(),
+        id: pushId,
         familyId: familyId,
         tableName: tableName,
         recordId: recordId,
@@ -178,6 +185,46 @@ class SyncWorker {
       return;
     }
     final plaintext = jsonDecode(utf8.decode(plaintextBytes)) as Map<String, Object?>;
+
+    // Version guard: skip if we already have this row at the same or higher version.
+    // This prevents older versions (e.g. from a slow replica) from overwriting
+    // newer local edits. For daily_note we also check by (baby_id, date) to
+    // prevent ping-pong when two caregivers create independent notes for the same day.
+    final rowId = plaintext['id'] as String?;
+    if (rowId != null) {
+      final existing = await db.query(
+        row.tableName,
+        columns: ['version'],
+        where: 'id = ?',
+        whereArgs: [rowId],
+        limit: 1,
+      );
+      if (existing.isNotEmpty &&
+          (existing.first['version'] as int? ?? 0) >= row.version) {
+        return;
+      }
+    }
+
+    if (row.tableName == 'daily_note') {
+      final babyId = plaintext['baby_id'] as String?;
+      final date = plaintext['date'] as String?;
+      if (babyId != null && date != null) {
+        final byDate = await db.query(
+          'daily_note',
+          columns: ['updated_at'],
+          where: 'baby_id = ? AND date = ?',
+          whereArgs: [babyId, date],
+          limit: 1,
+        );
+        if (byDate.isNotEmpty) {
+          final existingTs = byDate.first['updated_at'] as String? ?? '';
+          final incomingTs = plaintext['updated_at'] as String? ?? '';
+          // ISO-8601 strings sort lexicographically — no parse needed.
+          if (existingTs.compareTo(incomingTs) >= 0) return;
+        }
+      }
+    }
+
     await db.transaction((txn) async {
       await txn.insert(
         row.tableName,

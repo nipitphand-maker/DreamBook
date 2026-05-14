@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
@@ -7,6 +8,7 @@ import 'package:dreambook/core/models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dreambook/core/router/app_router.dart';
 import 'package:go_router/go_router.dart';
 
 /// Quick-log diaper — designed for one-handed 3 AM use.
@@ -21,10 +23,8 @@ class DiaperLogScreen extends ConsumerStatefulWidget {
 class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
   DiaperType? _selectedType;
 
-  // Time state
-  bool _isPast = false;
-  // Offset in minutes behind now (must be <= 240 and >= 0)
-  int _pastOffsetMinutes = 0;
+  // null = now; non-null = the specific past time the user picked
+  DateTime? _loggedAt;
 
   final _notesCtrl = TextEditingController();
 
@@ -34,18 +34,34 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
     super.dispose();
   }
 
-  DateTime? get _occurredAt {
-    if (!_isPast || _pastOffsetMinutes == 0) return null;
-    return DateTime.now().subtract(Duration(minutes: _pastOffsetMinutes));
+  Future<void> _pickLoggedAt() async {
+    final now = DateTime.now();
+    final initial = _loggedAt ?? now;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now.subtract(const Duration(days: 30)),
+      lastDate: now,
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) return;
+    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (!picked.isAfter(now)) {
+      setState(() => _loggedAt = picked);
+    }
   }
 
-  String _formatOffset() {
-    if (_pastOffsetMinutes == 0) return 'Now';
-    final h = _pastOffsetMinutes ~/ 60;
-    final m = _pastOffsetMinutes % 60;
-    if (h == 0) return '${m}m ago';
-    if (m == 0) return '${h}h ago';
-    return '${h}h ${m}m ago';
+  String _fmtLoggedAt() {
+    final t = _loggedAt;
+    if (t == null) return context.l10n.loggedAtNow;
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24) return '${d.inHours}h ${d.inMinutes % 60}m ago';
+    return '${t.day}/${t.month}  ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _save() async {
@@ -54,7 +70,7 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
     final babyId = ref.read(currentBabyIdProvider);
     if (babyId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No baby selected')),
+        SnackBar(content: Text(context.l10n.errorNoBabyProfile)),
       );
       return;
     }
@@ -66,13 +82,17 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
     await repo.insert(
       babyId: babyId,
       type: _selectedType!,
-      occurredAt: _occurredAt,
+      occurredAt: _loggedAt,
       note: note,
     );
 
     unawaited(HapticFeedback.lightImpact());
     if (!mounted) return;
-    context.pop();
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.home);
+    }
   }
 
   @override
@@ -80,7 +100,7 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
     final canSave = _selectedType != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Diaper')),
+      appBar: AppBar(title: Text(context.l10n.diaperAppBarTitle)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -98,31 +118,31 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
                   children: [
                     _TypeButton(
                       icon: Icons.water_drop_outlined,
-                      label: 'Pee',
-                      color: Colors.blue.shade100,
+                      label: context.l10n.diaperPee,
+                      color: AppColors.lightWarning.withValues(alpha: 0.22),
                       selected: _selectedType == DiaperType.pee,
                       onTap: () =>
                           setState(() => _selectedType = DiaperType.pee),
                     ),
                     _TypeButton(
                       icon: Icons.circle,
-                      label: 'Poop',
-                      color: Colors.brown.shade100,
+                      label: context.l10n.diaperPoop,
+                      color: AppColors.lightAccent.withValues(alpha: 0.35),
                       selected: _selectedType == DiaperType.poop,
                       onTap: () =>
                           setState(() => _selectedType = DiaperType.poop),
                     ),
                     _TypeButton(
                       icon: Icons.water_drop,
-                      label: 'Mixed',
-                      color: Colors.purple.shade100,
+                      label: context.l10n.diaperMixed,
+                      color: AppColors.lightPrimary.withValues(alpha: 0.25),
                       selected: _selectedType == DiaperType.mixed,
                       onTap: () =>
                           setState(() => _selectedType = DiaperType.mixed),
                     ),
                     _TypeButton(
                       icon: Icons.do_not_disturb_alt_outlined,
-                      label: 'Dry',
+                      label: context.l10n.diaperDry,
                       color: Colors.grey.shade100,
                       selected: _selectedType == DiaperType.dry,
                       onTap: () =>
@@ -132,24 +152,13 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              // Time stepper
-              _TimeSection(
-                isPast: _isPast,
-                pastOffsetMinutes: _pastOffsetMinutes,
-                formattedOffset: _formatOffset(),
-                onShowPast: () => setState(() {
-                  _isPast = true;
-                  _pastOffsetMinutes = 15;
-                }),
-                onDecrease: () => setState(() {
-                  _pastOffsetMinutes =
-                      (_pastOffsetMinutes - 15).clamp(0, 240);
-                  if (_pastOffsetMinutes == 0) _isPast = false;
-                }),
-                onIncrease: () => setState(() {
-                  _pastOffsetMinutes =
-                      (_pastOffsetMinutes + 15).clamp(0, 240);
-                }),
+              // Time picker — tap to log as past
+              _LoggedAtRow(
+                label: _fmtLoggedAt(),
+                onTap: _pickLoggedAt,
+                onClear: _loggedAt != null
+                    ? () => setState(() => _loggedAt = null)
+                    : null,
               ),
               const SizedBox(height: AppSpacing.md),
               // Notes
@@ -157,15 +166,15 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
                 controller: _notesCtrl,
                 maxLines: 2,
                 maxLength: 240,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (optional)',
+                decoration: InputDecoration(
+                  labelText: context.l10n.diaperNotesOptional,
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
               // Save button
               FilledButton(
                 onPressed: canSave ? _save : null,
-                child: const Text('Save'),
+                child: Text(context.l10n.actionSave),
               ),
               const SizedBox(height: AppSpacing.lg),
             ],
@@ -176,66 +185,44 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
   }
 }
 
-class _TimeSection extends StatelessWidget {
-  const _TimeSection({
-    required this.isPast,
-    required this.pastOffsetMinutes,
-    required this.formattedOffset,
-    required this.onShowPast,
-    required this.onDecrease,
-    required this.onIncrease,
+/// Tappable row showing when the event was logged.
+/// Tap → date picker → time picker. "×" resets to now.
+class _LoggedAtRow extends StatelessWidget {
+  const _LoggedAtRow({
+    required this.label,
+    required this.onTap,
+    this.onClear,
   });
 
-  final bool isPast;
-  final int pastOffsetMinutes;
-  final String formattedOffset;
-  final VoidCallback onShowPast;
-  final VoidCallback onDecrease;
-  final VoidCallback onIncrease;
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    if (!isPast) {
-      return Row(
-        children: [
-          Text(
-            'Time: Now',
-            style: AppTypography.bodyLarge(color: AppColors.inkPrimary),
+    return Row(
+      children: [
+        const Icon(Icons.schedule, size: 18, color: AppColors.inkSecondary),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          '${context.l10n.loggedAtLabel}: ',
+          style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+        ),
+        GestureDetector(
+          onTap: onTap,
+          child: Text(
+            label,
+            style: AppTypography.bodyMedium(color: AppColors.lavender700)
+                .copyWith(decoration: TextDecoration.underline),
           ),
-          const Spacer(),
-          TextButton(
-            onPressed: onShowPast,
-            child: const Text('Log as past'),
+        ),
+        if (onClear != null) ...[
+          const SizedBox(width: AppSpacing.xs),
+          GestureDetector(
+            onTap: onClear,
+            child: const Icon(Icons.close, size: 16, color: AppColors.inkSecondary),
           ),
         ],
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton.filled(
-          onPressed: pastOffsetMinutes > 0 ? onDecrease : null,
-          icon: const Icon(Icons.remove),
-          style: IconButton.styleFrom(backgroundColor: scheme.primary),
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        Text(
-          formattedOffset,
-          style: AppTypography.numeric(
-            size: 20,
-            weight: FontWeight.w600,
-            color: AppColors.inkPrimary,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        IconButton.filled(
-          onPressed: pastOffsetMinutes < 240 ? onIncrease : null,
-          icon: const Icon(Icons.add),
-          style: IconButton.styleFrom(backgroundColor: scheme.primary),
-        ),
       ],
     );
   }

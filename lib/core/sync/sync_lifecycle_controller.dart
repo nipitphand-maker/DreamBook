@@ -12,6 +12,7 @@ import 'supabase_client_service.dart';
 import 'supabase_sync_server.dart';
 import 'sync_server.dart';
 import 'sync_status_provider.dart';
+import 'realtime_subscriber.dart';
 import 'sync_worker.dart';
 
 /// Lazy resolver for the [SyncStatusNotifier]. Provided as a closure so the
@@ -62,6 +63,9 @@ class SyncLifecycleController extends WidgetsBindingObserver {
     }
   }
 
+  /// Fire-and-forget push after a local write. No-op in the no-op subclass.
+  void schedulePush() => syncNow().ignore();
+
   /// Run one pull+push cycle and update [syncStatusProvider] accordingly.
   /// Safe to call concurrently with the lifecycle hook — the notifier just
   /// overwrites state, and SyncWorker's own internal loops are serialised.
@@ -90,6 +94,9 @@ const String kFamilyIdPrefsKey = 'family.id';
 class _NoOpSyncLifecycleController extends SyncLifecycleController {
   _NoOpSyncLifecycleController({required super.resolveStatus})
       : super(worker: _UnusedSyncWorker._());
+
+  @override
+  void schedulePush() {} // no family yet — intentional no-op
 
   @override
   Future<void> syncNow() async {
@@ -136,14 +143,22 @@ class _UnusedSecureStorage {
 }
 
 /// Returns a real [SyncLifecycleController] once SharedPreferences contains
-/// a `family.id`. Until then returns a [_NoOpSyncLifecycleController] —
-/// pull-to-refresh + the WidgetsBindingObserver attachment still succeed,
-/// they just don't talk to Supabase.
+/// a `family.id` AND the database is ready. Until then returns a
+/// [_NoOpSyncLifecycleController] — pull-to-refresh + the
+/// WidgetsBindingObserver attachment still succeed, they just don't talk to
+/// Supabase.
+///
+/// Using [ref.watch] on [appDatabaseProvider] (instead of [ref.read]) means
+/// Riverpod will rebuild this provider once the DB future resolves — fixing
+/// the cold-start bug where the no-op was cached forever for the session.
 ///
 /// Task 16 will dispose + rebuild this provider after caregiver onboarding
 /// writes `family.id` into prefs (the consumer can `ref.invalidate`).
 final syncLifecycleControllerProvider =
     Provider<SyncLifecycleController>((ref) {
+  // Watch DB so this provider rebuilds once the DB future resolves.
+  final dbAsync = ref.watch(appDatabaseProvider);
+
   final prefs = ref.read(sharedPreferencesProvider);
   final familyId = prefs.getString(kFamilyIdPrefsKey);
 
@@ -153,11 +168,14 @@ final syncLifecycleControllerProvider =
     );
   }
 
-  // Family is onboarded — build a real worker against the live Supabase
-  // client. appDatabaseProvider is a FutureProvider, so we read its current
-  // value. Caregiver onboarding only stores family.id after the DB is
-  // already open, so .requireValue is safe here.
-  final db = ref.read(appDatabaseProvider).requireValue;
+  // DB may still be opening on cold start — fall back to no-op until ready.
+  final db = dbAsync.value;
+  if (db == null) {
+    return _NoOpSyncLifecycleController(
+      resolveStatus: () => ref.read(syncStatusProvider.notifier),
+    );
+  }
+
   // NOTE: AndroidOptions(encryptedSharedPreferences:true) is the spec-mandated
   // value but it's now deprecated upstream (flutter_secure_storage ^10
   // auto-migrates to custom ciphers; the flag is ignored). Use defaults.
@@ -174,6 +192,15 @@ final syncLifecycleControllerProvider =
     familyId: familyId,
     deviceFp: deviceFp,
   );
+
+  // Subscribe to Supabase Realtime so incoming rows from other devices
+  // are applied immediately without waiting for the next app-resume sync.
+  final realtime = RealtimeSubscriber(
+    server: server,
+    onIncomingRow: worker.onIncomingRow,
+  );
+  realtime.connect(familyId: familyId).ignore();
+  ref.onDispose(realtime.disconnect);
 
   return SyncLifecycleController.fromRef(ref: ref, worker: worker);
 });

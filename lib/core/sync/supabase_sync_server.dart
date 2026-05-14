@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'sync_error.dart';
 import 'sync_server.dart';
 
 /// Production implementation of [SyncServer] backed by the real Supabase client.
@@ -32,36 +31,54 @@ class SupabaseSyncServer implements SyncServer {
     required DateTime updatedAt,
     DateTime? deletedAt,
   }) async {
-    await _client.from('encrypted_rows').insert({
-      'id': id,
-      'family_id': familyId,
-      'table_name': tableName,
-      'record_id': recordId,
-      'version': version,
-      'key_version': keyVersion,
-      'ciphertext': ciphertext,
-      'aad_hash': aadHash,
-      'written_by_device': writtenByDevice,
-      'updated_at': updatedAt.toIso8601String(),
-      'deleted_at': deletedAt?.toIso8601String(),
-    });
+    // Upsert on the unique constraint (family_id, table_name, record_id, version)
+    // so retries after a network error are idempotent (the id is deterministic).
+    await _client.from('encrypted_rows').upsert(
+      {
+        'id': id,
+        'family_id': familyId,
+        'table_name': tableName,
+        'record_id': recordId,
+        'version': version,
+        'key_version': keyVersion,
+        'ciphertext': ciphertext,
+        'aad_hash': aadHash,
+        'written_by_device': writtenByDevice, // text column (migration 0014)
+        'updated_at': updatedAt.toIso8601String(),
+        'deleted_at': deletedAt?.toIso8601String(),
+      },
+      onConflict: 'family_id,table_name,record_id,version',
+    );
   }
+
+  // PostgREST default cap is 1000 rows. Fetch in pages to avoid silent truncation.
+  static const int _pageSize = 500;
 
   @override
   Future<List<RemoteEncryptedRow>> pullRows({
     required String familyId,
     DateTime? since,
   }) async {
-    var query = _client
-        .from('encrypted_rows')
-        .select()
-        .eq('family_id', familyId);
-    if (since != null) {
-      query = query.gt('updated_at', since.toIso8601String());
+    final allRows = <Map<String, dynamic>>[];
+    int offset = 0;
+    while (true) {
+      // Filters (.eq, .gt) must come before transforms (.order, .range).
+      var filteredQuery = _client
+          .from('encrypted_rows')
+          .select()
+          .eq('family_id', familyId);
+      if (since != null) {
+        filteredQuery = filteredQuery.gt('updated_at', since.toIso8601String());
+      }
+      final page = await filteredQuery
+          .order('updated_at')
+          .range(offset, offset + _pageSize - 1);
+      final pageList = (page as List).cast<Map<String, dynamic>>();
+      allRows.addAll(pageList);
+      if (pageList.length < _pageSize) break;
+      offset += _pageSize;
     }
-    final rows = await query;
-    return (rows as List).map((r) {
-      final m = r as Map<String, dynamic>;
+    return allRows.map((m) {
       return RemoteEncryptedRow(
         tableName: m['table_name'] as String,
         recordId: m['record_id'] as String,
@@ -144,14 +161,11 @@ class SupabaseSyncServer implements SyncServer {
     required String callerDeviceFp,
     required String targetDeviceFp,
   }) async {
+    // functions.invoke() throws FunctionException on non-2xx — no status check needed.
     final response = await _client.functions.invoke(
       'revoke_caregiver',
       body: {'target_device_fp': targetDeviceFp},
     );
-    final status = response.status;
-    if (status != 200) {
-      throw SyncHttpError(status, _stringify(response.data));
-    }
     final body = response.data as Map<String, dynamic>;
     final survivors = (body['survivors'] as List).map((s) {
       final m = s as Map<String, dynamic>;
@@ -181,13 +195,4 @@ class SupabaseSyncServer implements SyncServer {
     });
   }
 
-  String _stringify(Object? data) {
-    if (data == null) return '';
-    if (data is String) return data;
-    try {
-      return jsonEncode(data);
-    } catch (_) {
-      return data.toString();
-    }
-  }
 }

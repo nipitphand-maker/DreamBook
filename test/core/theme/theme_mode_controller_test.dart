@@ -1,3 +1,4 @@
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/theme/theme_mode_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,12 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  setUp(() {
+  late SharedPreferences prefs;
+
+  setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    prefs = await SharedPreferences.getInstance();
   });
 
   ProviderContainer makeContainer({DateTime Function()? now}) {
     return ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
       if (now != null) nowProvider.overrideWithValue(now),
     ]);
   }
@@ -34,7 +39,7 @@ void main() {
     await c.read(themeModeControllerProvider.future);
     await c.read(themeModeControllerProvider.notifier).toggleRedTint(true);
     final theme = c.read(themeProvider);
-    expect(theme.colorScheme.surface, const Color(0xFF2A1010));
+    expect(theme.colorScheme.surface, const Color(0xFF1A0C06));
   });
 
   test('explicit light choice overrides clock', () async {

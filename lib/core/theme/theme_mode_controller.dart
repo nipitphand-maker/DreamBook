@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../providers/shared_preferences_provider.dart';
 import 'app_theme.dart';
 
 enum UserThemeChoice { system, light, dark, nightTint }
@@ -37,8 +37,10 @@ const _kRedTintKey = 'theme.redTint';
 class ThemeModeController extends AsyncNotifier<ThemeModeState> {
   @override
   Future<ThemeModeState> build() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kThemeModeKey) ?? 'system';
+    // sharedPreferencesProvider is pre-initialised in main() before runApp,
+    // so ref.read is synchronous — no await needed.
+    final prefs = ref.read(sharedPreferencesProvider);
+    final raw = prefs.getString(_kThemeModeKey) ?? _encode(ThemeModeState.initial.choice);
     final redTint = prefs.getBool(_kRedTintKey) ?? false;
     return ThemeModeState(
       choice: _decode(raw),
@@ -47,7 +49,7 @@ class ThemeModeController extends AsyncNotifier<ThemeModeState> {
   }
 
   Future<void> setChoice(UserThemeChoice choice) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setString(_kThemeModeKey, _encode(choice));
     state = AsyncData(
       (state.value ?? ThemeModeState.initial).copyWith(choice: choice),
@@ -55,7 +57,7 @@ class ThemeModeController extends AsyncNotifier<ThemeModeState> {
   }
 
   Future<void> toggleRedTint(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setBool(_kRedTintKey, enabled);
     state = AsyncData(
       (state.value ?? ThemeModeState.initial)
