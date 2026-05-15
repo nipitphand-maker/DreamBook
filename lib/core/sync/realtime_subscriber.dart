@@ -40,8 +40,10 @@ class RealtimeSubscriber {
     required this.onIncomingRow,
     this.onError,
     Duration? stableConnectionWindow,
-  }) : _stableConnectionWindow =
-            stableConnectionWindow ?? const Duration(seconds: 30);
+    Duration Function(int attempt)? backoffStrategy,
+  })  : _stableConnectionWindow =
+            stableConnectionWindow ?? const Duration(seconds: 30),
+        _backoffStrategy = backoffStrategy ?? _reconnectDelay;
 
   final SyncServer server;
   final IncomingRowHandler onIncomingRow;
@@ -50,6 +52,11 @@ class RealtimeSubscriber {
   /// How long a connection must stay healthy before the attempt counter is
   /// reset to 0. Overridable for tests; defaults to 30 seconds.
   final Duration _stableConnectionWindow;
+
+  /// Maps a 1-indexed attempt number to its reconnect delay. Production
+  /// uses [_reconnectDelay]; tests pass `(_) => Duration.zero` to flatten
+  /// the schedule without resorting to a fake clock.
+  final Duration Function(int attempt) _backoffStrategy;
 
   static const int _maxReconnectAttempts = 10;
 
@@ -167,7 +174,7 @@ class RealtimeSubscriber {
     }
     _attempt += 1;
     _setStatus(RealtimeStatus.degraded);
-    final delay = _reconnectDelay(_attempt);
+    final delay = _backoffStrategy(_attempt);
     final generation = _generation;
     _reconnectTimer = Timer(delay, () {
       if (_disposed || _familyId == null) return;
