@@ -323,5 +323,49 @@
   "summaryToday": "Today",
 
   "summaryNoteSection": "Notes",
-  "summaryNoteHint": "Jot something down for this day…"
+  "summaryNoteHint": "Jot something down for this day…",
+
+  "recoverySetupHeadline": "Save your recovery phrase",
+  "recoverySetupSubcopy": "Write these 12 words on paper and store them safely. If you lose your phone, this phrase is the only way to recover your data.",
+  "recoverySetupWrittenCta": "I've written them down",
+  "recoverySetupRemindLater": "Remind me later",
+  "recoverySetupWarning": "Do not screenshot this screen. Store this on paper, not in your phone.",
+  "recoveryVerifyHeadline": "Confirm your phrase",
+  "recoveryVerifySubcopy": "Enter the words below to confirm you wrote them down.",
+  "recoveryVerifyWord": "Word {number}",
+  "@recoveryVerifyWord": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "recoveryVerifyConfirmCta": "Confirm",
+  "recoveryVerifyWrongTryAgain": "Wrong words — please try again.",
+  "recoveryVerifyWrongRegenerate": "Two wrong attempts — generating a new phrase.",
+  "recoveryVerifySuccess": "Recovery phrase saved.",
+  "recoveryRestoreHeadline": "Restore from recovery phrase",
+  "recoveryRestoreSubcopy": "Enter your 12-word recovery phrase to recover your data on this device.",
+  "recoveryRestoreLabel": "Recovery phrase",
+  "recoveryRestoreHint": "word1 word2 word3 ...",
+  "recoveryRestoreCta": "Restore",
+  "recoveryRestoreInvalidChecksum": "One or more words are incorrect. Check your phrase and try again.",
+  "recoveryRestoreNotFound": "Recovery phrase not recognised.",
+  "recoveryRestoreRateLimit": "Too many attempts. Wait an hour and try again.",
+  "recoveryRestoreError": "Restore failed. Check your connection and try again.",
+  "recoveryRestoreSuccess": "Welcome back!",
+  "welcomeRestoreCta": "Restore from recovery phrase",
+  "settingsRecoveryPhraseTitle": "Recovery phrase",
+  "settingsRecoveryPhraseBackedUp": "Backed up",
+  "settingsRecoveryPhraseNotBackedUp": "Not set up — tap to protect your data",
+  "settingsManageDevicesTitle": "Manage devices",
+  "manageDevicesHeadline": "Devices",
+  "manageDevicesEmpty": "No other devices.",
+  "manageDevicesRevokeButton": "Remove",
+  "manageDevicesRevokeConfirmTitle": "Remove device?",
+  "manageDevicesRevokeConfirmBody": "This device will no longer sync with your family.",
+  "manageDevicesRevokeConfirmCta": "Remove",
+  "manageDevicesRevokeCancel": "Cancel",
+  "manageDevicesRecoveryInvite": "Generate recovery invite",
+  "manageDevicesAdmin": "Admin",
+  "manageDevicesEditor": "Member",
+  "manageDevicesThisDevice": "This device"
 }
