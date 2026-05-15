@@ -10,6 +10,7 @@ import '../providers/device_id_provider.dart';
 import '../providers/shared_preferences_provider.dart';
 import 'supabase_client_service.dart';
 import 'supabase_sync_server.dart';
+import 'sync_error_reporter.dart';
 import 'sync_server.dart';
 import 'sync_status_provider.dart';
 import 'realtime_subscriber.dart';
@@ -56,6 +57,12 @@ class SyncLifecycleController extends WidgetsBindingObserver {
   final SyncStatusResolver _resolveStatus;
   final SyncWorker worker;
 
+  /// Lazily-allocated error reporter. Phase 2 (DV-6) will replace this with
+  /// a Riverpod-provided singleton wired to Sentry + audit_events upload.
+  /// For Phase 1 we keep it inline so the silent-catch fix lands without
+  /// touching the provider graph.
+  SyncErrorReporter? _reporter;
+
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
@@ -77,7 +84,12 @@ class SyncLifecycleController extends WidgetsBindingObserver {
       await worker.pushOnce();
       status.completeSync(at: DateTime.now().toUtc());
     } catch (e, st) {
-      debugPrint('SyncWorker error [${e.runtimeType}]: $e\n$st');
+      // Non-silent: SyncErrorReporter captures structured metadata for the
+      // Phase 2 audit log + Sentry hookup. UI still gets the failure via
+      // SyncStatusNotifier.failSync so the user sees the same banner.
+      final reporter = _reporter ??= SyncErrorReporter();
+      reporter.report(e, st);
+      debugPrint('SyncWorker error [${e.runtimeType}]: $e');
       status.failSync(e);
     }
   }
