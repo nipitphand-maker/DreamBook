@@ -322,6 +322,35 @@ class SyncWorker {
       }
     }
 
+    // Tombstone branch: a row arriving with deletedAt set is a remote DELETE
+    // we must propagate locally. We've already cleared the version + LWW
+    // guards above, so applying the delete here is safe and won't clobber a
+    // newer local edit. The owning row is removed from its table and the
+    // sync_state ledger is updated so we don't try to re-push the deletion.
+    if (row.deletedAt != null) {
+      await db.transaction((txn) async {
+        await txn.delete(
+          row.tableName,
+          where: 'id = ?',
+          whereArgs: [row.recordId],
+        );
+        await txn.insert(
+          'sync_state',
+          {
+            'record_id': row.recordId,
+            'table_name': row.tableName,
+            'version': row.version,
+            'updated_at': row.updatedAt.toIso8601String(),
+            'dirty': 0,
+            'last_synced_at': DateTime.now().toUtc().toIso8601String(),
+            'written_by_device': row.writtenByDevice,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      });
+      return;
+    }
+
     await db.transaction((txn) async {
       await txn.insert(
         row.tableName,

@@ -265,6 +265,100 @@ void main() {
       expect(rows.first['note'], 'local-note'); // local wins
     });
 
+    test('tombstoned remote row triggers local DELETE (P1.15)', () async {
+      // Seed a local row that exists prior to receiving the tombstone.
+      await db.insert('feed', {
+        'id': 'tombstone-feed',
+        'baby_id': 'b1',
+        'type': 'breast',
+        'started_at': '2026-05-14T09:00:00.000Z',
+        'note': 'about to be deleted',
+        'created_at': '2026-05-14T09:00:00.000Z',
+        'updated_at': '2026-05-14T09:00:00.000Z',
+        'version': 1,
+        'family_id': familyId,
+        'key_version': 1,
+      });
+      await db.insert('sync_state', {
+        'record_id': 'tombstone-feed',
+        'table_name': 'feed',
+        'version': 1,
+        'updated_at': '2026-05-14T09:00:00.000Z',
+        'dirty': 0,
+        'last_synced_at': '2026-05-14T09:00:00.000Z',
+        'written_by_device': localDeviceFp,
+      });
+
+      // Build a tombstoned remote row: same id at a higher version with
+      // deleted_at set on both the plaintext envelope and the wire row.
+      final key = (await familyKeys.read(familyId: familyId))!;
+      const tombstoneTs = '2026-05-14T11:00:00.000Z';
+      final plaintext = {
+        'id': 'tombstone-feed',
+        'baby_id': 'b1',
+        'type': 'breast',
+        'started_at': '2026-05-14T09:00:00.000Z',
+        'note': 'about to be deleted',
+        'created_at': '2026-05-14T09:00:00.000Z',
+        'updated_at': tombstoneTs,
+        'version': 2,
+        'family_id': familyId,
+        'key_version': 1,
+        'deleted_at': tombstoneTs,
+      };
+      final aad = EncryptedRow.aadFor(
+        tableName: 'feed',
+        recordId: 'tombstone-feed',
+        version: 2,
+        familyId: familyId,
+        keyVersion: 1,
+      );
+      final ct = await CryptoEnvelope().seal(
+        utf8.encode(jsonEncode(plaintext)),
+        SecretKey(key.bytes),
+        utf8.encode(aad),
+      );
+      final aadHash = Uint8List.fromList(
+        (await Blake2b().hash(utf8.encode(aad))).bytes,
+      );
+      server.encryptedRows.add(FakeEncryptedRow(
+        id: const Uuid().v4(),
+        familyId: familyId,
+        tableName: 'feed',
+        recordId: 'tombstone-feed',
+        version: 2,
+        keyVersion: 1,
+        ciphertext: ct,
+        aadHash: aadHash,
+        writtenByDevice: remoteDeviceFp,
+        updatedAt: DateTime.parse(tombstoneTs),
+        deletedAt: DateTime.parse(tombstoneTs),
+      ));
+
+      await worker.pullOnce();
+
+      // Local row must be gone.
+      final remaining = await db.query(
+        'feed',
+        where: 'id = ?',
+        whereArgs: ['tombstone-feed'],
+      );
+      expect(remaining, isEmpty,
+          reason: 'tombstoned remote row must propagate as a local DELETE');
+
+      // sync_state for the deleted record should be advanced to v2 and clean —
+      // we observed the tombstone, so no re-push.
+      final state = await db.query(
+        'sync_state',
+        where: 'record_id = ? AND table_name = ?',
+        whereArgs: ['tombstone-feed', 'feed'],
+      );
+      expect(state, hasLength(1));
+      expect(state.first['version'], 2);
+      expect(state.first['dirty'], 0);
+      expect(state.first['written_by_device'], remoteDeviceFp);
+    });
+
     test('same-version row with newer updated_at replaces local (LWW)', () async {
       await db.insert('feed', {
         'id': 'conflict-feed2',
