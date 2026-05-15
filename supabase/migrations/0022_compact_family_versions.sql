@@ -45,3 +45,4 @@ BEGIN
 END;
 $$;
 COMMIT;
+GRANT EXECUTE ON FUNCTION public.compact_family_versions(uuid) TO service_role;

@@ -1,3 +1,4 @@
+BEGIN;
 CREATE TABLE public.audit_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id uuid REFERENCES public.families(id) ON DELETE SET NULL,
@@ -18,3 +19,4 @@ CREATE POLICY audit_events_select ON public.audit_events
   FOR SELECT TO authenticated
   USING (family_id IN (SELECT public.current_user_family_ids()));
 GRANT INSERT ON public.audit_events TO service_role;
+COMMIT;

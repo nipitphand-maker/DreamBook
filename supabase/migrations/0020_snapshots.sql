@@ -1,3 +1,4 @@
+BEGIN;
 CREATE TABLE public.encrypted_snapshots (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id uuid NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
@@ -18,3 +19,4 @@ CREATE POLICY snapshots_select ON public.encrypted_snapshots
   USING (family_id IN (SELECT public.current_user_family_ids()));
 GRANT SELECT ON public.encrypted_snapshots TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.encrypted_snapshots TO service_role;
+COMMIT;

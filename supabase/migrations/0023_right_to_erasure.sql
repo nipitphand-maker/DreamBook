@@ -27,3 +27,4 @@ BEGIN
 END;
 $$;
 COMMIT;
+GRANT EXECUTE ON FUNCTION public.right_to_be_forgotten(uuid) TO service_role;

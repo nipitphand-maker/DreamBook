@@ -1,5 +1,13 @@
 -- STAGING ONLY — must never be applied to production.
 -- CI rule (DV-3): files under supabase/migrations/staging/ excluded from prod migration list.
+DO $$
+BEGIN
+  IF current_setting('app.env', true) = 'production' THEN
+    RAISE EXCEPTION 'staging helpers must not be applied to production (app.env=production)';
+  END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.test_only_age_recovery_attempts(
   p_family_id uuid,
   p_age interval

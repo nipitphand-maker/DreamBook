@@ -1,3 +1,4 @@
+BEGIN;
 CREATE TABLE public.family_recovery_envelopes (
   family_id uuid PRIMARY KEY REFERENCES public.families(id) ON DELETE RESTRICT,
   wrapped_key bytea NOT NULL,
@@ -10,6 +11,16 @@ ALTER TABLE public.family_recovery_envelopes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY fre_select ON public.family_recovery_envelopes
   FOR SELECT TO authenticated
   USING (family_id IN (SELECT public.current_user_family_ids()));
+
+CREATE POLICY fre_insert ON public.family_recovery_envelopes
+  FOR INSERT TO authenticated
+  WITH CHECK (family_id IN (SELECT public.current_user_family_ids()));
+
+CREATE POLICY fre_update ON public.family_recovery_envelopes
+  FOR UPDATE TO authenticated
+  USING (family_id IN (SELECT public.current_user_family_ids()))
+  WITH CHECK (family_id IN (SELECT public.current_user_family_ids()));
+
 GRANT SELECT, INSERT, UPDATE ON public.family_recovery_envelopes TO authenticated;
 
 CREATE TABLE public.recovery_attempts (
@@ -29,3 +40,4 @@ CREATE TABLE public.recovery_lookup (
 );
 ALTER TABLE public.recovery_lookup ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, DELETE ON public.recovery_lookup TO service_role;
+COMMIT;
