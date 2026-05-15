@@ -10,6 +10,7 @@ import 'package:dreambook/core/db/migrations/m003_v3.dart';
 import 'package:dreambook/core/db/migrations/m004_v4.dart';
 import 'package:dreambook/core/db/migrations/m005_daily_note.dart';
 import 'package:dreambook/core/db/migrations/m006_sync_written_by.dart';
+import 'package:dreambook/core/db/migrations/m007_sync_cursors.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/sync/encrypted_row.dart';
 import 'package:dreambook/core/sync/sync_worker.dart';
@@ -35,9 +36,9 @@ void main() {
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 7,
         onCreate: (d, _) async {
-          await Migrations([m001Initial, m002V2, m003V3, m004V4, m005DailyNote, m006SyncWrittenBy]).runAll(d);
+          await Migrations([m001Initial, m002V2, m003V3, m004V4, m005DailyNote, m006SyncWrittenBy, m007SyncCursors]).runAll(d);
         },
       ),
     );
@@ -324,6 +325,164 @@ void main() {
       await worker.pullOnce();
       final rows = await db.query('feed', where: "id = 'conflict-feed2'");
       expect(rows.first['note'], 'fresh-remote'); // remote wins
+    });
+  });
+
+  group('SyncWorker cursor persistence (sync_cursors)', () {
+    test('fresh family — no cursor row, since is null on first pull', () async {
+      // Empty server, no cursor seeded.
+      await worker.pullOnce();
+      // sync_cursors stays empty when nothing was pulled.
+      final cursors = await db.query('sync_cursors');
+      expect(cursors, isEmpty);
+      expect(worker.debugLastPullAt, isNull);
+    });
+
+    test('successful pull persists max(updated_at) to sync_cursors', () async {
+      await seedRow(recordId: 'feed-cursor-a', version: 1);
+      await worker.pullOnce();
+      final cursors = await db.query('sync_cursors', where: 'family_id = ?', whereArgs: [familyId]);
+      expect(cursors, hasLength(1));
+      final persisted = DateTime.parse(cursors.first['last_pull_at'] as String);
+      // Should equal the row's updatedAt we set in seedRow.
+      expect(persisted.isAtSameMomentAs(worker.debugLastPullAt!), isTrue);
+    });
+
+    test('cold-start reads cursor from sync_cursors and pulls incrementally', () async {
+      // Seed an existing cursor as if a previous launch had persisted it.
+      final priorCursor = DateTime.utc(2026, 5, 14, 12);
+      await db.insert('sync_cursors', {
+        'family_id': familyId,
+        'last_pull_at': priorCursor.toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      // Build a fresh worker (simulates cold start: in-memory cache empty).
+      final freshWorker = SyncWorker(
+        db: db,
+        server: server,
+        familyKeys: familyKeys,
+        envelope: CryptoEnvelope(),
+        familyId: familyId,
+        deviceFp: localDeviceFp,
+      );
+      expect(freshWorker.debugLastPullAt, isNull); // not yet hydrated
+      await freshWorker.pullOnce();
+      // After first pull, in-memory cursor matches persisted value (no new rows).
+      expect(freshWorker.debugLastPullAt, isNotNull);
+      expect(
+        freshWorker.debugLastPullAt!.isAtSameMomentAs(priorCursor),
+        isTrue,
+      );
+      // FakeSupabaseServer filters with `updatedAt.isAfter(since)` — confirm
+      // we passed the persisted cursor through (a row stamped at priorCursor
+      // is excluded; only strictly newer rows would flow).
+      // Add a row equal to priorCursor; it must NOT come through.
+      final key = (await familyKeys.read(familyId: familyId))!;
+      final aad = EncryptedRow.aadFor(
+        tableName: 'feed',
+        recordId: 'feed-at-cursor',
+        version: 1,
+        familyId: familyId,
+        keyVersion: 1,
+      );
+      final ct = await CryptoEnvelope().seal(
+        utf8.encode(jsonEncode({
+          'id': 'feed-at-cursor',
+          'baby_id': 'b1',
+          'type': 'breast',
+          'started_at': '2026-05-14T09:00:00.000Z',
+          'note': 'at-cursor',
+          'created_at': '2026-05-14T09:00:00.000Z',
+          'updated_at': priorCursor.toIso8601String(),
+          'version': 1,
+          'family_id': familyId,
+          'key_version': 1,
+          'deleted_at': null,
+        })),
+        SecretKey(key.bytes),
+        utf8.encode(aad),
+      );
+      server.encryptedRows.add(FakeEncryptedRow(
+        id: const Uuid().v4(),
+        familyId: familyId,
+        tableName: 'feed',
+        recordId: 'feed-at-cursor',
+        version: 1,
+        keyVersion: 1,
+        ciphertext: ct,
+        aadHash: Uint8List.fromList(
+          (await Blake2b().hash(utf8.encode(aad))).bytes,
+        ),
+        writtenByDevice: remoteDeviceFp,
+        updatedAt: priorCursor, // exactly equal — must be filtered out
+      ));
+      await freshWorker.pullOnce();
+      final feed = await db.query('feed', where: "id = 'feed-at-cursor'");
+      expect(feed, isEmpty, reason: 'row at cursor boundary must be excluded');
+    });
+
+    test('cursor advances monotonically across pulls', () async {
+      final t1 = DateTime.utc(2026, 5, 14, 9);
+      final t2 = DateTime.utc(2026, 5, 14, 10);
+      // First pull seeds at t1.
+      final key = (await familyKeys.read(familyId: familyId))!;
+      Future<void> addRow(String id, DateTime updatedAt) async {
+        final aad = EncryptedRow.aadFor(
+          tableName: 'feed',
+          recordId: id,
+          version: 1,
+          familyId: familyId,
+          keyVersion: 1,
+        );
+        final ct = await CryptoEnvelope().seal(
+          utf8.encode(jsonEncode({
+            'id': id,
+            'baby_id': 'b1',
+            'type': 'breast',
+            'started_at': '2026-05-14T09:00:00.000Z',
+            'note': 'monotone',
+            'created_at': '2026-05-14T09:00:00.000Z',
+            'updated_at': updatedAt.toIso8601String(),
+            'version': 1,
+            'family_id': familyId,
+            'key_version': 1,
+            'deleted_at': null,
+          })),
+          SecretKey(key.bytes),
+          utf8.encode(aad),
+        );
+        server.encryptedRows.add(FakeEncryptedRow(
+          id: const Uuid().v4(),
+          familyId: familyId,
+          tableName: 'feed',
+          recordId: id,
+          version: 1,
+          keyVersion: 1,
+          ciphertext: ct,
+          aadHash: Uint8List.fromList(
+            (await Blake2b().hash(utf8.encode(aad))).bytes,
+          ),
+          writtenByDevice: remoteDeviceFp,
+          updatedAt: updatedAt,
+        ));
+      }
+
+      await addRow('mon-1', t1);
+      await worker.pullOnce();
+      final c1 = (await db.query('sync_cursors',
+              where: 'family_id = ?', whereArgs: [familyId]))
+          .first['last_pull_at'] as String;
+      expect(DateTime.parse(c1).isAtSameMomentAs(t1), isTrue);
+
+      await addRow('mon-2', t2);
+      await worker.pullOnce();
+      final c2 = (await db.query('sync_cursors',
+              where: 'family_id = ?', whereArgs: [familyId]))
+          .first['last_pull_at'] as String;
+      expect(DateTime.parse(c2).isAtSameMomentAs(t2), isTrue);
+      // Only one cursor row per family (PK enforced).
+      final all = await db.query('sync_cursors');
+      expect(all, hasLength(1));
     });
   });
 }

@@ -52,7 +52,15 @@ class SyncWorker {
   final String familyId;
   final String deviceFp;
 
+  /// In-memory cache of the persisted cursor in `sync_cursors`. Lazily
+  /// loaded on first [pullOnce] so cold-start picks up the cursor written
+  /// by a previous app launch (incremental pull).
   DateTime? _lastPullAt;
+  bool _cursorLoaded = false;
+
+  /// Visible for tests only — returns the in-memory cursor without
+  /// touching the DB. Production code must not depend on this.
+  DateTime? get debugLastPullAt => _lastPullAt;
 
   /// Drains the dirty queue once. Throws [SyncNetworkError] on transport
   /// failure (caller retries) or [SyncRlsReject] on server-side denial
@@ -150,6 +158,13 @@ class SyncWorker {
   /// Rows that fail to decrypt (wrong key) are discarded; the loop
   /// continues to the next row.
   Future<void> pullOnce() async {
+    // Hydrate the in-memory cursor from sync_cursors on first call so
+    // cold-start does an incremental pull from where the previous app
+    // launch left off.
+    if (!_cursorLoaded) {
+      _lastPullAt = await _readCursor();
+      _cursorLoaded = true;
+    }
     // RetryPolicy.run wraps transient transport faults (Socket/Timeout/5xx)
     // with exponential backoff; terminal errors are rethrown immediately.
     final rows = await RetryPolicy.run(
@@ -159,10 +174,43 @@ class SyncWorker {
       await _applyIncoming(row);
     }
     if (rows.isNotEmpty) {
-      _lastPullAt = rows
+      final newCursor = rows
           .map((r) => r.updatedAt)
           .reduce((a, b) => a.isAfter(b) ? a : b);
+      _lastPullAt = newCursor;
+      await _writeCursor(newCursor);
     }
+  }
+
+  /// Reads the persisted `last_pull_at` for [familyId]. Returns `null`
+  /// when no cursor exists yet (fresh device or first run after upgrade) —
+  /// the next pull will fetch from the beginning of time.
+  Future<DateTime?> _readCursor() async {
+    final rows = await db.query(
+      'sync_cursors',
+      columns: ['last_pull_at'],
+      where: 'family_id = ?',
+      whereArgs: [familyId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return DateTime.tryParse(rows.first['last_pull_at'] as String);
+  }
+
+  /// Persists [cursor] as the latest applied server timestamp for
+  /// [familyId]. Uses `ConflictAlgorithm.replace` because there is at
+  /// most one cursor row per family (PK lookup).
+  Future<void> _writeCursor(DateTime cursor) async {
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    await db.insert(
+      'sync_cursors',
+      {
+        'family_id': familyId,
+        'last_pull_at': cursor.toIso8601String(),
+        'updated_at': nowIso,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// Called by RealtimeSubscriber (Task 7) when a row arrives via websocket.
