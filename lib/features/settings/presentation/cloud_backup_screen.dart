@@ -168,6 +168,7 @@ class _PassphraseDialog extends StatefulWidget {
 class _PassphraseDialogState extends State<_PassphraseDialog> {
   final _ctrl = TextEditingController();
   bool _obscure = true;
+  String? _error;
 
   @override
   void dispose() {
@@ -187,6 +188,7 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
         onSubmitted: (_) => _submit(),
         decoration: InputDecoration(
           hintText: context.l10n.cloudBackupPassphraseHint,
+          errorText: _error,
           suffixIcon: IconButton(
             icon: Icon(
               _obscure
@@ -212,7 +214,10 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
 
   void _submit() {
     final pass = _ctrl.text;
-    if (pass.length < 8) return;
+    if (pass.length < 8) {
+      setState(() => _error = context.l10n.cloudBackupPassphraseHint);
+      return;
+    }
     Navigator.of(context).pop(pass);
   }
 }
