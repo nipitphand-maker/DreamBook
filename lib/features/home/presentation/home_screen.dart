@@ -1,4 +1,5 @@
 import 'package:dreambook/core/db/database_provider.dart';
+import 'package:dreambook/core/families/family_provider.dart';
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/router/app_router.dart';
@@ -57,6 +58,7 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const _FamilyBanner(),
                     const SizedBox(height: AppSpacing.sm),
                     _TodayHeroCard(babyId: babyId),
                     _SyncStatusRow(syncStatus: syncStatus),
@@ -587,3 +589,39 @@ final _babiesListProvider = FutureProvider<List<Baby>>((ref) async {
   ref.watch(appDatabaseProvider); // invalidate when DB state changes
   return ref.read(babyRepositoryProvider).list();
 });
+
+class _FamilyBanner extends ConsumerWidget {
+  const _FamilyBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final families = ref.watch(familyListProvider);
+    if (families.length <= 1) return const SizedBox.shrink();
+
+    final repo = ref.read(familyRepositoryProvider);
+    final activeId = repo.activeId();
+    final active = families.firstWhere(
+      (f) => f.id == activeId,
+      orElse: () => families.first,
+    );
+
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.families),
+      child: Container(
+        width: double.infinity,
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Text(
+          context.l10n.homeFamilyBanner(active.label),
+          style: AppTypography.labelLarge(
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
