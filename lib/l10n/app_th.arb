@@ -400,5 +400,30 @@
   "cloudRestoreNotFound": "ไม่พบ Family ID ตรวจสอบแล้วลองใหม่",
   "cloudRestoreRateLimit": "พยายามมากเกินไป รอหนึ่งชั่วโมงแล้วลองใหม่",
   "cloudRestoreWrongPassphrase": "รหัสผ่านไม่ถูกต้อง ตรวจสอบแล้วลองใหม่",
-  "cloudRestoreError": "กู้ข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต"
+  "cloudRestoreError": "กู้ข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต",
+
+  "settingsFamiliesTitle": "ครอบครัว",
+  "settingsFamiliesSubtitle": "จัดการกลุ่มครอบครัวของคุณ",
+  "familiesTitle": "ครอบครัว",
+  "familiesEmpty": "ไม่พบครอบครัว",
+  "familiesActive": "ใช้งานอยู่",
+  "familiesSwitch": "เปลี่ยนไปใช้ครอบครัวนี้",
+  "familiesLeave": "ออก",
+  "familiesLeaveConfirmTitle": "ออกจากครอบครัวนี้?",
+  "familiesLeaveConfirmBody": "คุณจะสูญเสียการเข้าถึงข้อมูลครอบครัวนี้บนอุปกรณ์นี้ ไม่สามารถย้อนกลับได้",
+  "familiesLeaveConfirmCta": "ออก",
+  "familiesLeaveCancel": "ยกเลิก",
+  "familiesAddAnother": "เพิ่มครอบครัวอื่น",
+  "familiesAddPremiumBody": "การจัดการหลายครอบครัวต้องการ DreamBook พรีเมียม",
+  "familiesCreating": "กำลังสร้างครอบครัว…",
+  "familiesCreated": "สร้างครอบครัวสำเร็จ",
+  "familiesCreatedError": "ไม่สามารถสร้างครอบครัวได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง",
+  "homeFamilyBanner": "ครอบครัว: {name}",
+  "@homeFamilyBanner": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -400,5 +400,30 @@
   "cloudRestoreNotFound": "Family ID not found. Check the ID and try again.",
   "cloudRestoreRateLimit": "Too many attempts. Wait an hour and try again.",
   "cloudRestoreWrongPassphrase": "Wrong passphrase. Check and try again.",
-  "cloudRestoreError": "Restore failed. Check your connection and try again."
+  "cloudRestoreError": "Restore failed. Check your connection and try again.",
+
+  "settingsFamiliesTitle": "Families",
+  "settingsFamiliesSubtitle": "Manage your family groups",
+  "familiesTitle": "Families",
+  "familiesEmpty": "No families found.",
+  "familiesActive": "Active",
+  "familiesSwitch": "Switch to this family",
+  "familiesLeave": "Leave",
+  "familiesLeaveConfirmTitle": "Leave this family?",
+  "familiesLeaveConfirmBody": "You'll lose access to this family's data on this device. This cannot be undone.",
+  "familiesLeaveConfirmCta": "Leave",
+  "familiesLeaveCancel": "Cancel",
+  "familiesAddAnother": "Add Another Family",
+  "familiesAddPremiumBody": "Managing multiple families requires DreamBook Premium.",
+  "familiesCreating": "Creating family…",
+  "familiesCreated": "Family created",
+  "familiesCreatedError": "Could not create family. Check your connection and try again.",
+  "homeFamilyBanner": "Family: {name}",
+  "@homeFamilyBanner": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }
