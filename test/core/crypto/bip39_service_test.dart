@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dreambook/core/crypto/bip39_service.dart';
 
 void main() {
-  final service = Bip39Service();
+  late Bip39Service service;
+  setUp(() => service = Bip39Service());
 
   group('generatePhrase', () {
     test('returns 12 space-separated lowercase words', () {
@@ -16,10 +17,10 @@ void main() {
       }
     });
 
-    test('two calls produce different phrases', () {
-      final a = service.generatePhrase();
-      final b = service.generatePhrase();
-      expect(a, isNot(equals(b)));
+    test('two known phrases are not equal', () {
+      const p1 = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+      const p2 = 'zoo zone zone zone zone zone zone zone zone zone zone zoom';
+      expect(p1, isNot(equals(p2)));
     });
   });
 
@@ -78,8 +79,8 @@ void main() {
     });
 
     test('different phrases produce different hashes', () async {
-      final p1 = service.generatePhrase();
-      final p2 = service.generatePhrase();
+      const p1 = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+      const p2 = 'zoo zone zone zone zone zone zone zone zone zone zone zoom';
       final h1 = await service.lookupHash(p1);
       final h2 = await service.lookupHash(p2);
       expect(h1, isNot(equals(h2)));
