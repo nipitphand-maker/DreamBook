@@ -50,9 +50,32 @@ serve(async (req) => {
   const hashBuf = await crypto.subtle.digest("SHA-256", devicePubKey);
   const deviceFpHex = hexFromBytes(new Uint8Array(hashBuf).slice(0, 16));
 
-  const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
 
-  const { data, error } = await client.rpc("create_invite_fn", {
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  if (userErr || !userData?.user) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  // Caller must be an active admin in the target family.
+  const { data: callerDevice, error: callerErr } = await userClient
+    .from("family_devices")
+    .select("device_fp, role, family_id")
+    .eq("auth_user_id", userData.user.id)
+    .eq("family_id", body.family_id)
+    .eq("role", "admin")
+    .is("revoked_at", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (callerErr || !callerDevice) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const { data, error } = await userClient.rpc("create_invite_fn", {
     p_family_id: body.family_id,
     p_code_hash: body.code_hash,
     p_salt: toByteaHex(saltBytes),
