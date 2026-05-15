@@ -13,6 +13,7 @@ import 'package:dreambook/features/feed/data/feed_providers.dart';
 import 'package:dreambook/features/pump/data/pump_providers.dart';
 import 'package:dreambook/features/sleep/data/sleep_repository.dart';
 import 'package:dreambook/features/stash/data/stash_providers.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: _BabySwitcherTitle(babyId: babyId),
+        title: BabySwitcherTitle(babyId: babyId),
         actions: [
           _SyncButton(syncStatus: syncStatus),
           TextButton.icon(
@@ -450,8 +451,8 @@ class _QuickLogButton extends StatelessWidget {
 ///
 /// Falls back to the app name when no baby is selected yet (e.g. before the
 /// onboarding insert resolves).
-class _BabySwitcherTitle extends ConsumerWidget {
-  const _BabySwitcherTitle({required this.babyId});
+class BabySwitcherTitle extends ConsumerWidget {
+  const BabySwitcherTitle({super.key, required this.babyId});
   final String? babyId;
 
   @override
@@ -461,10 +462,9 @@ class _BabySwitcherTitle extends ConsumerWidget {
       return Text(l10n.appName);
     }
     final babies = ref.watch(_babiesListProvider).value;
-    final baby = babies?.firstWhere(
-      (b) => b.id == babyId,
-      orElse: () => babies.first,
-    );
+    final baby = (babies == null || babies.isEmpty)
+        ? null
+        : babies.firstWhereOrNull((b) => b.id == babyId);
     final display = baby == null
         ? l10n.appName
         : (baby.nickname?.isNotEmpty == true ? baby.nickname! : baby.name);
@@ -599,10 +599,8 @@ class _FamilyBanner extends ConsumerWidget {
     if (families.length <= 1) return const SizedBox.shrink();
 
     final activeId = ref.watch(familyRepositoryProvider).activeId();
-    final active = families.firstWhere(
-      (f) => f.id == activeId,
-      orElse: () => families.first,
-    );
+    final active =
+        families.firstWhereOrNull((f) => f.id == activeId) ?? families.first;
 
     return Material(
       color: Theme.of(context).colorScheme.secondaryContainer,

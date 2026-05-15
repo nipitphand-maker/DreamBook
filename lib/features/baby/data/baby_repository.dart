@@ -14,6 +14,12 @@ import 'package:uuid/uuid.dart';
 class BabyRepository {
   BabyRepository(this._ref);
 
+  /// Display name caps (defense-in-depth alongside `TextField.maxLength` on
+  /// the input screens). Caught here so direct repository callers (tests,
+  /// future programmatic flows) can't bypass UI limits.
+  static const int maxNameLength = 80;
+  static const int maxNicknameLength = 40;
+
   final Ref _ref;
   static const _uuid = Uuid();
 
@@ -29,12 +35,26 @@ class BabyRepository {
     String? photoPath,
     PreferredUnit preferredUnit = PreferredUnit.oz,
   }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'must not be empty');
+    }
+    if (trimmedName.length > maxNameLength) {
+      throw ArgumentError.value(name, 'name',
+          'must be at most $maxNameLength characters');
+    }
+    final trimmedNickname = nickname?.trim();
+    if (trimmedNickname != null && trimmedNickname.length > maxNicknameLength) {
+      throw ArgumentError.value(nickname, 'nickname',
+          'must be at most $maxNicknameLength characters');
+    }
+
     final db = await _db;
     final now = DateTime.now().toUtc();
     final baby = Baby(
       id: _uuid.v4(),
-      name: name,
-      nickname: nickname,
+      name: trimmedName,
+      nickname: trimmedNickname?.isEmpty == true ? null : trimmedNickname,
       dob: dob,
       sex: sex,
       photoPath: photoPath,
@@ -43,8 +63,20 @@ class BabyRepository {
       updatedAt: now,
     );
 
+    // Stamp the active family_id from prefs so this row is visible to
+    // `list()` (which filters by `family_id = prefs['family.id']`). Skip the
+    // stamp when prefs is empty — keeps schema-v2 tests (no family_id column)
+    // green and falls back to the DDL default (`''`) for offline installs
+    // that never bootstrapped a remote family.
+    final familyId =
+        _ref.read(sharedPreferencesProvider).getString('family.id') ?? '';
+    final row = {...baby.toRow()};
+    if (familyId.isNotEmpty) {
+      row['family_id'] = familyId;
+    }
+
     await db.transaction((txn) async {
-      await txn.insert('baby', baby.toRow());
+      await txn.insert('baby', row);
       await txn.insert(
         'sync_state',
         {
@@ -132,6 +164,20 @@ class BabyRepository {
     BabySex? sex,
     PreferredUnit preferredUnit = PreferredUnit.oz,
   }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'must not be empty');
+    }
+    if (trimmedName.length > maxNameLength) {
+      throw ArgumentError.value(name, 'name',
+          'must be at most $maxNameLength characters');
+    }
+    final trimmedNickname = nickname?.trim();
+    if (trimmedNickname != null && trimmedNickname.length > maxNicknameLength) {
+      throw ArgumentError.value(nickname, 'nickname',
+          'must be at most $maxNicknameLength characters');
+    }
+
     final db = await _db;
     final now = DateTime.now().toUtc();
     final nowIso = now.toIso8601String();
@@ -155,7 +201,15 @@ class BabyRepository {
             version        = version + 1
         WHERE id = ? AND deleted_at IS NULL
         ''',
-        [name, nickname, dob.toUtc().toIso8601String(), sexStr, unitStr, nowIso, id],
+        [
+          trimmedName,
+          trimmedNickname?.isEmpty == true ? null : trimmedNickname,
+          dob.toUtc().toIso8601String(),
+          sexStr,
+          unitStr,
+          nowIso,
+          id,
+        ],
       );
       final rows = await txn.query('baby', columns: ['version'], where: 'id = ?', whereArgs: [id], limit: 1);
       final newVersion = rows.isEmpty ? 1 : rows.first['version'] as int;

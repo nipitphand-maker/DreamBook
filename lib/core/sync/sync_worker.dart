@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
@@ -11,6 +12,7 @@ import 'conflict_resolver.dart';
 import 'count_attestation.dart';
 import 'encrypted_row.dart';
 import 'retry_policy.dart';
+import 'supabase_sync_server.dart';
 import 'sync_error.dart';
 import 'sync_server.dart';
 
@@ -123,6 +125,16 @@ class SyncWorker {
       // with exponential backoff; terminal errors (incl. SyncRlsReject and
       // SyncNetworkError, neither of which match transient classification)
       // are rethrown immediately so the caller can react.
+      // Debug-only — never ship the anon-sub UUID to production logcat.
+      // Only the real SupabaseSyncServer exposes probeSession; fakes don't.
+      if (kDebugMode && server is SupabaseSyncServer) {
+        final s = (server as SupabaseSyncServer).probeSession();
+        debugPrint(
+            '[push] table=$tableName id=$recordId deviceFp=$deviceFp '
+            'familyId=$familyId keyVersion=${key.keyVersion} '
+            'sessionUid=${s?['uid']} hasJwt=${s?['hasJwt']} '
+            'jwtRole=${s?['role']} expEpoch=${s?['exp']}');
+      }
       await RetryPolicy.run(
         () => server.insertEncryptedRow(
           id: pushId,

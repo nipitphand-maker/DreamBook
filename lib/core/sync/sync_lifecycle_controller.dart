@@ -6,8 +6,8 @@ import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../crypto/crypto_envelope.dart';
 import '../crypto/family_key_service.dart';
 import '../db/database_provider.dart';
+import '../families/family_provider.dart';
 import '../providers/device_id_provider.dart';
-import '../providers/shared_preferences_provider.dart';
 import 'supabase_client_service.dart';
 import 'supabase_sync_server.dart';
 import 'sync_error_reporter.dart';
@@ -159,6 +159,23 @@ class _UnusedSecureStorage {
       throw StateError('No-op sync controller — storage should never run');
 }
 
+/// The currently active family id as derived from [familyListProvider] +
+/// the repository's prefs-backed active id. Returns null when no family is
+/// active (pre-onboarding) or when the prefs string is empty.
+///
+/// Exposed as a dedicated provider so that consumers — most importantly
+/// [syncLifecycleControllerProvider] — can [ref.watch] family-switch events
+/// and rebind without requiring callers to remember to call
+/// `ref.invalidate(syncLifecycleControllerProvider)` after a switch.
+final currentFamilyIdProvider = Provider<String?>((ref) {
+  // Depend on the list notifier so we rebuild when register/switchTo/remove
+  // fires (each of those mutators reassigns `state`, triggering watchers).
+  ref.watch(familyListProvider);
+  final id = ref.watch(familyRepositoryProvider).activeId();
+  if (id == null || id.isEmpty) return null;
+  return id;
+});
+
 /// Returns a real [SyncLifecycleController] once SharedPreferences contains
 /// a `family.id` AND the database is ready. Until then returns a
 /// [_NoOpSyncLifecycleController] — pull-to-refresh + the
@@ -169,15 +186,18 @@ class _UnusedSecureStorage {
 /// Riverpod will rebuild this provider once the DB future resolves — fixing
 /// the cold-start bug where the no-op was cached forever for the session.
 ///
-/// Task 16 will dispose + rebuild this provider after caregiver onboarding
-/// writes `family.id` into prefs (the consumer can `ref.invalidate`).
+/// Using [ref.watch] on [currentFamilyIdProvider] means Riverpod will
+/// rebuild this provider when the user switches family, so the SyncWorker
+/// and Realtime subscription are rebound to the new family id. The old
+/// realtime subscription is torn down via the [ref.onDispose] hook below.
 final syncLifecycleControllerProvider =
     Provider<SyncLifecycleController>((ref) {
   // Watch DB so this provider rebuilds once the DB future resolves.
   final dbAsync = ref.watch(appDatabaseProvider);
-
-  final prefs = ref.read(sharedPreferencesProvider);
-  final familyId = prefs.getString(kFamilyIdPrefsKey);
+  // Watch the active family id so a switch triggers a full rebuild → new
+  // SyncWorker bound to the new family, and ref.onDispose tears the old
+  // Realtime channel down.
+  final familyId = ref.watch(currentFamilyIdProvider);
 
   if (familyId == null || familyId.isEmpty) {
     return _NoOpSyncLifecycleController(

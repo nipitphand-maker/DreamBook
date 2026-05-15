@@ -11,6 +11,15 @@
 //      First-time policy creation files (no drops present) are exempt.
 //   4. Schema diff vs prod required (placeholder rule — passes if schema_diff tool is present)
 //   5. ALTER TABLE DROP COLUMN → must be preceded by -- deprecation: comment in the same file
+//   7. bytea_device_fp_uuid_send_mismatch — flags the cross-type compare bug that
+//      shipped in 0002/0010 (fixed by 0011/0016/0017/0026): device_fp is
+//      SHA-256(pubkey)[0:16] (16 bytes); uuid_send(auth.uid()) is the 16-byte UUID
+//      raw form. They are bytea-bytea but semantically unrelated → never equal →
+//      RLS silently denies every row. Detects both operand orders and the
+//      auth.uid()::bytea / decode(auth.uid()::text, …) variants.
+//      Fix: compare auth_user_id = auth.uid() against family_devices, or use
+//      `id IN (SELECT public.current_user_family_ids())`.
+//      Grandfathered files (legacy, already superseded): 0002_rls.sql, 0010_fix_rls_recursion.sql.
 //
 // Note: Rule 2 uses decodeBytea (not _decodeBytes) per plan audit §"bytea decoder name mismatch".
 // Rule 4 (schema diff) requires staging Supabase secrets — deferred to CI job.
@@ -142,6 +151,63 @@ void main(List<String> args) {
         );
       }
     }
+
+    // Rule 7: bytea_device_fp_uuid_send_mismatch
+    // device_fp (SHA-256 hash bytea) must NEVER be compared to a value derived
+    // from auth.uid() (UUID). Catches:
+    //   • device_fp = uuid_send(auth.uid())       (either operand order)
+    //   • device_fp = auth.uid()::bytea           (either operand order)
+    //   • device_fp = decode(auth.uid()::text, …) (either operand order)
+    // Strip SQL line comments (-- …) so documentation of the bug in comments
+    // does not trip the rule (e.g. 0026's preamble, 0011's header note).
+    if (!_byteaMismatchGrandfathered.contains(name)) {
+      final codeOnly = _stripSqlLineComments(content);
+      final bugPatterns = <RegExp>[
+        // device_fp = uuid_send(auth.uid())  (and reversed)
+        RegExp(
+          r'\b\w*device_fp\b\s*=\s*uuid_send\s*\(\s*auth\.uid\s*\(\s*\)\s*\)',
+          caseSensitive: false,
+        ),
+        RegExp(
+          r'uuid_send\s*\(\s*auth\.uid\s*\(\s*\)\s*\)\s*=\s*\b\w*device_fp\b',
+          caseSensitive: false,
+        ),
+        // device_fp = auth.uid()::bytea  (and reversed)
+        RegExp(
+          r'\b\w*device_fp\b\s*=\s*auth\.uid\s*\(\s*\)\s*::\s*bytea\b',
+          caseSensitive: false,
+        ),
+        RegExp(
+          r'\bauth\.uid\s*\(\s*\)\s*::\s*bytea\b\s*=\s*\b\w*device_fp\b',
+          caseSensitive: false,
+        ),
+        // device_fp = decode(auth.uid()::text, …)  (and reversed)
+        RegExp(
+          r'\b\w*device_fp\b\s*=\s*decode\s*\(\s*auth\.uid\s*\(\s*\)\s*::\s*text',
+          caseSensitive: false,
+        ),
+        RegExp(
+          r'decode\s*\(\s*auth\.uid\s*\(\s*\)\s*::\s*text[^)]*\)\s*=\s*\b\w*device_fp\b',
+          caseSensitive: false,
+        ),
+      ];
+      var flagged = false;
+      for (final p in bugPatterns) {
+        if (p.hasMatch(codeOnly)) {
+          flagged = true;
+          break;
+        }
+      }
+      if (flagged) {
+        errors.add(
+          '$name [Rule 7 bytea_device_fp_uuid_send_mismatch]: device_fp '
+          '(SHA-256 hash bytea) compared to a value derived from auth.uid() '
+          '(UUID). These bytea operands are never equal and silently kill RLS. '
+          'Fix: join via family_devices.auth_user_id = auth.uid(), or use '
+          '"id IN (SELECT public.current_user_family_ids())".',
+        );
+      }
+    }
   }
 
   // Rule 2: bytea columns exist → decodeBytea() must be present in lib/core/sync/
@@ -180,3 +246,22 @@ void main(List<String> args) {
 }
 
 String _basename(String path) => path.split('/').last;
+
+// Files that historically contain the bug pattern but were superseded by later
+// fixes (0011/0016/0017/0026). New migrations are NOT exempt.
+const _byteaMismatchGrandfathered = <String>{
+  '0002_rls.sql',
+  '0010_fix_rls_recursion.sql',
+};
+
+// Strip SQL line comments (-- …) so the linter does not trip on documentation
+// of a bug pattern inside header comments. Block comments (/* … */) are
+// also stripped. String literals are left alone — migrations don't embed
+// `device_fp = uuid_send(...)` inside quoted strings.
+String _stripSqlLineComments(String sql) {
+  // Remove /* … */ block comments first (non-greedy, dotall via [\s\S]).
+  var out = sql.replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '');
+  // Then strip --… line comments to end-of-line.
+  out = out.replaceAll(RegExp(r'--[^\n]*'), '');
+  return out;
+}

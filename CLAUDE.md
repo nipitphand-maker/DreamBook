@@ -47,6 +47,14 @@
 - **Color tokens**: brand (lavender/peach/sage/honey) FAIL AA on cream (2.03:1 lavender) — they are decorative fills only. Text/icons MUST use `AppColors.ink*` or `AppColors.{name}700` derivatives.
 - **Sync (Plan C)**: Supabase region `ap-southeast-1` (Singapore); last-write-wins per `(record_id, version)`
 - **Notifications**: inexact only. CI grep guard in `tool/check_no_exact_alarms.sh`.
+- **RLS device identity discipline** — two device identities exist and are NEVER interchangeable:
+  1. `auth.uid()` — 16-byte Supabase anonymous user UUID (the "caller").
+  2. `family_devices.device_fp` — first 16 bytes of `SHA-256(device_pub_key)` (the "device record").
+  They are unrelated byte strings. `uuid_send(auth.uid())`, `uuid_bytes(...)`, `decode(auth.uid()::text, 'hex')`, etc. NEVER equal a real `device_fp`. Comparing them in an RLS `USING` / `WITH CHECK` silently denies every row (no error, just empty results → mysterious 403s and `NULL` subqueries that break downstream policies).
+  - The canonical "who is the caller" join: `family_devices.auth_user_id = auth.uid()`.
+  - The canonical "what families does the caller belong to" helper: `public.current_user_family_ids()` (SECURITY DEFINER, defined in `0011_auth_user_id_rls.sql`). Every membership-gated policy MUST go through it; never re-derive the membership predicate inline.
+  - When a policy needs the caller's `device_fp` (e.g. `written_by_device` guard, `device_sync_cursors`), look it up via `SELECT device_fp FROM family_devices WHERE auth_user_id = auth.uid() AND family_id = … AND revoked_at IS NULL LIMIT 1` — see `0017_rls_reharden.sql` for the pattern.
+  - This anti-pattern shipped in `0002_rls.sql` and was only fully retired in `0026_fix_families_select_uuid_send_bug.sql` after 5 partial fixes (0010, 0011, 0014, 0016, 0017). Reference 0026 when reviewing new RLS or SECURITY DEFINER code.
 
 ## Folder structure
 - `/lib/features/onboarding`, `/home`, `/feed`, `/pump`, `/diaper`, `/sleep`, `/stash`, `/share`, `/summary`, `/vaccination`, `/visit_report`, `/subscription`, `/settings`, `/dreambaby_bridge`

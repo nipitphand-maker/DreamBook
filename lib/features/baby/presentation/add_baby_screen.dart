@@ -113,6 +113,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
+                maxLength: 80,
                 decoration: InputDecoration(
                   labelText: l10n.babiesNameLabel,
                 ),
@@ -128,6 +129,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
               const SizedBox(height: AppSpacing.md),
               TextFormField(
                 controller: _nicknameCtrl,
+                maxLength: 40,
                 decoration: InputDecoration(
                   labelText: l10n.babiesNicknameLabel,
                 ),

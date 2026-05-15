@@ -45,15 +45,18 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     try {
       final raw = _nameCtrl.text.trim();
       final name = raw.isEmpty ? 'Baby' : raw;
+      final prefs = ref.read(sharedPreferencesProvider);
+
+      // Bootstrap MUST run before the baby insert so the baby row gets stamped
+      // with the real family_id from prefs. Inserting first leaves family_id
+      // as '' (DDL default), which makes BabyRepository.list()'s family.id
+      // filter return [] forever.
+      final bootstrapped = await _bootstrapFamily(prefs, babyName: name);
 
       final babyRepo = ref.read(babyRepositoryProvider);
       final today = DateTime.now().toUtc();
       final baby = await babyRepo.insert(name: name, dob: today);
       await ref.read(currentBabyIdProvider.notifier).select(baby.id);
-
-      final prefs = ref.read(sharedPreferencesProvider);
-
-      final bootstrapped = await _bootstrapFamily(prefs);
 
       if (!mounted) return;
       if (bootstrapped) {
@@ -82,7 +85,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   /// Returns true if a new family was bootstrapped (online success).
   /// Returns false if already has family, offline, or any error.
-  Future<bool> _bootstrapFamily(SharedPreferences prefs) async {
+  /// Errors are surfaced via SnackBar so the user knows sync won't work —
+  /// silent fallback to offline mode masked five production sync failures.
+  Future<bool> _bootstrapFamily(
+    SharedPreferences prefs, {
+    required String babyName,
+  }) async {
     if ((prefs.getString(_kFamilyIdKey) ?? '').isNotEmpty) return false;
     try {
       final supa = Supabase.instance.client;
@@ -94,13 +102,18 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         'bootstrap_family',
         body: {'device_pub_key': base64Encode(identity.publicKeyBytes)},
       );
-      if (resp.status != 201) return false;
+      if (resp.status != 201) {
+        debugPrint('bootstrap_family non-201: ${resp.status} ${resp.data}');
+        return false;
+      }
       final data = resp.data;
-      if (data is! Map || data['family_id'] is! String) return false;
+      if (data is! Map || data['family_id'] is! String) {
+        debugPrint('bootstrap_family bad payload: $data');
+        return false;
+      }
 
       final familyId = data['family_id'] as String;
       await prefs.setString(_kFamilyIdKey, familyId);
-      final babyName = (await ref.read(babyRepositoryProvider).getActive())?.name ?? 'Baby';
       await ref.read(familyListProvider.notifier).register(FamilyEntry(
         id: familyId,
         label: "$babyName's Family",
@@ -114,7 +127,16 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       ref.invalidate(syncLifecycleControllerProvider);
       ref.read(syncLifecycleControllerProvider).syncNow().ignore();
       return true;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('bootstrap_family threw: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync setup failed — continuing offline. ($e)'),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
       return false;
     }
   }
@@ -146,9 +168,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
               const SizedBox(height: AppSpacing.xl),
               TextField(
                 controller: _nameCtrl,
+                maxLength: 80,
                 decoration: InputDecoration(
                   labelText: l10n.welcomeBabyNameLabel,
                   hintText: l10n.welcomeBabyNameHint,
+                  counterText: '',
                 ),
                 autofocus: false,
                 textInputAction: TextInputAction.done,

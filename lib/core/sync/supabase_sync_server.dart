@@ -18,6 +18,33 @@ class SupabaseSyncServer implements SyncServer {
 
   final SupabaseClient _client;
 
+  /// Diagnostic — used by SyncWorker to log auth state alongside each push
+  /// attempt so we can correlate 42501 RLS rejections with the JWT actually
+  /// in-flight (vs the one bootstrap_family used).
+  Map<String, dynamic>? probeSession() {
+    final s = _client.auth.currentSession;
+    if (s == null) return {'uid': null, 'hasJwt': false};
+    final parts = s.accessToken.split('.');
+    String? role;
+    int? exp;
+    if (parts.length == 3) {
+      try {
+        final pad = '=' * ((4 - parts[1].length % 4) % 4);
+        final payload = utf8.decode(
+            base64Url.decode(parts[1].replaceAll('-', '+').replaceAll('_', '/') + pad));
+        final map = jsonDecode(payload) as Map<String, dynamic>;
+        role = map['role'] as String?;
+        exp = map['exp'] as int?;
+      } catch (_) {}
+    }
+    return {
+      'uid': s.user.id,
+      'hasJwt': true,
+      'role': role,
+      'exp': exp,
+    };
+  }
+
   @override
   Future<void> insertEncryptedRow({
     required String id,

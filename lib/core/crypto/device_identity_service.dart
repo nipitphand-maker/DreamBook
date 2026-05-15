@@ -9,6 +9,20 @@ import 'package:cryptography/cryptography.dart';
 class DeviceIdentity {
   const DeviceIdentity({required this.publicKeyBytes});
   final Uint8List publicKeyBytes;
+
+  /// Stable device fingerprint. Matches the formula used by
+  /// `supabase/functions/bootstrap_family/index.ts` (SHA-256 of the
+  /// device public key, first 16 bytes, lowercase hex). Used as
+  /// `written_by_device` on encrypted_rows pushes — must equal
+  /// `encode(family_devices.device_fp, 'hex')` for RLS to accept the
+  /// write (see `supabase/migrations/0017_rls_reharden.sql`).
+  Future<String> fingerprintHex() async {
+    final hash = await Sha256().hash(publicKeyBytes);
+    return hash.bytes
+        .sublist(0, 16)
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+  }
 }
 
 class DeviceIdentityService {
