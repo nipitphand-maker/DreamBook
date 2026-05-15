@@ -63,6 +63,9 @@ dependencies:
   # Compression (Plan C-2 SY-10) — zstd for versioned CryptoEnvelope v2
   zstandard: ^1.2.0
 
+  # Observability (P2.33 DV-6) — opt-in crash reporting with PII scrubber
+  sentry_flutter: ^8.11.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
