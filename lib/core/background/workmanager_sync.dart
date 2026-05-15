@@ -31,7 +31,7 @@ Future<void> registerBackgroundSync() async {
       requiresBatteryNotLow: true,
       requiresCharging: true,
     ),
-    existingWorkPolicy: ExistingWorkPolicy.keep,
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     // IMPORTANT: No setExact, no exactAllowWhileIdle — inexact only.
     // See tool/check_no_exact_alarms.sh
   );
