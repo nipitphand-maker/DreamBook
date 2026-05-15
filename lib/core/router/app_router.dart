@@ -154,7 +154,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.bip39Verify,
-        builder: (_, __) => const Bip39VerifyScreen(),
+        builder: (context, state) => Bip39VerifyScreen(phrase: state.extra as String),
       ),
       GoRoute(
         path: AppRoutes.bip39Restore,
