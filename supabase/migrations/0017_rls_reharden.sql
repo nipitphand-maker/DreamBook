@@ -66,6 +66,23 @@ CREATE INDEX IF NOT EXISTS family_devices_device_fp_active_idx
 -- 6. Data-integrity invariant: at most one ACTIVE device per (auth_user_id, family_id).
 -- Without this, the LIMIT 1 subqueries above could silently pick an arbitrary row
 -- if duplicates existed, masking a spoof. This index makes the duplicate impossible.
+-- First, revoke any duplicate active devices (keep admin first, then earliest join).
+WITH ranked AS (
+  SELECT device_fp, family_id,
+         ROW_NUMBER() OVER (
+           PARTITION BY auth_user_id, family_id
+           ORDER BY CASE WHEN role = 'admin' THEN 0 ELSE 1 END, joined_at
+         ) AS rn
+  FROM public.family_devices
+  WHERE auth_user_id IS NOT NULL AND revoked_at IS NULL
+)
+UPDATE public.family_devices fd
+SET revoked_at = now()
+FROM ranked r
+WHERE fd.device_fp = r.device_fp
+  AND fd.family_id = r.family_id
+  AND r.rn > 1;
+
 CREATE UNIQUE INDEX IF NOT EXISTS family_devices_one_active_per_user_family
   ON public.family_devices(auth_user_id, family_id)
   WHERE auth_user_id IS NOT NULL AND revoked_at IS NULL;
