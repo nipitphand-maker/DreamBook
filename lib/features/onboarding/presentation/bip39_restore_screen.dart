@@ -121,8 +121,6 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
       ref.invalidate(syncLifecycleControllerProvider);
 
       if (!mounted) return;
-      setState(() => _restoring = false);
-
       await ref.read(syncLifecycleControllerProvider).syncNow();
 
       final babies = await ref.read(babyRepositoryProvider).list();
@@ -137,10 +135,9 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
       context.go(AppRoutes.home);
     } catch (err) {
       if (!mounted) return;
-      setState(() {
-        _errorText = err.toString();
-        _restoring = false;
-      });
+      setState(() => _errorText = context.l10n.recoveryRestoreError);
+    } finally {
+      if (mounted) setState(() => _restoring = false);
     }
   }
 
