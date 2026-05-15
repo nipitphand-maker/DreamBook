@@ -128,6 +128,7 @@ serve(async (req) => {
     storage_path: storagePath,
     wrapped_key: toByteaHex(wrappedKey),
     salt: toByteaHex(salt),
+    key_version: body.key_version,
     payload_hash: toByteaHex(payloadHash),
     size_bytes: payloadBytes.length,
   });
