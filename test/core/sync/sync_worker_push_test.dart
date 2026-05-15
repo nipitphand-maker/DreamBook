@@ -8,6 +8,7 @@ import 'package:dreambook/core/db/migrations/m003_v3.dart';
 import 'package:dreambook/core/db/migrations/m004_v4.dart';
 import 'package:dreambook/core/db/migrations/m005_daily_note.dart';
 import 'package:dreambook/core/db/migrations/m006_sync_written_by.dart';
+import 'package:dreambook/core/db/migrations/m007_sync_cursors.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/sync/sync_error.dart';
 import 'package:dreambook/core/sync/sync_worker.dart';
@@ -31,9 +32,9 @@ void main() {
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 7,
         onCreate: (d, _) async {
-          await Migrations([m001Initial, m002V2, m003V3, m004V4, m005DailyNote, m006SyncWrittenBy]).runAll(d);
+          await Migrations([m001Initial, m002V2, m003V3, m004V4, m005DailyNote, m006SyncWrittenBy, m007SyncCursors]).runAll(d);
         },
       ),
     );

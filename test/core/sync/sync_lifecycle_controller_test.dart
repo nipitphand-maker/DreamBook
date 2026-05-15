@@ -5,6 +5,10 @@ import 'package:dreambook/core/crypto/family_key_service.dart';
 import 'package:dreambook/core/db/migrations/m001_initial.dart';
 import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/m003_v3.dart';
+import 'package:dreambook/core/db/migrations/m004_v4.dart';
+import 'package:dreambook/core/db/migrations/m005_daily_note.dart';
+import 'package:dreambook/core/db/migrations/m006_sync_written_by.dart';
+import 'package:dreambook/core/db/migrations/m007_sync_cursors.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:dreambook/core/sync/sync_status_provider.dart';
@@ -27,9 +31,17 @@ void main() {
     final db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 7,
         onCreate: (d, _) async {
-          await Migrations([m001Initial, m002V2, m003V3]).runAll(d);
+          await Migrations([
+            m001Initial,
+            m002V2,
+            m003V3,
+            m004V4,
+            m005DailyNote,
+            m006SyncWrittenBy,
+            m007SyncCursors,
+          ]).runAll(d);
         },
       ),
     );
