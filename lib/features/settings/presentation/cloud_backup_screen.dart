@@ -210,7 +210,7 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
   }
 
   void _submit() {
-    final pass = _ctrl.text.trim();
+    final pass = _ctrl.text;
     if (pass.length < 8) return;
     Navigator.of(context).pop(pass);
   }

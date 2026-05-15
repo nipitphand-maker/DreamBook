@@ -80,16 +80,22 @@ class SnapshotRepository {
       rows: serializedRows,
     );
 
-    final response = await _supabase.functions.invoke(
-      'upload_snapshot',
-      body: {
-        'wrapped_key_b64': base64.encode(prepared.wrappedKey),
-        'salt_b64': base64.encode(prepared.salt),
-        'key_version': familyKey.keyVersion,
-        'payload_b64': base64.encode(prepared.encryptedPayload),
-        'payload_hash_b64': base64.encode(prepared.payloadHash),
-      },
-    );
+    final FunctionResponse response;
+    try {
+      response = await _supabase.functions.invoke(
+        'upload_snapshot',
+        body: {
+          'wrapped_key_b64': base64.encode(prepared.wrappedKey),
+          'salt_b64': base64.encode(prepared.salt),
+          'key_version': familyKey.keyVersion,
+          'payload_b64': base64.encode(prepared.encryptedPayload),
+          'payload_hash_b64': base64.encode(prepared.payloadHash),
+        },
+      );
+    } on FunctionException catch (e) {
+      if (e.status == 429) throw const SnapshotRateLimitError();
+      rethrow;
+    }
 
     final data = response.data as Map<String, dynamic>;
     return data['version'] as int;

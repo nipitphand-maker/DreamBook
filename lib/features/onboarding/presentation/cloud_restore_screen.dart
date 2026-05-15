@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -35,7 +37,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
   Future<void> _restore() async {
     final familyId = _familyIdCtrl.text.trim();
-    final passphrase = _passphraseCtrl.text.trim();
+    final passphrase = _passphraseCtrl.text;
     if (familyId.isEmpty || passphrase.isEmpty) return;
 
     setState(() {
@@ -59,8 +61,8 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       );
 
       ref.invalidate(syncLifecycleControllerProvider);
-      if (!mounted) return;
-      await ref.read(syncLifecycleControllerProvider).syncNow().catchError((_) {});
+      // syncNow doesn't touch the widget tree — fire regardless of mount state.
+      unawaited(ref.read(syncLifecycleControllerProvider).syncNow().catchError((_) {}));
       if (!mounted) return;
       context.go(AppRoutes.home);
     } on SnapshotNotFoundError {
