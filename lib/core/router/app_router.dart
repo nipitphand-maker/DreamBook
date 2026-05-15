@@ -15,6 +15,7 @@ import '../../features/settings/presentation/manage_devices_screen.dart';
 import '../../features/settings/presentation/cloud_backup_screen.dart';
 import '../../features/onboarding/presentation/cloud_restore_screen.dart';
 import '../../features/caregivers/presentation/caregivers_screen.dart';
+import '../../features/families/presentation/families_screen.dart';
 import '../../features/share/presentation/claim_invite_screen.dart';
 import '../../features/share/presentation/share_invite_screen.dart';
 import '../../features/sleep/presentation/sleep_timer_screen.dart';
@@ -49,6 +50,7 @@ class AppRoutes {
   static const bip39Restore = '/recovery/restore';
   static const manageDevices = '/settings/devices';
   static const cloudBackup   = '/settings/cloud-backup';
+  static const families      = '/settings/families';
   static const cloudRestore  = '/recovery/cloud-restore';
 }
 
@@ -173,6 +175,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.cloudBackup,
         builder: (_, __) => const CloudBackupScreen(),
       ),
+      GoRoute(path: AppRoutes.families, builder: (_, __) => const FamiliesScreen()),
       GoRoute(
         path: AppRoutes.cloudRestore,
         builder: (_, __) => const CloudRestoreScreen(),
