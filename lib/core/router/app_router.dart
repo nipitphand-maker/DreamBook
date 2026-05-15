@@ -12,6 +12,8 @@ import '../../features/onboarding/presentation/bip39_restore_screen.dart';
 import '../../features/pump/presentation/pump_session_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/manage_devices_screen.dart';
+import '../../features/settings/presentation/cloud_backup_screen.dart';
+import '../../features/onboarding/presentation/cloud_restore_screen.dart';
 import '../../features/caregivers/presentation/caregivers_screen.dart';
 import '../../features/share/presentation/claim_invite_screen.dart';
 import '../../features/share/presentation/share_invite_screen.dart';
@@ -46,6 +48,8 @@ class AppRoutes {
   static const bip39Verify  = '/recovery/verify';
   static const bip39Restore = '/recovery/restore';
   static const manageDevices = '/settings/devices';
+  static const cloudBackup   = '/settings/cloud-backup';
+  static const cloudRestore  = '/recovery/cloud-restore';
 }
 
 const kOnboardingDoneKey = 'onboarding.done';
@@ -61,7 +65,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state.matchedLocation != AppRoutes.shareClaim &&
           state.matchedLocation != AppRoutes.bip39Setup &&
           state.matchedLocation != AppRoutes.bip39Verify &&
-          state.matchedLocation != AppRoutes.bip39Restore) {
+          state.matchedLocation != AppRoutes.bip39Restore &&
+          state.matchedLocation != AppRoutes.cloudRestore) {
         // B-2: Save the intended deep-link path so WelcomeScreen can
         // resume it after onboarding completes.
         final intended = state.uri.toString();
@@ -163,6 +168,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.manageDevices,
         builder: (_, __) => const ManageDevicesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.cloudBackup,
+        builder: (_, __) => const CloudBackupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.cloudRestore,
+        builder: (_, __) => const CloudRestoreScreen(),
       ),
     ],
   );

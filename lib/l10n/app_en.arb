@@ -368,5 +368,37 @@
   "manageDevicesAdmin": "Admin",
   "manageDevicesEditor": "Member",
   "manageDevicesThisDevice": "This device",
-  "settingsSectionSecurity": "Security"
+  "settingsSectionSecurity": "Security",
+  "settingsCloudBackupTitle": "Cloud Backup",
+  "settingsCloudBackupSubtitle": "Encrypted snapshot of your family data",
+  "welcomeCloudRestoreCta": "Restore from cloud backup",
+  "cloudBackupTitle": "Cloud Backup",
+  "cloudBackupStatusTitle": "Backup status",
+  "cloudBackupNever": "Never backed up",
+  "cloudBackupLastAt": "Last backed up: {at}",
+  "@cloudBackupLastAt": {
+    "placeholders": {
+      "at": { "type": "String" }
+    }
+  },
+  "cloudBackupNow": "Back up now",
+  "cloudBackupHint": "Creates an encrypted snapshot of your family data. You will need your passphrase to restore it.",
+  "cloudBackupNoFamily": "No family set up yet. Set up sharing first.",
+  "cloudBackupRateLimit": "Too many backup attempts. Please wait and try again.",
+  "cloudBackupError": "Backup failed. Check your connection and try again.",
+  "cloudBackupSuccess": "Backup complete.",
+  "cloudBackupPassphraseDialogTitle": "Enter backup passphrase",
+  "cloudBackupPassphraseHint": "At least 8 characters",
+  "cloudBackupPremiumBody": "Cloud backup is a Premium feature. Upgrade to protect your family data.",
+  "cloudRestoreTitle": "Restore from cloud backup",
+  "cloudRestoreSubtitle": "Enter your Family ID and passphrase to restore your data on this device.",
+  "cloudRestoreFamilyIdLabel": "Family ID",
+  "cloudRestoreFamilyIdHint": "e.g. XXXX-XXXX",
+  "cloudRestorePassphraseLabel": "Passphrase",
+  "cloudRestorePassphraseHint": "Enter your passphrase",
+  "cloudRestoreButton": "Restore",
+  "cloudRestoreNotFound": "Family ID not found. Check the ID and try again.",
+  "cloudRestoreRateLimit": "Too many attempts. Wait an hour and try again.",
+  "cloudRestoreWrongPassphrase": "Wrong passphrase. Check and try again.",
+  "cloudRestoreError": "Restore failed. Check your connection and try again."
 }

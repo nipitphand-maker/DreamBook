@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/crypto/device_identity_service.dart';
+import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/sync/snapshot_repository.dart';
 import '../../../core/sync/sync_lifecycle_controller.dart';
@@ -36,6 +37,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
   }
 
   Future<void> _restore() async {
+    final l10n = context.l10n;
     final familyId = _familyIdCtrl.text.trim();
     final passphrase = _passphraseCtrl.text;
     if (familyId.isEmpty || passphrase.isEmpty) return;
@@ -66,13 +68,13 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
       if (!mounted) return;
       context.go(AppRoutes.home);
     } on SnapshotNotFoundError {
-      setState(() => _errorText = 'Family ID not found. Check the ID and try again.');
+      setState(() => _errorText = l10n.cloudRestoreNotFound);
     } on SnapshotRateLimitError {
-      setState(() => _errorText = 'Too many attempts. Wait an hour and try again.');
+      setState(() => _errorText = l10n.cloudRestoreRateLimit);
     } on SnapshotPassphraseError {
-      setState(() => _errorText = 'Wrong passphrase. Check and try again.');
+      setState(() => _errorText = l10n.cloudRestoreWrongPassphrase);
     } catch (_) {
-      setState(() => _errorText = 'Restore failed. Check your connection and try again.');
+      setState(() => _errorText = l10n.cloudRestoreError);
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -80,17 +82,18 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Restore from cloud backup')),
+      appBar: AppBar(title: Text(l10n.cloudRestoreTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Enter your Family ID and passphrase to restore your data on this device.',
+              l10n.cloudRestoreSubtitle,
               style: AppTypography.bodyMedium(
                 color: scheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -98,9 +101,9 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _familyIdCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Family ID',
-                hintText: 'e.g. XXXX-XXXX',
+              decoration: InputDecoration(
+                labelText: l10n.cloudRestoreFamilyIdLabel,
+                hintText: l10n.cloudRestoreFamilyIdHint,
               ),
               textInputAction: TextInputAction.next,
               autocorrect: false,
@@ -111,8 +114,8 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
             TextField(
               controller: _passphraseCtrl,
               decoration: InputDecoration(
-                labelText: 'Passphrase',
-                hintText: 'Enter your passphrase',
+                labelText: l10n.cloudRestorePassphraseLabel,
+                hintText: l10n.cloudRestorePassphraseHint,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscure
@@ -144,7 +147,7 @@ class _CloudRestoreScreenState extends ConsumerState<CloudRestoreScreen> {
                       dimension: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Restore'),
+                  : Text(l10n.cloudRestoreButton),
             ),
           ],
         ),

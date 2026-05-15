@@ -163,6 +163,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 onPressed: () => context.push(AppRoutes.bip39Restore),
                 child: Text(l10n.welcomeRestoreCta),
               ),
+              TextButton(
+                onPressed: () => context.push(AppRoutes.cloudRestore),
+                child: Text(l10n.welcomeCloudRestoreCta),
+              ),
               const SizedBox(height: AppSpacing.md),
             ],
           ),

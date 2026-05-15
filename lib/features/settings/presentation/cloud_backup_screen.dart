@@ -24,10 +24,11 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
   }
 
   Future<void> _triggerBackup() async {
+    final l10n = context.l10n;
     final prefs = ref.read(sharedPreferencesProvider);
     final familyId = prefs.getString('family.id');
     if (familyId == null) {
-      _showSnack('No family set up yet. Set up sharing first.');
+      _showSnack(l10n.cloudBackupNoFamily);
       return;
     }
 
@@ -45,13 +46,13 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
       );
       await prefs.setString('snapshot.family_id', familyId);
       setState(() {});
-      _showSnack('Backup complete.');
+      _showSnack(l10n.cloudBackupSuccess);
     } on SnapshotRateLimitError {
       if (!mounted) return;
-      _showSnack('Too many backup attempts. Please wait and try again.');
+      _showSnack(l10n.cloudBackupRateLimit);
     } on Exception {
       if (!mounted) return;
-      _showSnack('Backup failed. Check your connection and try again.');
+      _showSnack(l10n.cloudBackupError);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -72,10 +73,11 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final lastAt = _lastBackupAt();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cloud Backup')),
+      appBar: AppBar(title: Text(l10n.cloudBackupTitle)),
       body: PremiumGate(
         lockedChild: const _LockedBody(),
         child: ListView(
@@ -88,14 +90,14 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Backup status',
+                      l10n.cloudBackupStatusTitle,
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       lastAt == null
-                          ? 'Never backed up'
-                          : 'Last backed up: $lastAt',
+                          ? l10n.cloudBackupNever
+                          : l10n.cloudBackupLastAt(lastAt),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -111,12 +113,11 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.cloud_upload_outlined),
-              label: const Text('Back up now'),
+              label: Text(l10n.cloudBackupNow),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Creates an encrypted snapshot of your family data. '
-              'You will need your passphrase to restore it.',
+              l10n.cloudBackupHint,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -146,8 +147,8 @@ class _LockedBody extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
-            const Text(
-              'Cloud backup is a Premium feature. Upgrade to protect your family data.',
+            Text(
+              context.l10n.cloudBackupPremiumBody,
               textAlign: TextAlign.center,
             ),
           ],
@@ -178,14 +179,14 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Enter backup passphrase'),
+      title: Text(context.l10n.cloudBackupPassphraseDialogTitle),
       content: TextField(
         controller: _ctrl,
         obscureText: _obscure,
         autofocus: true,
         onSubmitted: (_) => _submit(),
         decoration: InputDecoration(
-          hintText: 'At least 8 characters',
+          hintText: context.l10n.cloudBackupPassphraseHint,
           suffixIcon: IconButton(
             icon: Icon(
               _obscure

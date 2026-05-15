@@ -368,5 +368,37 @@
   "manageDevicesAdmin": "แอดมิน",
   "manageDevicesEditor": "สมาชิก",
   "manageDevicesThisDevice": "เครื่องนี้",
-  "settingsSectionSecurity": "ความปลอดภัย"
+  "settingsSectionSecurity": "ความปลอดภัย",
+  "settingsCloudBackupTitle": "สำรองข้อมูลบนคลาวด์",
+  "settingsCloudBackupSubtitle": "สำรองข้อมูลครอบครัวแบบเข้ารหัส",
+  "welcomeCloudRestoreCta": "กู้ข้อมูลจากคลาวด์",
+  "cloudBackupTitle": "สำรองข้อมูลบนคลาวด์",
+  "cloudBackupStatusTitle": "สถานะการสำรอง",
+  "cloudBackupNever": "ยังไม่เคยสำรองข้อมูล",
+  "cloudBackupLastAt": "สำรองล่าสุด: {at}",
+  "@cloudBackupLastAt": {
+    "placeholders": {
+      "at": { "type": "String" }
+    }
+  },
+  "cloudBackupNow": "สำรองตอนนี้",
+  "cloudBackupHint": "สร้างสแนปชอตเข้ารหัสข้อมูลครอบครัว ต้องใช้รหัสผ่านเพื่อกู้คืน",
+  "cloudBackupNoFamily": "ยังไม่ได้ตั้งค่าครอบครัว กรุณาตั้งค่าการแชร์ก่อน",
+  "cloudBackupRateLimit": "พยายามสำรองบ่อยเกินไป กรุณารอแล้วลองใหม่",
+  "cloudBackupError": "สำรองข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต",
+  "cloudBackupSuccess": "สำรองข้อมูลสำเร็จ",
+  "cloudBackupPassphraseDialogTitle": "ใส่รหัสผ่านสำรอง",
+  "cloudBackupPassphraseHint": "อย่างน้อย 8 ตัวอักษร",
+  "cloudBackupPremiumBody": "การสำรองข้อมูลบนคลาวด์เป็นฟีเจอร์ Premium อัปเกรดเพื่อปกป้องข้อมูลครอบครัว",
+  "cloudRestoreTitle": "กู้ข้อมูลจากคลาวด์",
+  "cloudRestoreSubtitle": "ใส่ Family ID และรหัสผ่านเพื่อกู้ข้อมูลในเครื่องนี้",
+  "cloudRestoreFamilyIdLabel": "Family ID",
+  "cloudRestoreFamilyIdHint": "เช่น XXXX-XXXX",
+  "cloudRestorePassphraseLabel": "รหัสผ่าน",
+  "cloudRestorePassphraseHint": "ใส่รหัสผ่าน",
+  "cloudRestoreButton": "กู้ข้อมูล",
+  "cloudRestoreNotFound": "ไม่พบ Family ID ตรวจสอบแล้วลองใหม่",
+  "cloudRestoreRateLimit": "พยายามมากเกินไป รอหนึ่งชั่วโมงแล้วลองใหม่",
+  "cloudRestoreWrongPassphrase": "รหัสผ่านไม่ถูกต้อง ตรวจสอบแล้วลองใหม่",
+  "cloudRestoreError": "กู้ข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต"
 }

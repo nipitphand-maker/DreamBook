@@ -300,6 +300,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoutes.manageDevices),
           ),
+          ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: Text(context.l10n.settingsCloudBackupTitle),
+            subtitle: Text(context.l10n.settingsCloudBackupSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.cloudBackup),
+          ),
           _SectionHeader(title: l10n.settingsSectionAbout),
           ListTile(
             leading: const Icon(Icons.info_outline),
