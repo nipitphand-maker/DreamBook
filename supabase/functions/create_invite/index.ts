@@ -3,6 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { writeAuditEvent } from "../_shared/audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -90,6 +91,13 @@ serve(async (req) => {
     }
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
+
+  await writeAuditEvent(
+    body.family_id,
+    'invite_created',
+    callerDevice.device_fp ? String(callerDevice.device_fp).replace(/^\\x/, '') : null,
+    { invite_id: data },
+  ).catch(() => { /* audit failure must not break the main flow */ });
 
   return new Response(JSON.stringify(data), {
     status: 201,

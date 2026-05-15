@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { blake2b } from "https://esm.sh/blakejs@1.2.1";
+import { writeAuditEvent } from "../_shared/audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -63,11 +64,28 @@ serve(async (req) => {
   });
 
   if (error) {
-    if (error.message.includes("404")) return new Response("Not Found", { status: 404 });
-    if (error.message.includes("410")) return new Response("Gone", { status: 410 });
-    if (error.message.includes("429")) return new Response("Too Many Requests", { status: 429 });
+    if (error.message.includes("404")) {
+      writeAuditEvent(null, 'invite_failed', null, { reason: 'not_found' }).catch(() => {});
+      return new Response("Not Found", { status: 404 });
+    }
+    if (error.message.includes("410")) {
+      writeAuditEvent(null, 'invite_failed', null, { reason: 'expired' }).catch(() => {});
+      return new Response("Gone", { status: 410 });
+    }
+    if (error.message.includes("429")) {
+      writeAuditEvent(null, 'invite_failed', null, { reason: 'rate_limited' }).catch(() => {});
+      return new Response("Too Many Requests", { status: 429 });
+    }
+    writeAuditEvent(null, 'invite_failed', null, { reason: 'error' }).catch(() => {});
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
+
+  await writeAuditEvent(
+    typeof data === 'object' && data !== null && 'family_id' in data ? String((data as Record<string, unknown>).family_id) : null,
+    'invite_claimed',
+    null, // device_fp is in data.device_fp if present
+    { invite_id: typeof data === 'object' && data !== null && 'invite_id' in data ? (data as Record<string, unknown>).invite_id : null },
+  ).catch(() => {});
 
   return new Response(JSON.stringify(data), {
     status: 200,

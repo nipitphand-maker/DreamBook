@@ -5,6 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { writeAuditEvent } from "../_shared/audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -64,5 +65,12 @@ serve(async (req) => {
     if (error.message.includes("409")) return new Response("Conflict", { status: 409 });
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
+  await writeAuditEvent(
+    null,
+    'device_revoked',
+    callerFpHex,
+    { target_device_fp: body.target_device_fp, new_key_version: typeof data === 'object' && data !== null ? (data as Record<string, unknown>).new_key_version : null },
+  ).catch(() => {});
+
   return new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });
 });

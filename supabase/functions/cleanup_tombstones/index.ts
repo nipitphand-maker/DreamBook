@@ -1,5 +1,7 @@
-// cleanup_tombstones — runs daily 04:00 UTC.
-// Hard-deletes rows whose deleted_at is older than 90 days.
+// cleanup_tombstones — cron EF, runs daily 03:00 UTC.
+// Hard-deletes tombstoned rows (deleted_at != null) older than each family's
+// tombstone_retention_days setting (default 90 days, per 0017 migration).
+// TODO: add event_type 'tombstone_purged' to audit_events CHECK constraint in next migration cycle.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -11,11 +13,37 @@ serve(async (req) => {
   if (req.headers.get("x-cron-secret") !== CRON_SECRET) {
     return new Response("Forbidden", { status: 403 });
   }
+
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-  const { error, count } = await admin
-    .from("encrypted_rows")
-    .delete({ count: "exact" })
-    .lt("deleted_at", new Date(Date.now() - 90 * 86_400_000).toISOString());
-  if (error) return new Response(JSON.stringify({ error }), { status: 500 });
-  return new Response(JSON.stringify({ purged: count }), { status: 200 });
+
+  const { data: families, error: fetchErr } = await admin
+    .from("families")
+    .select("id, tombstone_retention_days");
+
+  if (fetchErr || !families) {
+    return new Response(JSON.stringify({ error: fetchErr?.message }), { status: 500 });
+  }
+
+  const results: Array<{ family_id: string; purged: number }> = [];
+
+  for (const family of families) {
+    const retentionDays: number = family.tombstone_retention_days ?? 90;
+    const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+
+    const { error, count } = await admin
+      .from("encrypted_rows")
+      .delete({ count: "exact" })
+      .eq("family_id", family.id)
+      .not("deleted_at", "is", null)
+      .lt("deleted_at", cutoff);
+
+    const purged = error ? 0 : (count ?? 0);
+    results.push({ family_id: family.id, purged });
+  }
+
+  const total = results.reduce((s, r) => s + r.purged, 0);
+  return new Response(JSON.stringify({ total_purged: total, families: results }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 });
