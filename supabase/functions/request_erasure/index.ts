@@ -2,6 +2,7 @@
 // Calls right_to_be_forgotten SQL function which deletes all family data.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { writeAuditEvent } from "../_shared/audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -37,6 +38,14 @@ serve(async (req) => {
   if (devErr || !callerDevice) return new Response("Forbidden", { status: 403 });
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+  await writeAuditEvent(
+    body.family_id,
+    'erasure_requested',
+    null,
+    { source: 'request_erasure_ef', requested_by: userData.user.id },
+  ).catch(() => {});
+
   const { error: eraseErr } = await admin.rpc("right_to_be_forgotten", {
     p_family_id: body.family_id,
   });

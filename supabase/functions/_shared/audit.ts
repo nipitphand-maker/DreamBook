@@ -12,10 +12,11 @@ export async function writeAuditEvent(
 ): Promise<void> {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   const fpHex = actorDeviceFp ? actorDeviceFp.replace(/^\\x/, "") : null;
-  await admin.from("audit_events").insert({
+  const { error } = await admin.from("audit_events").insert({
     family_id: familyId,
     event_type: eventType,
     actor_device_fp: fpHex ? `\\x${fpHex}` : null,
     event_data: eventData,
   });
+  if (error) console.warn("[audit] writeAuditEvent failed:", error.message);
 }

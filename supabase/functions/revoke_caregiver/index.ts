@@ -32,7 +32,7 @@ serve(async (req) => {
   // device_fp is SHA-256(pubkey)[0:16] — NOT the auth user UUID.
   const { data: callerDevice, error: deviceErr } = await userClient
     .from("family_devices")
-    .select("device_fp")
+    .select("device_fp, family_id")
     .eq("auth_user_id", userData.user.id)
     .is("revoked_at", null)
     .limit(1)
@@ -66,7 +66,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
   await writeAuditEvent(
-    null,
+    callerDevice.family_id ? String(callerDevice.family_id) : null,
     'device_revoked',
     callerFpHex,
     { target_device_fp: body.target_device_fp, new_key_version: typeof data === 'object' && data !== null ? (data as Record<string, unknown>).new_key_version : null },

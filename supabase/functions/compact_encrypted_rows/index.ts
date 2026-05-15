@@ -3,6 +3,7 @@
 // TODO: add event_type 'compaction_completed' to audit_events CHECK constraint in next migration cycle.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { writeAuditEvent } from "../_shared/audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -32,6 +33,13 @@ serve(async (req) => {
       totalDeleted += Number(data[0].deleted_count ?? 0);
     }
   }
+
+  // TODO: change event_type to 'compaction_completed' once added to audit_events CHECK constraint
+  await writeAuditEvent(null, 'count_attestation_mismatch', null, {
+    event: 'compact_encrypted_rows',
+    total_deleted: totalDeleted,
+    families_processed: families.length,
+  }).catch(() => {});
 
   return new Response(JSON.stringify({ total_deleted: totalDeleted, families: families.length }), {
     status: 200,
