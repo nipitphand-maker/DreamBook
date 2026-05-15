@@ -57,12 +57,14 @@ void main() {
       }
     });
 
-    test('envelope layout: 12-byte nonce prefix + ciphertext + 16-byte mac', () async {
+    test('envelope layout: version(1) + 12-byte nonce + ciphertext + 16-byte mac', () async {
       final plaintext = Uint8List.fromList(List.filled(100, 0x42));
       final aad = utf8.encode('a');
       final ct = await envelope.seal(plaintext, key, aad);
-      // 12 (nonce) + 100 (ct same length as plaintext for GCM) + 16 (mac) = 128
-      expect(ct.length, 12 + 100 + 16);
+      // 1 (version) + 12 (nonce) + 100 (ct same length as plaintext for GCM) + 16 (mac) = 129
+      expect(ct.length, 1 + 12 + 100 + 16);
+      // Default CryptoEnvelope() uses v1 (uncompressed)
+      expect(ct[0], 0x01);
     });
   });
 }

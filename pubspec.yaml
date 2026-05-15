@@ -56,6 +56,9 @@ dependencies:
   # Cross-app bridge (Plan F) — launch DreamBaby from DreamBook
   url_launcher: ^6.3.1
 
+  # Compression (Plan C-2 SY-10) — zstd for versioned CryptoEnvelope v2
+  zstandard: ^1.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
