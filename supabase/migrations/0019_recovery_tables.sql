@@ -1,5 +1,5 @@
 CREATE TABLE public.family_recovery_envelopes (
-  family_id uuid PRIMARY KEY REFERENCES public.families(id) ON DELETE CASCADE,
+  family_id uuid PRIMARY KEY REFERENCES public.families(id) ON DELETE RESTRICT,
   wrapped_key bytea NOT NULL,
   salt bytea NOT NULL,
   key_version int NOT NULL,

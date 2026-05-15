@@ -29,14 +29,16 @@ BEGIN
     SELECT record_id, table_name, MAX(version) AS max_v
     FROM public.encrypted_rows
     WHERE family_id = p_family_id
-      AND deleted_at IS NULL
     GROUP BY record_id, table_name
   ),
   deleted AS (
     DELETE FROM public.encrypted_rows er
     WHERE er.family_id = p_family_id
       AND er.version < v_min_cursor
-      AND (er.record_id, er.table_name) NOT IN (SELECT record_id, table_name FROM latest)
+      AND NOT EXISTS (
+        SELECT 1 FROM latest l
+        WHERE l.record_id = er.record_id AND l.table_name = er.table_name
+      )
     RETURNING 1
   )
   SELECT COUNT(*)::bigint FROM deleted;
