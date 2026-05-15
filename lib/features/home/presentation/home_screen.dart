@@ -598,28 +598,29 @@ class _FamilyBanner extends ConsumerWidget {
     final families = ref.watch(familyListProvider);
     if (families.length <= 1) return const SizedBox.shrink();
 
-    final repo = ref.read(familyRepositoryProvider);
-    final activeId = repo.activeId();
+    final activeId = ref.watch(familyRepositoryProvider).activeId();
     final active = families.firstWhere(
       (f) => f.id == activeId,
       orElse: () => families.first,
     );
 
-    return GestureDetector(
-      onTap: () => context.push(AppRoutes.families),
-      child: Container(
-        width: double.infinity,
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xxs,
-        ),
-        child: Text(
-          context.l10n.homeFamilyBanner(active.label),
-          style: AppTypography.labelLarge(
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
+    return Material(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: InkWell(
+        onTap: () => context.push(AppRoutes.families),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xxs,
           ),
-          textAlign: TextAlign.center,
+          child: Text(
+            context.l10n.homeFamilyBanner(active.label),
+            style: AppTypography.labelLarge(
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );
