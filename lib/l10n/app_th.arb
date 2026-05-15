@@ -323,5 +323,50 @@
   "summaryToday": "วันนี้",
 
   "summaryNoteSection": "บันทึก",
-  "summaryNoteHint": "จดอะไรไว้สำหรับวันนี้…"
+  "summaryNoteHint": "จดอะไรไว้สำหรับวันนี้…",
+
+  "recoverySetupHeadline": "บันทึก Recovery Phrase",
+  "recoverySetupSubcopy": "เขียน 12 คำเหล่านี้ลงกระดาษและเก็บไว้ในที่ปลอดภัย ถ้าโทรศัพท์หาย คำเหล่านี้คือทางเดียวที่จะกู้ข้อมูลได้",
+  "recoverySetupWrittenCta": "เขียนแล้ว",
+  "recoverySetupRemindLater": "เตือนทีหลัง",
+  "recoverySetupWarning": "อย่าถ่ายภาพหน้าจอ เขียนลงกระดาษเท่านั้น",
+  "recoveryVerifyHeadline": "ยืนยัน Recovery Phrase",
+  "recoveryVerifySubcopy": "กรอกคำด้านล่างเพื่อยืนยันว่าเขียนไว้แล้ว",
+  "recoveryVerifyWord": "คำที่ {number}",
+  "@recoveryVerifyWord": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "recoveryVerifyConfirmCta": "ยืนยัน",
+  "recoveryVerifyWrongTryAgain": "คำไม่ถูก — ลองอีกครั้ง",
+  "recoveryVerifyWrongRegenerate": "ผิดสองครั้ง — กำลังสร้างคำใหม่",
+  "recoveryVerifySuccess": "บันทึก Recovery Phrase แล้ว",
+  "recoveryRestoreHeadline": "กู้ข้อมูลจาก Recovery Phrase",
+  "recoveryRestoreSubcopy": "กรอก Recovery Phrase 12 คำเพื่อกู้ข้อมูลในเครื่องนี้",
+  "recoveryRestoreLabel": "Recovery Phrase",
+  "recoveryRestoreHint": "คำที่1 คำที่2 คำที่3 ...",
+  "recoveryRestoreCta": "กู้ข้อมูล",
+  "recoveryRestoreInvalidChecksum": "คำไม่ถูกต้อง ตรวจสอบ Recovery Phrase อีกครั้ง",
+  "recoveryRestoreNotFound": "ไม่พบ Recovery Phrase นี้",
+  "recoveryRestoreRateLimit": "ลองมากเกินไป รอ 1 ชั่วโมงแล้วลองใหม่",
+  "recoveryRestoreError": "กู้ข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต",
+  "recoveryRestoreSuccess": "ยินดีต้อนรับกลับมา!",
+  "welcomeRestoreCta": "กู้ข้อมูลจาก Recovery Phrase",
+  "settingsRecoveryPhraseTitle": "Recovery Phrase",
+  "settingsRecoveryPhraseBackedUp": "บันทึกแล้ว",
+  "settingsRecoveryPhraseNotBackedUp": "ยังไม่ได้ตั้งค่า — แตะเพื่อป้องกันข้อมูล",
+  "settingsManageDevicesTitle": "จัดการอุปกรณ์",
+  "manageDevicesHeadline": "อุปกรณ์",
+  "manageDevicesEmpty": "ไม่มีอุปกรณ์อื่น",
+  "manageDevicesRevokeButton": "ลบออก",
+  "manageDevicesRevokeConfirmTitle": "ลบอุปกรณ์นี้?",
+  "manageDevicesRevokeConfirmBody": "อุปกรณ์นี้จะหยุดซิงค์กับครอบครัว",
+  "manageDevicesRevokeConfirmCta": "ลบออก",
+  "manageDevicesRevokeCancel": "ยกเลิก",
+  "manageDevicesRecoveryInvite": "สร้างรหัสกู้คืน",
+  "manageDevicesAdmin": "แอดมิน",
+  "manageDevicesEditor": "สมาชิก",
+  "manageDevicesThisDevice": "เครื่องนี้",
+  "settingsSectionSecurity": "ความปลอดภัย"
 }

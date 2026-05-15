@@ -271,6 +271,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoutes.visitReport),
           ),
+          _SectionHeader(title: l10n.settingsSectionSecurity),
+          Consumer(
+            builder: (context, ref, _) {
+              final prefs = ref.watch(sharedPreferencesProvider);
+              final backed = prefs.getBool('recovery.phrase_backed_up') ?? false;
+              final scheme = Theme.of(context).colorScheme;
+              return ListTile(
+                leading: Icon(
+                  backed ? Icons.lock : Icons.lock_open,
+                  color: backed ? scheme.primary : scheme.error,
+                ),
+                title: Text(context.l10n.settingsRecoveryPhraseTitle),
+                subtitle: Text(
+                  backed
+                      ? context.l10n.settingsRecoveryPhraseBackedUp
+                      : context.l10n.settingsRecoveryPhraseNotBackedUp,
+                  style: TextStyle(color: backed ? null : scheme.error),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(AppRoutes.bip39Setup),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.devices),
+            title: Text(context.l10n.settingsManageDevicesTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.manageDevices),
+          ),
           _SectionHeader(title: l10n.settingsSectionAbout),
           ListTile(
             leading: const Icon(Icons.info_outline),

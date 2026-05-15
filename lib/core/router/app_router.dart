@@ -6,8 +6,12 @@ import '../../features/diaper/presentation/diaper_log_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
+import '../../features/onboarding/presentation/bip39_setup_screen.dart';
+import '../../features/onboarding/presentation/bip39_verify_screen.dart';
+import '../../features/onboarding/presentation/bip39_restore_screen.dart';
 import '../../features/pump/presentation/pump_session_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/manage_devices_screen.dart';
 import '../../features/caregivers/presentation/caregivers_screen.dart';
 import '../../features/share/presentation/claim_invite_screen.dart';
 import '../../features/share/presentation/share_invite_screen.dart';
@@ -38,6 +42,10 @@ class AppRoutes {
   static const summary      = '/summary';
   static const vaccination  = '/vaccination';
   static const visitReport  = '/visit-report';
+  static const bip39Setup   = '/recovery/setup';
+  static const bip39Verify  = '/recovery/verify';
+  static const bip39Restore = '/recovery/restore';
+  static const manageDevices = '/settings/devices';
 }
 
 const kOnboardingDoneKey = 'onboarding.done';
@@ -50,7 +58,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final onboarded = prefs.getBool(kOnboardingDoneKey) ?? false;
       if (!onboarded &&
           state.matchedLocation != AppRoutes.welcome &&
-          state.matchedLocation != AppRoutes.shareClaim) {
+          state.matchedLocation != AppRoutes.shareClaim &&
+          state.matchedLocation != AppRoutes.bip39Setup &&
+          state.matchedLocation != AppRoutes.bip39Verify &&
+          state.matchedLocation != AppRoutes.bip39Restore) {
         // B-2: Save the intended deep-link path so WelcomeScreen can
         // resume it after onboarding completes.
         final intended = state.uri.toString();
@@ -136,6 +147,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         // TODO: add entry point in SettingsScreen
         path: AppRoutes.visitReport,
         builder: (_, __) => const VisitReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.bip39Setup,
+        builder: (_, __) => const Bip39SetupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.bip39Verify,
+        builder: (context, state) => Bip39VerifyScreen(phrase: state.extra as String),
+      ),
+      GoRoute(
+        path: AppRoutes.bip39Restore,
+        builder: (_, __) => const Bip39RestoreScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.manageDevices,
+        builder: (_, __) => const ManageDevicesScreen(),
       ),
     ],
   );
