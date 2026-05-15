@@ -63,4 +63,11 @@ CREATE INDEX IF NOT EXISTS family_devices_device_fp_active_idx
   ON public.family_devices(device_fp)
   WHERE auth_user_id IS NOT NULL AND revoked_at IS NULL;
 
+-- 6. Data-integrity invariant: at most one ACTIVE device per (auth_user_id, family_id).
+-- Without this, the LIMIT 1 subqueries above could silently pick an arbitrary row
+-- if duplicates existed, masking a spoof. This index makes the duplicate impossible.
+CREATE UNIQUE INDEX IF NOT EXISTS family_devices_one_active_per_user_family
+  ON public.family_devices(auth_user_id, family_id)
+  WHERE auth_user_id IS NOT NULL AND revoked_at IS NULL;
+
 COMMIT;

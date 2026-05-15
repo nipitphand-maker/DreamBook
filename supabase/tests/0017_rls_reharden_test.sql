@@ -1,7 +1,7 @@
 -- supabase/tests/0017_rls_reharden_test.sql
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(10);
+SELECT plan(11);
 
 -- Fixtures: two auth users, two devices, one family.
 INSERT INTO auth.users (id, email) VALUES
@@ -27,6 +27,9 @@ SELECT col_default_is('public','families','tombstone_retention_days','90');
 -- 2. Indexes exist
 SELECT has_index('public','family_devices','family_devices_auth_user_id_idx');
 SELECT has_index('public','family_devices','family_devices_device_fp_active_idx');
+
+-- 7. Partial-unique index exists — prevents the LIMIT 1 footgun.
+SELECT has_index('public','family_devices','family_devices_one_active_per_user_family');
 
 -- 3. Grants
 SELECT ok(has_table_privilege('authenticated','public.families','SELECT'),
@@ -57,12 +60,15 @@ SELECT lives_ok($$
 $$, 'own device_fp accepted');
 
 -- 6. Stale key_version REJECTED (proves the key_version predicate fires).
+-- Use INT_MAX as a sentinel — no realistic family will ever reach this many
+-- rotations, so the test stays valid even if a future migration bumps
+-- current_key_version far beyond v1.
 SELECT throws_ok($$
   INSERT INTO public.encrypted_rows
     (family_id, table_name, record_id, version, key_version,
      ciphertext, aad_hash, written_by_device)
   VALUES
-    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','feed','r2',1,99,
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','feed','r2',1,2147483647,
      '\x00','\x00','aa11')
 $$, '42501', NULL, 'stale key_version blocked by RLS WITH CHECK');
 
