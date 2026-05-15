@@ -50,6 +50,7 @@ lib/l10n/untranslated.txt
 
 # Plan C-2 — local Supabase config + secrets
 .env
+.env.test.supabase
 supabase/.branches/
 supabase/.temp/
 
