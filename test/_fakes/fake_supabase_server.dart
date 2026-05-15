@@ -376,6 +376,17 @@ class FakeSupabaseServer implements SyncServer {
     );
   }
 
+  @override
+  Future<Map<String, int>> countRows({required String familyId}) async {
+    final counts = <String, int>{};
+    for (final row in encryptedRows) {
+      if (row.familyId == familyId && row.deletedAt == null) {
+        counts[row.tableName] = (counts[row.tableName] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
   void _maybeFail() {
     if (simulateNetworkError) {
       throw const FakeNetworkException();

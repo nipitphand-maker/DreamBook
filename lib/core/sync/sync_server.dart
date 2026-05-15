@@ -112,4 +112,8 @@ abstract class SyncServer {
     required int keyVersion,
     required Uint8List wrappedKey,
   });
+
+  /// Returns the number of non-tombstoned (active) rows per table for [familyId].
+  /// Keys are table names; tables with zero rows may be absent from the map.
+  Future<Map<String, int>> countRows({required String familyId});
 }

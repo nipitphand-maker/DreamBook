@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../crypto/crypto_envelope.dart';
 import '../crypto/family_key_service.dart';
 import 'conflict_resolver.dart';
+import 'count_attestation.dart';
 import 'encrypted_row.dart';
 import 'retry_policy.dart';
 import 'sync_error.dart';
@@ -43,6 +44,7 @@ class SyncWorker {
     required this.envelope,
     required this.familyId,
     required this.deviceFp,
+    this.attestation,
   });
 
   final Database db;
@@ -51,6 +53,7 @@ class SyncWorker {
   final CryptoEnvelope envelope;
   final String familyId;
   final String deviceFp;
+  final CountAttestation? attestation;
 
   /// In-memory cache of the persisted cursor in `sync_cursors`. Lazily
   /// loaded on first [pullOnce] so cold-start picks up the cursor written
@@ -180,6 +183,7 @@ class SyncWorker {
       _lastPullAt = newCursor;
       await _writeCursor(newCursor);
     }
+    await attestation?.verify();
   }
 
   /// Reads the persisted `last_pull_at` for [familyId]. Returns `null`

@@ -193,4 +193,21 @@ class SupabaseSyncServer implements SyncServer {
     });
   }
 
+  @override
+  Future<Map<String, int>> countRows({required String familyId}) async {
+    final response = await _client
+        .from('encrypted_rows')
+        .select('table_name')
+        .eq('family_id', familyId)
+        .filter('deleted_at', 'is', null);
+
+    final rows = response as List<dynamic>;
+    final counts = <String, int>{};
+    for (final row in rows) {
+      final tableName = row['table_name'] as String;
+      counts[tableName] = (counts[tableName] ?? 0) + 1;
+    }
+    return counts;
+  }
+
 }
