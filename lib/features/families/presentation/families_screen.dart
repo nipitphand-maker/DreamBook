@@ -60,6 +60,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
     if (confirmed != true) return;
     if (!mounted) return;
     await FamilyKeyService(_secureStorage).clear(familyId: entry.id);
+    if (!mounted) return;
     await ref.read(familyListProvider.notifier).remove(entry.id);
     ref.invalidate(syncLifecycleControllerProvider);
   }
