@@ -65,6 +65,7 @@ dependencies:
 
   # Observability (P2.33 DV-6) — opt-in crash reporting with PII scrubber
   sentry_flutter: ^8.11.0
+  bip39: ^1.0.6
 
 dev_dependencies:
   flutter_test:
