@@ -17,6 +17,8 @@ import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
+import '../../../core/families/family_entry.dart';
+import '../../../core/families/family_provider.dart';
 
 const _kFamilyIdKey = 'family.id';
 // Server enforces 1-hour TTL in create_invite_fn SQL — must match.
@@ -141,6 +143,11 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
     }
     final familyId = data['family_id'] as String;
     await prefs.setString(_kFamilyIdKey, familyId);
+    await ref.read(familyListProvider.notifier).register(FamilyEntry(
+      id: familyId,
+      label: 'My Family',
+      createdAt: DateTime.now().toUtc(),
+    ));
     // First key for a fresh family is always version 1.
     await _familyKeys.generate(familyId: familyId, keyVersion: 1);
     // Rebuild sync controller from no-op → real worker now that family.id exists,

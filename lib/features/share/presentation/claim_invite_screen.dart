@@ -17,6 +17,8 @@ import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
 import '../../baby/data/current_baby_provider.dart';
+import '../../../core/families/family_entry.dart';
+import '../../../core/families/family_provider.dart';
 
 const _kFamilyIdKey = 'family.id';
 
@@ -110,6 +112,11 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
 
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setString(_kFamilyIdKey, familyId);
+      await ref.read(familyListProvider.notifier).register(FamilyEntry(
+        id: familyId,
+        label: 'Joined Family',
+        createdAt: DateTime.now().toUtc(),
+      ));
       // Mark onboarding done so the router stops redirecting to /welcome.
       await prefs.setBool(kOnboardingDoneKey, true);
 

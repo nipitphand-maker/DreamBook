@@ -18,6 +18,8 @@ import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
 import '../../baby/data/current_baby_provider.dart';
+import '../../../core/families/family_entry.dart';
+import '../../../core/families/family_provider.dart';
 
 const _kFamilyIdKey = 'family.id';
 const _kPhraseBackedUpKey = 'recovery.phrase_backed_up';
@@ -115,6 +117,11 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
 
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setString(_kFamilyIdKey, familyId);
+      await ref.read(familyListProvider.notifier).register(FamilyEntry(
+        id: familyId,
+        label: 'Restored Family',
+        createdAt: DateTime.now().toUtc(),
+      ));
       await prefs.setBool(_kPhraseBackedUpKey, true);
       await prefs.setBool(kOnboardingDoneKey, true);
 

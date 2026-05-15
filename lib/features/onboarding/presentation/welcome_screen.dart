@@ -16,6 +16,8 @@ import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
 import '../../baby/data/current_baby_provider.dart';
+import '../../../core/families/family_entry.dart';
+import '../../../core/families/family_provider.dart';
 
 const _kFamilyIdKey = 'family.id';
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
@@ -98,6 +100,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
       final familyId = data['family_id'] as String;
       await prefs.setString(_kFamilyIdKey, familyId);
+      final babyName = (await ref.read(babyRepositoryProvider).getActive())?.name ?? 'Baby';
+      await ref.read(familyListProvider.notifier).register(FamilyEntry(
+        id: familyId,
+        label: "$babyName's Family",
+        createdAt: DateTime.now().toUtc(),
+      ));
       await FamilyKeyService(_secureStorage).generate(
         familyId: familyId,
         keyVersion: 1,
