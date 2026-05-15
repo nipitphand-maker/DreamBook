@@ -56,6 +56,10 @@ dependencies:
   # Cross-app bridge (Plan F) — launch DreamBaby from DreamBook
   url_launcher: ^6.3.1
 
+  # Background sync (Plan C-2 BG) — WorkManager periodic + connectivity watch
+  workmanager: ^0.5.2
+  connectivity_plus: ^6.1.1
+
   # Compression (Plan C-2 SY-10) — zstd for versioned CryptoEnvelope v2
   zstandard: ^1.2.0
 

@@ -1,0 +1,7 @@
+tags:
+  unit:
+    timeout: 30s
+  integration:
+    timeout: 5m
+  security:
+    timeout: 2m

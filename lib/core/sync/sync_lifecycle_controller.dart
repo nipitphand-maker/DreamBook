@@ -13,6 +13,7 @@ import 'supabase_sync_server.dart';
 import 'sync_error_reporter.dart';
 import 'sync_server.dart';
 import 'sync_status_provider.dart';
+import 'sync_trigger.dart';
 import 'realtime_subscriber.dart';
 import 'sync_worker.dart';
 
@@ -66,23 +67,26 @@ class SyncLifecycleController extends WidgetsBindingObserver {
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
-      await syncNow();
+      await syncNow(trigger: SyncTrigger.foreground);
     }
   }
 
   /// Fire-and-forget push after a local write. No-op in the no-op subclass.
-  void schedulePush() => syncNow().ignore();
+  void schedulePush() => syncNow(trigger: SyncTrigger.postWrite).ignore();
 
   /// Run one pull+push cycle and update [syncStatusProvider] accordingly.
   /// Safe to call concurrently with the lifecycle hook — the notifier just
   /// overwrites state, and SyncWorker's own internal loops are serialised.
-  Future<void> syncNow() async {
+  Future<void> syncNow({SyncTrigger trigger = SyncTrigger.foreground}) async {
+    // TODO(P2.28 BG-6): emit sync_background_started audit event for background trigger
+    // Requires Supabase URL to be available in background isolate context.
     final status = _resolveStatus();
     status.startSync();
     try {
       await worker.pullOnce();
       await worker.pushOnce();
       status.completeSync(at: DateTime.now().toUtc());
+      // TODO(P2.28 BG-6): emit sync_background_finished audit event with duration_ms
     } catch (e, st) {
       // Non-silent: SyncErrorReporter captures structured metadata for the
       // Phase 2 audit log + Sentry hookup. UI still gets the failure via
@@ -112,7 +116,7 @@ class _NoOpSyncLifecycleController extends SyncLifecycleController {
   void schedulePush() {} // no family yet — intentional no-op
 
   @override
-  Future<void> syncNow() async {
+  Future<void> syncNow({SyncTrigger trigger = SyncTrigger.foreground}) async {
     // Intentionally empty — there is no family to sync against yet.
   }
 

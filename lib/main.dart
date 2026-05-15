@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,8 +6,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'app.dart';
+import 'core/background/workmanager_sync.dart';
 import 'core/crypto/device_identity_service.dart';
 import 'core/env.dart';
 import 'core/providers/device_id_provider.dart';
@@ -71,7 +74,18 @@ Future<void> main() async {
     }
   }
 
-  // 6. RevenueCat — Android public API key. Wrapped in try/catch so missing
+  // 6. WorkManager — inexact periodic background sync. Safe to call every
+  //    app launch; WorkManager deduplicates by unique task name.
+  //    Wrapped in try/catch so unit tests (no Android runtime) don't crash.
+  try {
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+    await registerBackgroundSync();
+  } catch (_) {
+    // WorkManager init failed (e.g. unit-test host, no Android runtime).
+    // App still boots in local-only mode.
+  }
+
+  // 7. RevenueCat — Android public API key. Wrapped in try/catch so missing
   //    Play Services on emulator / dev devices never blocks app boot.
   //    `isPremiumProvider` handles the not-configured case via try/catch too.
   try {
