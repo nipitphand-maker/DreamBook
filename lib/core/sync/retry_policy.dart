@@ -47,4 +47,32 @@ class RetryPolicy {
   }
 
   static final Random _defaultRandom = Random();
+
+  /// Run [body] with retry. Returns body's result on success.
+  /// Throws the last error on exhaustion ([maxAttempts] attempts), or
+  /// immediately rethrows on terminal error.
+  /// Each delay between attempts uses [delayFor] (with random jitter) by
+  /// default; pass [delayFn] / [sleep] for tests.
+  static Future<T> run<T>(
+    Future<T> Function() body, {
+    int maxAttempts = 5,
+    Future<void> Function(Duration)? sleep,
+    Duration Function(int attempt)? delayFn,
+  }) async {
+    Object? lastError;
+    StackTrace? lastStack;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await body();
+      } catch (e, st) {
+        lastError = e;
+        lastStack = st;
+        if (classify(e) == RetryClass.terminal) rethrow;
+        if (attempt == maxAttempts) break;
+        final d = (delayFn ?? delayFor)(attempt);
+        await (sleep ?? Future<void>.delayed)(d);
+      }
+    }
+    Error.throwWithStackTrace(lastError!, lastStack!);
+  }
 }
