@@ -8,15 +8,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '_helpers/real_supabase_harness.dart';
 
 void main() {
-  late RealSupabaseHarness harness;
+  RealSupabaseHarness? harness;
 
   setUpAll(() async {
-    skipIfNoSupabase();
-    harness = await RealSupabaseHarness.boot();
+    harness = await RealSupabaseHarness.bootOrSkip();
   });
 
   test('Scenario 2 — spoofed written_by_device rejected by RLS', () async {
-    final fx = await harness.freshFamily();
+    final h = harness;
+    if (h == null) return; // skipped at setUpAll
+    final fx = await h.freshFamily();
     addTearDown(fx.dispose);
 
     final bytes = TestRowBytes.deterministic('spoof-attempt');
@@ -55,7 +56,9 @@ void main() {
   }, timeout: const Timeout(Duration(seconds: 30)));
 
   test('Scenario 2b — stale key_version rejected by RLS', () async {
-    final fx = await harness.freshFamily();
+    final h = harness;
+    if (h == null) return; // skipped at setUpAll
+    final fx = await h.freshFamily();
     addTearDown(fx.dispose);
 
     final bytes = TestRowBytes.deterministic('stale-key');

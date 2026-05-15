@@ -94,6 +94,22 @@ class RealSupabaseHarness {
     return _instance!;
   }
 
+  /// Preferred entry for `setUpAll`: marks the test as skipped and returns
+  /// null when `.env.test.supabase` is missing, so the suite stays green
+  /// when run without the local Supabase stack (e.g. plain `flutter test`).
+  ///
+  /// When env IS present, behaves identically to [boot] and returns the
+  /// harness.
+  static Future<RealSupabaseHarness?> bootOrSkip() async {
+    if (!File('.env.test.supabase').existsSync()) {
+      markTestSkipped(
+        'Skipping Ring 2 — run ./tool/test_supabase_start.sh first',
+      );
+      return null;
+    }
+    return boot();
+  }
+
   final _uuid = const Uuid();
 
   Future<FreshFamilyFixture> freshFamily() async {
@@ -187,10 +203,3 @@ class TestRowBytes {
   }
 }
 
-void skipIfNoSupabase() {
-  if (!File('.env.test.supabase').existsSync()) {
-    markTestSkipped(
-      'Skipping Ring 2 — run ./tool/test_supabase_start.sh first',
-    );
-  }
-}

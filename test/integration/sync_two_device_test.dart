@@ -7,15 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 import '_helpers/real_supabase_harness.dart';
 
 void main() {
-  late RealSupabaseHarness harness;
+  RealSupabaseHarness? harness;
 
   setUpAll(() async {
-    skipIfNoSupabase();
-    harness = await RealSupabaseHarness.boot();
+    harness = await RealSupabaseHarness.bootOrSkip();
   });
 
   test('Scenario 1 — write on A, pull on B, ciphertext bytes match', () async {
-    final fx = await harness.freshFamily();
+    final h = harness;
+    if (h == null) return; // skipped at setUpAll
+    final fx = await h.freshFamily();
     addTearDown(fx.dispose);
 
     final bytes = TestRowBytes.deterministic('hello-bytea-2026-05-15');
