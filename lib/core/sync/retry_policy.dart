@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -31,4 +32,19 @@ class RetryPolicy {
     if (e is TypeError) return RetryClass.terminal;
     return RetryClass.terminal;
   }
+
+  /// Compute backoff for the [attempt]-th retry (1-indexed: attempt=1 → 1s,
+  /// attempt=2 → 2s, ...). Caps at 16s (attempt >= 5). Adds ±20% random
+  /// jitter. Pure function — pass [random] for deterministic tests.
+  static Duration delayFor(int attempt, {Random? random}) {
+    if (attempt < 1) return Duration.zero;
+    final capped = attempt > 5 ? 5 : attempt;
+    final base = Duration(seconds: 1 << (capped - 1)); // 1, 2, 4, 8, 16 seconds
+    final r = random ?? _defaultRandom;
+    final jitterFactor = 0.8 + r.nextDouble() * 0.4; // 0.8 .. 1.2
+    final ms = (base.inMilliseconds * jitterFactor).round();
+    return Duration(milliseconds: ms);
+  }
+
+  static final Random _defaultRandom = Random();
 }
