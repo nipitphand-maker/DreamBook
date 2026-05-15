@@ -3,10 +3,17 @@
 /// In production, [Env.load] reads the bundled `.env` asset (declared in
 /// pubspec) at app start. Tests inject content via [Env.fromString].
 class Env {
-  const Env({required this.supabaseUrl, required this.supabaseAnonKey});
+  const Env({
+    required this.supabaseUrl,
+    required this.supabaseAnonKey,
+    this.sentryDsn,
+  });
 
   final String supabaseUrl;
   final String supabaseAnonKey;
+
+  /// Optional Sentry DSN for opt-in crash reporting. Null when not configured.
+  final String? sentryDsn;
 
   /// Parses .env-style content. Lines starting with `#` are ignored.
   /// Values may be wrapped in single or double quotes (stripped on parse).
@@ -34,7 +41,12 @@ class Env {
     if (key == null || key.isEmpty) {
       throw const EnvMissingException('SUPABASE_ANON_KEY');
     }
-    return Env(supabaseUrl: url, supabaseAnonKey: key);
+    final sentryDsn = map['SENTRY_DSN'];
+    return Env(
+      supabaseUrl: url,
+      supabaseAnonKey: key,
+      sentryDsn: sentryDsn?.isEmpty == true ? null : sentryDsn,
+    );
   }
 }
 

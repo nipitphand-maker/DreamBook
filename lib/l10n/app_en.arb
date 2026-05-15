@@ -425,5 +425,8 @@
         "type": "String"
       }
     }
-  }
+  },
+
+  "settingsCrashReporting": "Crash Reporting",
+  "settingsCrashReportingSubtitle": "Help improve DreamBook by sharing anonymous crash reports"
 }

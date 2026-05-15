@@ -12,6 +12,7 @@ import 'app.dart';
 import 'core/background/workmanager_sync.dart';
 import 'core/crypto/device_identity_service.dart';
 import 'core/env.dart';
+import 'core/observability/sentry_init.dart';
 import 'core/providers/device_id_provider.dart';
 import 'core/providers/shared_preferences_provider.dart';
 import 'core/services/notification_service.dart';
@@ -97,6 +98,17 @@ Future<void> main() async {
     // RC init failed (e.g. emulator without Play Services). App still boots;
     // premium gates will resolve to `false` and paywall will surface an
     // empty offering rather than crashing.
+  }
+
+  // 8. Sentry — opt-in crash reporting. Only initialised when the user has
+  //    explicitly enabled it and a DSN is configured in .env.
+  final sentryOptIn = prefs.getBool('sentry_opt_in') ?? false;
+  if (sentryOptIn && env?.sentryDsn != null) {
+    try {
+      await initSentry(dsn: env!.sentryDsn!);
+    } catch (_) {
+      // Sentry init failure must never crash the app.
+    }
   }
 
   runApp(

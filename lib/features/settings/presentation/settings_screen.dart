@@ -1,4 +1,5 @@
 import 'package:dreambook/core/l10n/l10n_ext.dart';
+import 'package:dreambook/core/providers/crash_reporting_provider.dart';
 import 'package:dreambook/core/providers/premium_provider.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
@@ -315,6 +316,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => context.push(AppRoutes.families),
           ),
           _SectionHeader(title: l10n.settingsSectionAbout),
+          SwitchListTile(
+            secondary: const Icon(Icons.bug_report_outlined),
+            title: Text(l10n.settingsCrashReporting),
+            subtitle: Text(l10n.settingsCrashReportingSubtitle),
+            value: ref.watch(crashReportingEnabledProvider),
+            onChanged: (v) =>
+                ref.read(crashReportingNotifierProvider).setEnabled(v),
+          ),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(l10n.settingsVersion),

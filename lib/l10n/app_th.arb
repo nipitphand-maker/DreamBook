@@ -425,5 +425,8 @@
         "type": "String"
       }
     }
-  }
+  },
+
+  "settingsCrashReporting": "รายงานข้อผิดพลาด",
+  "settingsCrashReportingSubtitle": "ช่วยปรับปรุง DreamBook โดยส่งรายงานข้อผิดพลาดแบบไม่ระบุตัวตน"
 }
