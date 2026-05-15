@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — DreamBook</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #ffffff;
+      padding: 24px 16px 64px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 2px solid #e8e0f5;
+      padding-bottom: 24px;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #3d2b7a;
+      margin-bottom: 6px;
+    }
+
+    header p.meta {
+      font-size: 0.875rem;
+      color: #666;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #3d2b7a;
+      margin-top: 40px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e8e0f5;
+    }
+
+    p {
+      margin-bottom: 14px;
+      color: #333;
+    }
+
+    ul {
+      margin: 10px 0 14px 20px;
+      color: #333;
+    }
+
+    ul li {
+      margin-bottom: 8px;
+    }
+
+    .highlight-box {
+      background: #f5f0ff;
+      border-left: 4px solid #7c5cbf;
+      border-radius: 4px;
+      padding: 16px 20px;
+      margin: 24px 0;
+    }
+
+    .highlight-box p {
+      margin: 0;
+      font-weight: 500;
+      color: #3d2b7a;
+    }
+
+    a {
+      color: #7c5cbf;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 0.875rem;
+      color: #666;
+    }
+
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 1.5rem;
+      }
+
+      h2 {
+        font-size: 1.05rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>Privacy Policy</h1>
+      <p class="meta">DreamBook &mdash; by Niyoko Studio &mdash; Last updated: May 2026</p>
+    </header>
+
+    <div class="highlight-box">
+      <p>DreamBook is designed around your family's privacy. No login. No account. No email address required. Your baby's data stays on your device, encrypted, and only you hold the keys.</p>
+    </div>
+
+    <h2>1. Who We Are</h2>
+    <p>DreamBook is developed and published by <strong>Niyoko Studio</strong>. If you have any questions about this policy, you can reach us at:</p>
+    <p><a href="mailto:nipitphand@gmail.com">nipitphand@gmail.com</a></p>
+
+    <h2>2. No Account Required</h2>
+    <p>DreamBook does not require you to create an account, provide an email address, or log in with any third-party identity provider. You start recording your baby's logs immediately without sharing any personal identity information with us.</p>
+
+    <h2>3. What Data the App Records</h2>
+    <p>DreamBook stores the following data locally on your device:</p>
+    <ul>
+      <li>Baby logs: feeding sessions (breast and bottle), diaper changes, sleep sessions, pumping sessions, and vaccination records</li>
+      <li>Baby profile: name and date of birth (entered by you)</li>
+      <li>A device identifier (randomly generated, not linked to you or your Apple/Google account)</li>
+      <li>An optional BIP-39 recovery phrase (generated on-device, never transmitted to any server)</li>
+      <li>App preferences and settings</li>
+    </ul>
+    <p>We do not collect names, email addresses, phone numbers, location data, photos, or any other information beyond what you explicitly enter into the baby log.</p>
+
+    <h2>4. How Data Is Protected on Your Device</h2>
+    <p>All data stored locally is encrypted at rest using <strong>SQLCipher (AES-256)</strong>. The encryption key is stored in your device's secure hardware enclave (iOS Keychain / Android EncryptedSharedPreferences). An attacker with physical access to your device cannot read your baby logs without your device passcode.</p>
+    <p>Android app data backup is disabled (<code>allowBackup="false"</code>) to prevent unencrypted database snapshots from leaking to Google Drive.</p>
+
+    <h2>5. Optional Cloud Sync</h2>
+    <p>DreamBook offers an <strong>optional</strong> encrypted cloud sync feature so you can share logs with co-caregivers or restore data to a new device. If you choose to use this feature:</p>
+    <ul>
+      <li>All data is encrypted on your device using <strong>AES-GCM</strong> before it is uploaded.</li>
+      <li>Our cloud infrastructure (Supabase, hosted in Singapore, ap-southeast-1) receives only ciphertext. Supabase cannot read your baby's data.</li>
+      <li>The encryption key is derived from your passphrase or recovery phrase, which is stored only on your device and is never sent to any server.</li>
+      <li>Sharing is done via an 8-character invite code with a 1-hour expiry. No persistent link between caregivers is stored on the server.</li>
+    </ul>
+    <p>If you do not use cloud sync, no data ever leaves your device.</p>
+
+    <h2>6. BIP-39 Recovery Phrase</h2>
+    <p>When you set up cloud sync, the app generates a standard BIP-39 recovery phrase (12 words). This phrase:</p>
+    <ul>
+      <li>Is generated entirely on your device using a cryptographically secure random number generator</li>
+      <li>Is never transmitted to our servers or any third party</li>
+      <li>Is the only way to recover your encrypted cloud data if you lose your device</li>
+    </ul>
+    <p>You are responsible for backing up and safeguarding your recovery phrase. If you lose it and lose your device, your cloud data cannot be recovered.</p>
+
+    <h2>7. Analytics and Crash Reporting</h2>
+    <p>DreamBook does <strong>not</strong> include any advertising SDK or behavioral analytics SDK.</p>
+    <p>Optional crash reporting (via Sentry/Crashlytics) is available to help us fix bugs. This feature is <strong>disabled by default</strong>. You can opt in from Settings. If enabled, crash reports may contain device model, OS version, and a stack trace. They do not contain baby log data.</p>
+
+    <h2>8. Advertising</h2>
+    <p>DreamBook contains no advertisements.</p>
+
+    <h2>9. Children's Data (COPPA / GDPR-K / PDPA)</h2>
+    <p>DreamBook is designed to track data about infants and toddlers aged 0&ndash;24 months. All such data is entered by a parent or caregiver and is covered by the protections described in this policy. We do not knowingly collect personal information from children directly; the app is operated by parents on their devices.</p>
+    <p>If you believe we have inadvertently collected data about a child in a way not covered here, please contact us immediately at <a href="mailto:nipitphand@gmail.com">nipitphand@gmail.com</a>.</p>
+
+    <h2>10. Your Rights</h2>
+    <p>Because we do not operate accounts or link data to identifiable individuals, most traditional privacy rights (access, portability, objection) are fulfilled automatically — you already hold all your data on your device.</p>
+    <p>For cloud sync data, you have the right to full erasure:</p>
+    <ul>
+      <li>Go to <strong>Settings &rarr; Right to Erasure</strong> within the app.</li>
+      <li>This will permanently delete all data associated with your device ID from our servers.</li>
+      <li>Local data remains on your device and can be deleted by uninstalling the app.</li>
+    </ul>
+
+    <h2>11. Data Retention</h2>
+    <ul>
+      <li>Active data is retained in encrypted form indefinitely while you use the app.</li>
+      <li>Records you delete within the app are soft-deleted and purged from our servers within <strong>90 days</strong>.</li>
+      <li>An erasure request (Settings &rarr; Right to Erasure) triggers an immediate wipe of all server-side data associated with your device.</li>
+    </ul>
+
+    <h2>12. Third-Party Services</h2>
+    <p>DreamBook uses the following third-party services:</p>
+    <ul>
+      <li><strong>Supabase</strong> (cloud sync only, optional) &mdash; encrypted data storage. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase Privacy Policy</a></li>
+      <li><strong>RevenueCat</strong> (subscription management) &mdash; processes your subscription status via the App Store / Google Play. No baby log data is shared with RevenueCat. <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat Privacy Policy</a></li>
+    </ul>
+    <p>We do not sell, rent, or trade your data to any third party for marketing or advertising purposes.</p>
+
+    <h2>13. Changes to This Policy</h2>
+    <p>If we make material changes to this privacy policy, we will update the "Last updated" date at the top of this page and, where appropriate, notify you within the app. Continued use of DreamBook after a policy change constitutes your acceptance of the revised policy.</p>
+
+    <h2>14. Contact Us</h2>
+    <p>If you have any questions, concerns, or erasure requests, please contact:</p>
+    <p>
+      <strong>Niyoko Studio</strong><br />
+      Email: <a href="mailto:nipitphand@gmail.com">nipitphand@gmail.com</a>
+    </p>
+
+    <footer>
+      <p>&copy; 2026 Niyoko Studio. DreamBook is a privacy-first baby daybook. All rights reserved.</p>
+    </footer>
+
+  </div>
+</body>
+</html>

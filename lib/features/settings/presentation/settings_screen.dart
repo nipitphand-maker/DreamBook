@@ -18,7 +18,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 const _kPortionOz = 'settings.pump.portionOz';
 const _mlPerOz = 29.5735;
-const _privacyPolicyUrl = 'https://dreambookapp.com/privacy';
+const _privacyPolicyUrl = 'https://nipitphand-maker.github.io/DreamBook/privacy-policy/';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
