@@ -25,10 +25,25 @@ void main() {
       expect(out, equals(Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF])));
     });
 
+    test(r'lowercase hex string \xdeadbeef decodes the same as uppercase', () {
+      final lower = decodeBytea(r'\xdeadbeef');
+      final upper = decodeBytea(r'\xDEADBEEF');
+      expect(lower, equals(Uint8List.fromList([0xDE, 0xAD, 0xBE, 0xEF])));
+      expect(lower, equals(upper));
+    });
+
+    test(r'odd-length hex \xABC throws FormatException (not silent truncate)', () {
+      expect(() => decodeBytea(r'\xABC'), throwsA(isA<FormatException>()));
+    });
+
     test('plain base64 string decodes', () {
       final bytes = Uint8List.fromList([10, 20, 30, 40, 50]);
       final encoded = base64Encode(bytes);
       expect(decodeBytea(encoded), equals(bytes));
+    });
+
+    test('malformed string (not hex, not base64) throws ArgumentError', () {
+      expect(() => decodeBytea('not-valid-base64-!!!@@@'), throwsA(isA<ArgumentError>()));
     });
 
     test('unsupported type throws ArgumentError with runtimeType', () {

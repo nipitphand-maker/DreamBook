@@ -21,12 +21,21 @@ Uint8List decodeBytea(dynamic v) {
   if (v is String) {
     if (v.startsWith(r'\x')) {
       final hex = v.substring(2);
+      if (hex.length.isOdd) {
+        throw FormatException(
+          'bytea: hex literal has odd length (${hex.length}) — refusing to silently truncate', v);
+      }
       return Uint8List.fromList(List.generate(
         hex.length ~/ 2,
         (i) => int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16),
       ));
     }
-    return base64Decode(v);
+    try {
+      return base64Decode(v);
+    } on FormatException catch (e) {
+      throw ArgumentError(
+        'bytea: String is neither hex (\\x...) nor valid base64: ${e.message}');
+    }
   }
   throw ArgumentError('bytea: unexpected ${v.runtimeType}');
 }
