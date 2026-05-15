@@ -9,6 +9,7 @@ import '../crypto/crypto_envelope.dart';
 import '../crypto/family_key_service.dart';
 import 'conflict_resolver.dart';
 import 'encrypted_row.dart';
+import 'retry_policy.dart';
 import 'sync_error.dart';
 import 'sync_server.dart';
 
@@ -107,20 +108,26 @@ class SyncWorker {
       );
       // SyncServer.insertEncryptedRow translates transport errors into
       // SyncNetworkError / SyncRlsReject — no catch needed here.
-      await server.insertEncryptedRow(
-        id: pushId,
-        familyId: familyId,
-        tableName: tableName,
-        recordId: recordId,
-        version: version,
-        keyVersion: key.keyVersion,
-        ciphertext: ciphertext,
-        aadHash: aadHash,
-        writtenByDevice: deviceFp,
-        updatedAt: DateTime.now().toUtc(),
-        deletedAt: (plaintext['deleted_at'] as String?) == null
-            ? null
-            : DateTime.now().toUtc(),
+      // RetryPolicy.run wraps transient transport faults (Socket/Timeout/5xx)
+      // with exponential backoff; terminal errors (incl. SyncRlsReject and
+      // SyncNetworkError, neither of which match transient classification)
+      // are rethrown immediately so the caller can react.
+      await RetryPolicy.run(
+        () => server.insertEncryptedRow(
+          id: pushId,
+          familyId: familyId,
+          tableName: tableName,
+          recordId: recordId,
+          version: version,
+          keyVersion: key.keyVersion,
+          ciphertext: ciphertext,
+          aadHash: aadHash,
+          writtenByDevice: deviceFp,
+          updatedAt: DateTime.now().toUtc(),
+          deletedAt: (plaintext['deleted_at'] as String?) == null
+              ? null
+              : DateTime.now().toUtc(),
+        ),
       );
 
       await db.update(
@@ -143,7 +150,11 @@ class SyncWorker {
   /// Rows that fail to decrypt (wrong key) are discarded; the loop
   /// continues to the next row.
   Future<void> pullOnce() async {
-    final rows = await server.pullRows(familyId: familyId, since: _lastPullAt);
+    // RetryPolicy.run wraps transient transport faults (Socket/Timeout/5xx)
+    // with exponential backoff; terminal errors are rethrown immediately.
+    final rows = await RetryPolicy.run(
+      () => server.pullRows(familyId: familyId, since: _lastPullAt),
+    );
     for (final row in rows) {
       await _applyIncoming(row);
     }
