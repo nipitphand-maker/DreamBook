@@ -94,8 +94,12 @@ serve(async (req) => {
   const { data: snapshotRow, error: snapErr } = await snapshotQuery.single();
 
   if (snapErr || !snapshotRow) {
-    await writeAuditEvent(null, "snapshot_restored", deviceFpHex,
-      { reason: "not_found", family_id: body.family_id }).catch(() => {});
+    // Count this probe toward the rate limit — prevents not-found path from bypassing it.
+    await svc.from("recovery_attempts")
+      .insert({ family_id: body.family_id, success: false })
+      .catch(() => {});
+    await writeAuditEvent(body.family_id, "snapshot_restored", deviceFpHex,
+      { reason: "not_found" }).catch(() => {});
     return new Response("Not Found", { status: 404 });
   }
 
