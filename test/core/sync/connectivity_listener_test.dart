@@ -34,7 +34,7 @@ void main() {
 
     fakeConn.emit([ConnectivityResult.none]); // go offline
     fakeConn.emit([ConnectivityResult.wifi]); // come back online
-    await Future.delayed(Duration.zero); // flush microtask queue
+    await Future<void>.delayed(Duration.zero); // flush microtask queue
 
     expect(triggers, [SyncTrigger.networkResume]);
     listener.dispose();
@@ -50,7 +50,7 @@ void main() {
 
     fakeConn.emit([ConnectivityResult.wifi]); // already online
     fakeConn.emit([ConnectivityResult.mobile]); // switch to mobile (still online)
-    await Future.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
 
     expect(triggers, isEmpty);
     listener.dispose();
