@@ -26,13 +26,16 @@ SERVICE_ROLE_KEY="$(echo "$STATUS_JSON" | python3 -c 'import sys,json;print(json
 DB_URL="$(echo "$STATUS_JSON" | python3 -c 'import sys,json;print(json.load(sys.stdin)["DB_URL"])')"
 
 ENV_FILE="$REPO_ROOT/.env.test.supabase"
-cat >"$ENV_FILE" <<EOF
+# Race-safe: subshell with umask 077 means the file is born 0600.
+(
+  umask 077
+  cat >"$ENV_FILE" <<EOF
 SUPABASE_TEST_API_URL=$API_URL
 SUPABASE_TEST_ANON_KEY=$ANON_KEY
 SUPABASE_TEST_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
 SUPABASE_TEST_DB_URL=$DB_URL
 EOF
-chmod 600 "$ENV_FILE"
+)
 
 echo "Supabase ready."
 echo "  API:   $API_URL"
