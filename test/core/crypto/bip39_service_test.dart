@@ -55,6 +55,11 @@ void main() {
       final phrase = service.generatePhrase();
       expect(service.toWords(phrase).length, 12);
     });
+
+    test('normalises before splitting', () {
+      const messy = '  ABANDON  ABILITY  ABLE  ';
+      expect(service.toWords(messy), equals(['abandon', 'ability', 'able']));
+    });
   });
 
   group('lookupHash', () {

@@ -5,7 +5,7 @@ import 'package:bip39/bip39.dart' as bip39;
 import 'package:cryptography/cryptography.dart';
 
 class Bip39Service {
-  String generatePhrase() => bip39.generateMnemonic();
+  String generatePhrase() => normalizePhrase(bip39.generateMnemonic());
 
   bool validatePhrase(String phrase) =>
       bip39.validateMnemonic(normalizePhrase(phrase));
