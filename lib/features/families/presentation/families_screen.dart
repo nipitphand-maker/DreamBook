@@ -58,26 +58,27 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
     await FamilyKeyService(_secureStorage).clear(familyId: entry.id);
     await ref.read(familyListProvider.notifier).remove(entry.id);
     ref.invalidate(syncLifecycleControllerProvider);
   }
 
   Future<void> _addFamily() async {
-    final families = ref.read(familyListProvider);
-    final isPremium = await ref.read(isPremiumProvider.future);
-
-    if (!ref.read(familyRepositoryProvider).canAddFamily(
-          isPremium: isPremium,
-          currentCount: families.length,
-        )) {
-      if (!mounted) return;
-      unawaited(context.push(AppRoutes.premium));
-      return;
-    }
-
     setState(() => _adding = true);
     try {
+      final families = ref.read(familyListProvider);
+      final isPremium = await ref.read(isPremiumProvider.future);
+
+      if (!ref.read(familyRepositoryProvider).canAddFamily(
+            isPremium: isPremium,
+            currentCount: families.length,
+          )) {
+        if (!mounted) return;
+        unawaited(context.push(AppRoutes.premium));
+        return;
+      }
+
       final supa = Supabase.instance.client;
       if (supa.auth.currentSession == null) {
         await supa.auth.signInAnonymously();
@@ -133,7 +134,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final families = ref.watch(familyListProvider);
-    final activeId = ref.read(familyRepositoryProvider).activeId();
+    final activeId = ref.watch(familyRepositoryProvider).activeId();
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.familiesTitle)),
