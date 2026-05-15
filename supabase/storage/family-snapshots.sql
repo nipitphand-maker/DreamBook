@@ -1,0 +1,5 @@
+-- Supabase Storage bucket: family-snapshots
+-- Created via dashboard: bucket name 'family-snapshots', private, 100MB file limit.
+-- RLS on objects table controlled via dashboard policies.
+-- This file documents the intended access policy:
+--   authenticated users can read/write objects where the path starts with their family_id
