@@ -2,10 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'bytea_codec.dart';
 import 'sync_server.dart';
 
 /// Production implementation of [SyncServer] backed by the real Supabase client.
@@ -80,14 +79,6 @@ class SupabaseSyncServer implements SyncServer {
       if (pageList.length < _pageSize) break;
       offset += _pageSize;
     }
-    if (allRows.isNotEmpty) {
-      debugPrint(
-        '[SupabaseSyncServer] pullRows first row ciphertext type: '
-        '${allRows.first["ciphertext"].runtimeType}, '
-        'aad_hash type: ${allRows.first["aad_hash"].runtimeType}, '
-        'sample: ${allRows.first["ciphertext"].toString().substring(0, 30.clamp(0, allRows.first["ciphertext"].toString().length))}',
-      );
-    }
     return allRows.map((m) {
       return RemoteEncryptedRow(
         tableName: m['table_name'] as String,
@@ -95,8 +86,8 @@ class SupabaseSyncServer implements SyncServer {
         version: m['version'] as int,
         keyVersion: m['key_version'] as int,
         familyId: m['family_id'] as String,
-        ciphertext: Uint8List.fromList((m['ciphertext'] as List).cast<int>()),
-        aadHash: Uint8List.fromList((m['aad_hash'] as List).cast<int>()),
+        ciphertext: decodeBytea(m['ciphertext']),
+        aadHash: decodeBytea(m['aad_hash']),
         writtenByDevice: m['written_by_device'] as String,
         updatedAt: DateTime.parse(m['updated_at'] as String),
         deletedAt: m['deleted_at'] == null
@@ -129,10 +120,8 @@ class SupabaseSyncServer implements SyncServer {
               version: row['version'] as int,
               keyVersion: row['key_version'] as int,
               familyId: row['family_id'] as String,
-              ciphertext:
-                  Uint8List.fromList((row['ciphertext'] as List).cast<int>()),
-              aadHash:
-                  Uint8List.fromList((row['aad_hash'] as List).cast<int>()),
+              ciphertext: decodeBytea(row['ciphertext']),
+              aadHash: decodeBytea(row['aad_hash']),
               writtenByDevice: row['written_by_device'] as String,
               updatedAt: DateTime.parse(row['updated_at'] as String),
               deletedAt: row['deleted_at'] == null
@@ -160,8 +149,7 @@ class SupabaseSyncServer implements SyncServer {
         familyId: m['family_id'] as String,
         recipientDeviceFp: m['recipient_device_fp'] as String,
         keyVersion: m['key_version'] as int,
-        wrappedKey:
-            Uint8List.fromList((m['wrapped_key'] as List).cast<int>()),
+        wrappedKey: decodeBytea(m['wrapped_key']),
       );
     }).toList();
   }
