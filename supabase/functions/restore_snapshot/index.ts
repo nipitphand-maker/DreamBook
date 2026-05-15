@@ -31,7 +31,9 @@ function toByteaHex(b: Uint8Array): string {
 }
 
 function base64FromBytes(b: Uint8Array): string {
-  return btoa(String.fromCharCode(...b));
+  let s = "";
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
 }
 
 function base64FromHex(hex: string): string {

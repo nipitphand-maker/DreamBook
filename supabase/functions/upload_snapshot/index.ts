@@ -147,14 +147,16 @@ serve(async (req) => {
   if (allVersions && allVersions.length > 3) {
     const toDelete = allVersions.slice(3);
     const paths = toDelete.map((r: { storage_path: string }) => r.storage_path);
-    await svc.storage.from("family-snapshots").remove(paths).catch((e) => {
-      console.warn("prune: storage remove failed", e);
-    });
+    // Delete DB rows first — orphaned blobs are harmless; orphaned DB rows pointing to
+    // deleted blobs would cause 503s on future restores.
     const { error: pruneErr } = await svc.from("encrypted_snapshots")
       .delete()
       .in("version", toDelete.map((r: { version: number }) => r.version))
       .eq("family_id", familyId);
     if (pruneErr) console.warn("prune: db delete failed", pruneErr.message);
+    await svc.storage.from("family-snapshots").remove(paths).catch((e) => {
+      console.warn("prune: storage remove failed", e);
+    });
   }
 
   await writeAuditEvent(familyId, "snapshot_uploaded", deviceFpHex,
