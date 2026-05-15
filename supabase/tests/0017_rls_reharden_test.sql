@@ -1,7 +1,7 @@
 -- supabase/tests/0017_rls_reharden_test.sql
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap;
-SELECT plan(9);
+SELECT plan(10);
 
 -- Fixtures: two auth users, two devices, one family.
 INSERT INTO auth.users (id, email) VALUES
@@ -55,6 +55,16 @@ SELECT lives_ok($$
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','feed','r1',1,1,
      '\x00','\x00','aa11')
 $$, 'own device_fp accepted');
+
+-- 6. Stale key_version REJECTED (proves the key_version predicate fires).
+SELECT throws_ok($$
+  INSERT INTO public.encrypted_rows
+    (family_id, table_name, record_id, version, key_version,
+     ciphertext, aad_hash, written_by_device)
+  VALUES
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','feed','r2',1,99,
+     '\x00','\x00','aa11')
+$$, '42501', NULL, 'stale key_version blocked by RLS WITH CHECK');
 
 SELECT * FROM finish();
 ROLLBACK;
