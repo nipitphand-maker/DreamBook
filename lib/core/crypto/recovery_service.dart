@@ -7,15 +7,11 @@ import 'package:cryptography/cryptography.dart';
 import 'crypto_envelope.dart';
 
 /// Output of [RecoveryService.wrapFamilyKey].
-/// Both values must be persisted — [salt] is needed to re-derive the KDF key.
 class WrappedRecoveryKey {
-  const WrappedRecoveryKey({required this.wrappedKey, required this.salt});
+  const WrappedRecoveryKey({required this.salt, required this.wrappedKey});
 
-  /// AES-GCM envelope containing the encrypted family key.
-  final Uint8List wrappedKey;
-
-  /// 16-byte random salt used during Argon2id key derivation.
   final Uint8List salt;
+  final Uint8List wrappedKey;
 }
 
 /// BIP-39 recovery: wraps/unwraps K_family under a key derived from the
@@ -46,9 +42,6 @@ class RecoveryService {
         hashLength: 32,
       );
 
-  /// Wraps [familyKey] under a key derived from [normalizedPhrase] + a fresh
-  /// 16-byte salt.  AAD binds the envelope to [familyId] and [keyVersion] so a
-  /// wrapped blob cannot be replayed across families or key rotations.
   Future<WrappedRecoveryKey> wrapFamilyKey({
     required String normalizedPhrase,
     required Uint8List familyKey,
@@ -67,10 +60,6 @@ class RecoveryService {
     return WrappedRecoveryKey(wrappedKey: sealed, salt: salt);
   }
 
-  /// Reverses [wrapFamilyKey]. Returns the original family key bytes.
-  ///
-  /// Throws [SecretBoxAuthenticationError] if any of [normalizedPhrase],
-  /// [salt], [familyId], or [keyVersion] do not match what was used to wrap.
   Future<Uint8List> unwrapFamilyKey({
     required String normalizedPhrase,
     required Uint8List wrappedKey,

@@ -1,7 +1,8 @@
 import 'dart:typed_data';
+
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:dreambook/core/crypto/recovery_service.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   // Use low-memory Argon2id for tests — production uses m=64MiB which is slow.
@@ -24,8 +25,8 @@ void main() {
         keyVersion: keyVersion,
       );
 
-      expect(wrapped.wrappedKey.isNotEmpty, isTrue);
       expect(wrapped.salt.length, 16);
+      expect(wrapped.wrappedKey.isNotEmpty, isTrue);
 
       final recovered = await service.unwrapFamilyKey(
         normalizedPhrase: phrase,
