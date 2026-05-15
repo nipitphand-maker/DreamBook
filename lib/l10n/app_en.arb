@@ -367,5 +367,6 @@
   "manageDevicesRecoveryInvite": "Generate recovery invite",
   "manageDevicesAdmin": "Admin",
   "manageDevicesEditor": "Member",
-  "manageDevicesThisDevice": "This device"
+  "manageDevicesThisDevice": "This device",
+  "settingsSectionSecurity": "Security"
 }

@@ -367,5 +367,6 @@
   "manageDevicesRecoveryInvite": "สร้างรหัสกู้คืน",
   "manageDevicesAdmin": "แอดมิน",
   "manageDevicesEditor": "สมาชิก",
-  "manageDevicesThisDevice": "เครื่องนี้"
+  "manageDevicesThisDevice": "เครื่องนี้",
+  "settingsSectionSecurity": "ความปลอดภัย"
 }
