@@ -1,17 +1,12 @@
-// claim_invite Edge Function — Plan C-2 §5.2.
-// Atomic claim: BLAKE2b the code, lock invite row, verify TTL + state,
-// insert family_devices + key_distribution, return wrap material.
-//
-// Auth: caller must be authenticated (anon JWT counts). Body fields:
-//   { code: string, device_pub_key: base64 }
-// device_fp is derived from auth.uid() so the client cannot impersonate.
+// claim_invite Edge Function — Plan C-2 §5.2 (v2: anon key + SECURITY DEFINER RPC).
+// Body: { code: string, device_pub_key: base64 }
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { blake2b } from "https://esm.sh/blakejs@1.2.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 function normaliseCode(input: string): string {
   return input.replace(/[\s-]/g, "").toUpperCase();
@@ -28,6 +23,11 @@ function bytesFromBase64(s: string): Uint8Array {
   return out;
 }
 
+// PostgREST expects bytea as \x-prefixed hex string in JSON bodies.
+function toByteaHex(b: Uint8Array): string {
+  return "\\x" + hexFromBytes(b);
+}
+
 serve(async (req) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
 
@@ -36,15 +36,6 @@ serve(async (req) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const userClient = createClient(SUPABASE_URL, authHeader.replace("Bearer ", ""), {
-    auth: { persistSession: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  if (userError || !userData?.user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-  const deviceFpHex = userData.user.id.replace(/-/g, "");
-
   const body = await req.json().catch(() => null) as
     | { code: string; device_pub_key: string }
     | null;
@@ -52,18 +43,23 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "missing fields" }), { status: 400 });
   }
 
+  const devicePubKey = bytesFromBase64(body.device_pub_key);
+  const deviceFp = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", devicePubKey),
+  ).slice(0, 16);
+
   const normalised = normaliseCode(body.code);
   const codeHashHex = hexFromBytes(blake2b(new TextEncoder().encode(normalised), undefined, 64));
 
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+  const client = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false },
   });
 
-  // Begin atomic claim via SQL function — wrap in a stored procedure for transactionality.
-  const { data, error } = await admin.rpc("claim_invite_atomic", {
+  const { data, error } = await client.rpc("claim_invite_atomic", {
     p_code_hash: codeHashHex,
-    p_device_fp: Uint8Array.from(deviceFpHex.match(/.{2}/g)!.map((b) => parseInt(b, 16))),
-    p_device_pub_key: bytesFromBase64(body.device_pub_key),
+    p_device_fp: toByteaHex(deviceFp),
+    p_device_pub_key: toByteaHex(devicePubKey),
   });
 
   if (error) {

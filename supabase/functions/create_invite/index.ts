@@ -1,14 +1,26 @@
-// create_invite Edge Function — Plan C-3.
-// Admin device stores a pre-wrapped invite on the server.
-// Body: { family_id, code_hash (hex), salt (base64), wrapped_key (base64), expires_at (ISO8601) }
-// The client derives code_hash = blake2b(normalise(code)) and wraps the family
-// key under Argon2id(code) before calling this endpoint — ciphertext only.
+// create_invite Edge Function — Plan C-3 (v4: fp computed here, no pgcrypto).
+// Body: { family_id, code_hash (hex), salt (base64), wrapped_key (base64), device_pub_key (base64) }
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+function bytesFromBase64(s: string): Uint8Array {
+  const raw = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+function hexFromBytes(b: Uint8Array): string {
+  return Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+function toByteaHex(b: Uint8Array): string {
+  return "\\x" + hexFromBytes(b);
+}
 
 serve(async (req) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
@@ -18,66 +30,45 @@ serve(async (req) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Verify the caller is an authenticated user.
-  const userClient = createClient(SUPABASE_URL, authHeader.replace("Bearer ", ""), {
-    auth: { persistSession: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  if (userError || !userData?.user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-  const callerDeviceFpHex = userData.user.id.replace(/-/g, "");
-  const callerDeviceFp = Uint8Array.from(
-    callerDeviceFpHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)),
-  );
-
   const body = await req.json().catch(() => null) as {
     family_id: string;
     code_hash: string;
     salt: string;
     wrapped_key: string;
+    device_pub_key: string;
   } | null;
 
-  if (!body?.family_id || !body.code_hash || !body.salt || !body.wrapped_key) {
+  if (!body?.family_id || !body.code_hash || !body.salt || !body.wrapped_key || !body.device_pub_key) {
     return new Response(JSON.stringify({ error: "missing fields" }), { status: 400 });
   }
-  // expires_at is always server-computed (1 hour TTL) — never trust the client. (SEC-002)
-  const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
 
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+  const saltBytes = bytesFromBase64(body.salt);
+  const wrappedBytes = bytesFromBase64(body.wrapped_key);
+  const devicePubKey = bytesFromBase64(body.device_pub_key);
 
-  // Verify caller is an active admin of the claimed family.
-  const { data: device, error: devErr } = await admin
-    .from("family_devices")
-    .select("role, revoked_at")
-    .eq("device_fp", callerDeviceFp)
-    .eq("family_id", body.family_id)
-    .single();
+  // Compute device_fp = SHA-256(pub_key)[0:16] — no pgcrypto needed in DB.
+  const hashBuf = await crypto.subtle.digest("SHA-256", devicePubKey);
+  const deviceFpHex = hexFromBytes(new Uint8Array(hashBuf).slice(0, 16));
 
-  if (devErr || !device) return new Response("Forbidden", { status: 403 });
-  if (device.role !== "admin" || device.revoked_at !== null) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
 
-  const saltBytes = Uint8Array.from(atob(body.salt), (c) => c.charCodeAt(0));
-  const wrappedBytes = Uint8Array.from(atob(body.wrapped_key), (c) => c.charCodeAt(0));
-
-  const { error: insertErr } = await admin.from("invites").insert({
-    code_hash: body.code_hash,
-    family_id: body.family_id,
-    salt: saltBytes,
-    wrapped_key: wrappedBytes,
-    expires_at: expiresAt,
+  const { data, error } = await client.rpc("create_invite_fn", {
+    p_family_id: body.family_id,
+    p_code_hash: body.code_hash,
+    p_salt: toByteaHex(saltBytes),
+    p_wrapped_key: toByteaHex(wrappedBytes),
+    p_device_fp_hex: deviceFpHex,
   });
 
-  if (insertErr) {
-    if (insertErr.code === "23505") {
+  if (error) {
+    if (error.message.includes("403")) return new Response("Forbidden", { status: 403 });
+    if (error.code === "23505") {
       return new Response(JSON.stringify({ error: "code_hash collision" }), { status: 409 });
     }
-    return new Response(JSON.stringify({ error: insertErr.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify(data), {
     status: 201,
     headers: { "Content-Type": "application/json" },
   });

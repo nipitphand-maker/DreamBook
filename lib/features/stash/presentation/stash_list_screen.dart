@@ -1,7 +1,9 @@
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/premium_provider.dart';
+import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/router/app_router.dart';
+import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/stash/data/stash_providers.dart';
@@ -9,6 +11,12 @@ import 'package:dreambook/features/stash/data/stash_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+const _mlPerOz = 29.5735;
+
+String _fmtVol(double oz, VolumeUnit unit) => unit == VolumeUnit.oz
+    ? '${oz.toStringAsFixed(1)} oz'
+    : '${(oz * _mlPerOz).round()} ml';
 
 /// Free-tier maximum number of active stash bottles.
 const int kStashFreeTierCap = 20;
@@ -25,7 +33,7 @@ class StashListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Freezer Stash'),
+        title: Text(context.l10n.stashTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -86,7 +94,7 @@ class _NoBabyPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('No baby selected'));
+    return Center(child: Text(context.l10n.errorNoBabyProfile));
   }
 }
 
@@ -100,7 +108,7 @@ class _StashBody extends ConsumerWidget {
 
     return bottlesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Error: $err')),
+      error: (err, _) => Center(child: Text(context.l10n.stashError(err.toString()))),
       data: (bottles) {
         if (bottles.isEmpty) {
           return const Center(
@@ -186,9 +194,10 @@ class _BottleTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(unitPreferencesProvider).volume;
     return ListTile(
       leading: Icon(_storageIcon(bottle.storage)),
-      title: Text('${bottle.oz.toStringAsFixed(1)} oz'),
+      title: Text(_fmtVol(bottle.oz, unit)),
       subtitle: Text(
         'Pumped ${_relativeDate(bottle.pumpedAt)} · Expires ${_fmtDate(bottle.expiresAt)}',
       ),
@@ -231,6 +240,8 @@ class _BottleDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(unitPreferencesProvider).volume;
+    final scheme = Theme.of(context).colorScheme;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -245,24 +256,26 @@ class _BottleDetailSheet extends ConsumerWidget {
           children: [
             Text(
               'Bottle details',
-              style: AppTypography.titleLarge(color: AppColors.inkPrimary),
+              style: AppTypography.titleLarge(color: scheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              '${bottle.oz.toStringAsFixed(1)} oz',
-              style: AppTypography.headlineMedium(color: AppColors.inkPrimary),
+              _fmtVol(bottle.oz, unit),
+              style: AppTypography.headlineMedium(color: scheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.xs),
             Chip(label: Text(_storageName(bottle.storage))),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Pumped: ${_fmtDate(bottle.pumpedAt)}',
-              style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+              style: AppTypography.bodyMedium(
+                  color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: AppSpacing.xxs),
             Text(
               'Expires: ${_fmtDate(bottle.expiresAt)}',
-              style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+              style: AppTypography.bodyMedium(
+                  color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -275,7 +288,7 @@ class _BottleDetailSheet extends ConsumerWidget {
                       _ConsumeBottleSheet(bottle: bottle, babyId: babyId),
                 );
               },
-              child: const Text('Use this bottle'),
+              child: Text(context.l10n.stashUseBottle),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton(
@@ -284,7 +297,7 @@ class _BottleDetailSheet extends ConsumerWidget {
                 side: const BorderSide(color: AppColors.lightError),
               ),
               onPressed: () => _confirmDiscard(context, ref),
-              child: const Text('Discard'),
+              child: Text(context.l10n.stashDiscard),
             ),
           ],
         ),
@@ -296,21 +309,21 @@ class _BottleDetailSheet extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Discard bottle?'),
+        title: Text(context.l10n.stashDiscardTitle),
         content: Text(
-          'Are you sure you want to discard this ${bottle.oz.toStringAsFixed(1)} oz bottle?',
+          'Are you sure you want to discard this ${_fmtVol(bottle.oz, ref.read(unitPreferencesProvider).volume)} bottle?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.actionCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.lightError,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Discard'),
+            child: Text(context.l10n.stashDiscard),
           ),
         ],
       ),
@@ -338,6 +351,8 @@ class _ConsumeBottleSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(unitPreferencesProvider).volume;
+    final scheme = Theme.of(context).colorScheme;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -352,18 +367,18 @@ class _ConsumeBottleSheet extends ConsumerWidget {
           children: [
             Text(
               'Mark as used',
-              style: AppTypography.titleLarge(color: AppColors.inkPrimary),
+              style: AppTypography.titleLarge(color: scheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Record that you used this bottle of '
-              '${bottle.oz.toStringAsFixed(1)} oz',
-              style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+              'Record that you used this bottle of ${_fmtVol(bottle.oz, unit)}',
+              style: AppTypography.bodyMedium(
+                  color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
               onPressed: () => _confirm(context, ref),
-              child: const Text('Confirm'),
+              child: Text(context.l10n.actionConfirm),
             ),
           ],
         ),
@@ -378,7 +393,7 @@ class _ConsumeBottleSheet extends ConsumerWidget {
     if (context.mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bottle marked as used')),
+        SnackBar(content: Text(context.l10n.stashBottleUsed)),
       );
     }
   }
@@ -439,6 +454,12 @@ class _AddBottleSheetState extends ConsumerState<_AddBottleSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final unit = ref.watch(unitPreferencesProvider).volume;
+    final isOz = unit == VolumeUnit.oz;
+    final step = isOz ? 0.5 : 5 / _mlPerOz;
+    final maxOz = isOz ? 16.0 : 500 / _mlPerOz;
+    final scheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -453,30 +474,31 @@ class _AddBottleSheetState extends ConsumerState<_AddBottleSheet> {
           children: [
             Text(
               'Add bottle',
-              style: AppTypography.titleLarge(color: AppColors.inkPrimary),
+              style: AppTypography.titleLarge(color: scheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.md),
-            // Oz stepper
             Row(
               children: [
                 Text(
-                  'Amount (oz):',
-                  style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+                  'Amount (${isOz ? 'oz' : 'ml'}):',
+                  style: AppTypography.bodyMedium(
+                      color: scheme.onSurface.withValues(alpha: 0.6)),
                 ),
                 const Spacer(),
                 IconButton.filled(
                   onPressed: _oz <= 0.5
                       ? null
-                      : () => setState(() => _oz = double.parse(
-                            (_oz - 0.5).toStringAsFixed(1),
-                          )),
+                      : () => setState(
+                          () => _oz = (_oz - step).clamp(0.5, maxOz)),
                   icon: const Icon(Icons.remove),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 SizedBox(
-                  width: 48,
+                  width: 56,
                   child: Text(
-                    _oz.toStringAsFixed(1),
+                    isOz
+                        ? _oz.toStringAsFixed(1)
+                        : '${(_oz * _mlPerOz).round()}',
                     textAlign: TextAlign.center,
                     style: AppTypography.numeric(
                       size: 18,
@@ -486,9 +508,10 @@ class _AddBottleSheetState extends ConsumerState<_AddBottleSheet> {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 IconButton.filled(
-                  onPressed: () => setState(() => _oz = double.parse(
-                        (_oz + 0.5).toStringAsFixed(1),
-                      )),
+                  onPressed: _oz >= maxOz
+                      ? null
+                      : () => setState(
+                          () => _oz = (_oz + step).clamp(0.5, maxOz)),
                   icon: const Icon(Icons.add),
                 ),
               ],
@@ -499,7 +522,8 @@ class _AddBottleSheetState extends ConsumerState<_AddBottleSheet> {
               children: [
                 Text(
                   'Pumped on:',
-                  style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+                  style: AppTypography.bodyMedium(
+                      color: scheme.onSurface.withValues(alpha: 0.6)),
                 ),
                 const Spacer(),
                 TextButton(

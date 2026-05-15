@@ -60,9 +60,15 @@ Future<void> main() async {
   const secureStorage = FlutterSecureStorage();
   final env = await _loadEnv();
   if (env != null) {
-    await SupabaseClientService.initialize(env: env, storage: secureStorage);
-    await SupabaseClientService.instance.ensureAnonymousSession();
-    await DeviceIdentityService(secureStorage).getOrCreate();
+    try {
+      await SupabaseClientService.initialize(env: env, storage: secureStorage);
+      await SupabaseClientService.instance.ensureAnonymousSession();
+      await DeviceIdentityService(secureStorage).getOrCreate();
+    } catch (_) {
+      // Supabase init or anon-auth failed (e.g. provider disabled, no network).
+      // App still boots in local-only mode; caregiver screens surface the
+      // error themselves rather than blocking startup.
+    }
   }
 
   // 6. RevenueCat — Android public API key. Wrapped in try/catch so missing

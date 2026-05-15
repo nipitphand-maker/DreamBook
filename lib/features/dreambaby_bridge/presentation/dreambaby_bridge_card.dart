@@ -1,3 +1,4 @@
+import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/dreambaby_bridge/data/dreambaby_bridge_service.dart';
 import 'package:flutter/material.dart';
@@ -50,13 +51,13 @@ class DreamBabyBridgeCard extends ConsumerWidget {
                 FilledButton(
                   onPressed: () =>
                       ref.read(dreamBabyBridgeServiceProvider).launch(),
-                  child: const Text('Open DreamBaby'),
+                  child: Text(context.l10n.bridgeOpenApp),
                 )
               else
                 OutlinedButton(
                   onPressed: () =>
                       ref.read(dreamBabyBridgeServiceProvider).launch(),
-                  child: const Text('Get DreamBaby'),
+                  child: Text(context.l10n.bridgeGetApp),
                 ),
             ],
           ),

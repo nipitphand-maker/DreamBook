@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -33,8 +34,8 @@ class PumpRepository {
   /// `started_at DESC` — freshest session first.
   Future<List<PumpSession>> todayFor(String babyId, {DateTime? now}) async {
     final db = await _db;
-    final n = (now ?? DateTime.now()).toUtc();
-    final startOfDay = DateTime.utc(n.year, n.month, n.day).toIso8601String();
+    final n = now ?? DateTime.now(); // keep local time
+    final startOfDay = DateTime(n.year, n.month, n.day).toUtc().toIso8601String();
     final rows = await db.query(
       'pump_session',
       where: 'baby_id = ? AND deleted_at IS NULL AND started_at >= ?',
@@ -134,6 +135,7 @@ class PumpRepository {
     });
 
     _ref.invalidate(pumpTodayProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return session;
   }
 
@@ -182,6 +184,7 @@ class PumpRepository {
     });
 
     _ref.invalidate(pumpTodayProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 }
 

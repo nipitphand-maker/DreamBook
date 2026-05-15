@@ -43,15 +43,15 @@ dependencies:
   # Supabase (Plan C-2) — anonymous auth + REST + Realtime over ws
   supabase_flutter: ^2.9.0
 
-  # QR code display (Plan C-3) — invite code QR widget
-  qr_flutter: ^4.1.0
-
   # Subscriptions (Plan D) — RevenueCat in-app purchases
   purchases_flutter: ^8.7.7
 
   # PDF generation + share (Plan E) — Visit Summary PDF
   pdf: ^3.11.0
   printing: ^5.13.0
+
+  # Share invite codes + Visit Summary PDF via system share sheet
+  share_plus: ^10.0.0
 
   # Cross-app bridge (Plan F) — launch DreamBaby from DreamBook
   url_launcher: ^6.3.1
@@ -65,6 +65,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true   # triggers `flutter gen-l10n` on build
+  assets:
+    - assets/.env
   fonts:
     - family: IBMPlexSansThai
       fonts:
@@ -73,3 +75,10 @@ flutter:
           weight: 500
         - asset: assets/fonts/IBMPlexSansThai-SemiBold.ttf
           weight: 600
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700

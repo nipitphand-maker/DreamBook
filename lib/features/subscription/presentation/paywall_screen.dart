@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/premium_provider.dart';
@@ -246,6 +247,7 @@ class _PaywallBody extends StatelessWidget {
                 subtitle: _yearlyPerMonth(context, yearly),
                 badge: l10n.premiumBestValue,
                 savingsBadge: l10n.premiumSaveBadge(savingsPct),
+                trialBadge: l10n.premiumTrialBadge,
                 selected: selectedType == PackageType.annual,
                 onTap: () => onSelectType(PackageType.annual),
               ),
@@ -296,13 +298,51 @@ class _PaywallBody extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.md),
 
-            // --- Legal ---
+            // --- Legal + required Privacy / Terms links (App Store 3.1.1) ---
             Text(
               l10n.premiumLegal,
               style: AppTypography.bodyMedium(
                 color: AppColors.inkSecondary,
               ).copyWith(fontSize: 12, height: 1.4),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () => launchUrl(
+                    Uri.parse('https://dreambookapp.com/privacy'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Text(l10n.premiumPrivacyLink),
+                ),
+                Text(
+                  ' · ',
+                  style: AppTypography.bodyMedium(
+                    color: AppColors.inkSecondary,
+                  ).copyWith(fontSize: 12),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () => launchUrl(
+                    Uri.parse('https://dreambookapp.com/terms'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Text(l10n.premiumTermsLink),
+                ),
+              ],
             ),
           ],
         ),
@@ -375,6 +415,7 @@ class _PackageCard extends StatelessWidget {
     this.subtitle,
     this.badge,
     this.savingsBadge,
+    this.trialBadge,
   });
 
   final String title;
@@ -382,6 +423,7 @@ class _PackageCard extends StatelessWidget {
   final String? subtitle;
   final String? badge;
   final String? savingsBadge;
+  final String? trialBadge;
   final bool selected;
   final VoidCallback onTap;
 
@@ -444,13 +486,22 @@ class _PackageCard extends StatelessWidget {
                         color: AppColors.inkPrimary,
                       ).copyWith(fontWeight: FontWeight.w600),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: AppTypography.bodyMedium(
-                          color: AppColors.inkSecondary,
-                        ),
+                    if (subtitle != null || trialBadge != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (subtitle != null)
+                            Text(
+                              subtitle!,
+                              style: AppTypography.bodyMedium(
+                                color: AppColors.inkSecondary,
+                              ),
+                            ),
+                          if (subtitle != null && trialBadge != null)
+                            const SizedBox(width: AppSpacing.xs),
+                          if (trialBadge != null)
+                            _Pill(text: trialBadge!, accent: false),
+                        ],
                       ),
                     ],
                   ],

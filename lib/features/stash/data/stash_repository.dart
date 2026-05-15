@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -93,6 +94,7 @@ class StashRepository {
     });
 
     _ref.invalidate(stashAvailableProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return bottle;
   }
 
@@ -143,6 +145,7 @@ class StashRepository {
     });
 
     _ref.invalidate(stashAvailableProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 
   /// Mark a bottle as discarded: sets [discardedAt] = now, bumps [version],
@@ -187,6 +190,7 @@ class StashRepository {
     });
 
     _ref.invalidate(stashAvailableProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 
   /// Soft-delete a bottle: sets [deletedAt] = now, bumps [version],
@@ -231,6 +235,7 @@ class StashRepository {
     });
 
     _ref.invalidate(stashAvailableProvider(babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 }
 

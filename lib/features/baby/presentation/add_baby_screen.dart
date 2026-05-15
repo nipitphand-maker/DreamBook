@@ -8,12 +8,14 @@ import '../../../core/theme/design_tokens.dart';
 import '../data/baby_repository.dart';
 import '../data/current_baby_provider.dart';
 
-/// Form screen for adding a new baby.
+/// Form screen for adding a new baby, or editing an existing one.
 ///
-/// Pushed as a modal `MaterialPageRoute` from [BabySwitcherScreen]. On save,
-/// inserts the row, flips [currentBabyIdProvider] to the new baby, and pops.
+/// Pass [baby] to enter edit mode — fields are pre-populated and Save calls
+/// [BabyRepository.update] instead of [BabyRepository.insert].
 class AddBabyScreen extends ConsumerStatefulWidget {
-  const AddBabyScreen({super.key});
+  const AddBabyScreen({super.key, this.baby});
+
+  final Baby? baby;
 
   @override
   ConsumerState<AddBabyScreen> createState() => _AddBabyScreenState();
@@ -21,13 +23,15 @@ class AddBabyScreen extends ConsumerStatefulWidget {
 
 class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _nicknameCtrl = TextEditingController();
+  late final _nameCtrl = TextEditingController(text: widget.baby?.name ?? '');
+  late final _nicknameCtrl = TextEditingController(text: widget.baby?.nickname ?? '');
 
-  DateTime? _dob;
-  BabySex _sex = BabySex.unspecified;
-  PreferredUnit _unit = PreferredUnit.oz;
+  late DateTime? _dob = widget.baby?.dob;
+  late BabySex _sex = widget.baby?.sex ?? BabySex.unspecified;
+  late PreferredUnit _unit = widget.baby?.preferredUnit ?? PreferredUnit.oz;
   bool _saving = false;
+
+  bool get _isEdit => widget.baby != null;
 
   @override
   void dispose() {
@@ -55,18 +59,33 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
     if (_dob == null) return;
     setState(() => _saving = true);
 
+    final repo = ref.read(babyRepositoryProvider);
+    final nickname = _nicknameCtrl.text.trim();
+
     try {
-      final nickname = _nicknameCtrl.text.trim();
-      final baby = await ref.read(babyRepositoryProvider).insert(
-            name: _nameCtrl.text.trim(),
-            dob: _dob!,
-            sex: _sex,
-            preferredUnit: _unit,
-            nickname: nickname.isEmpty ? null : nickname,
-          );
-      await ref.read(currentBabyIdProvider.notifier).select(baby.id);
-      if (!mounted) return;
-      Navigator.of(context).pop(baby);
+      if (_isEdit) {
+        await repo.update(
+          id: widget.baby!.id,
+          name: _nameCtrl.text.trim(),
+          dob: _dob!,
+          sex: _sex,
+          preferredUnit: _unit,
+          nickname: nickname.isEmpty ? null : nickname,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+      } else {
+        final baby = await repo.insert(
+          name: _nameCtrl.text.trim(),
+          dob: _dob!,
+          sex: _sex,
+          preferredUnit: _unit,
+          nickname: nickname.isEmpty ? null : nickname,
+        );
+        await ref.read(currentBabyIdProvider.notifier).select(baby.id);
+        if (!mounted) return;
+        Navigator.of(context).pop(baby);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -84,7 +103,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.babiesAddBaby),
+        title: Text(_isEdit ? l10n.babiesEditBaby : l10n.babiesAddBaby),
       ),
       body: SafeArea(
         child: Form(
@@ -197,7 +216,7 @@ class _AddBabyScreenState extends ConsumerState<AddBabyScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(l10n.babiesSaveCta),
+                    : Text(_isEdit ? l10n.babiesUpdateCta : l10n.babiesSaveCta),
               ),
             ],
           ),

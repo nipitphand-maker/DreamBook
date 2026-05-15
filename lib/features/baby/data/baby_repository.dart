@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -56,6 +57,7 @@ class BabyRepository {
       );
     });
 
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
     return baby;
   }
 
@@ -108,6 +110,51 @@ class BabyRepository {
   /// Alias for [list] — preferred name for Plan D multi-baby UI.
   Future<List<Baby>> getAll() => list();
 
+  /// Update mutable profile fields (name, nickname, dob, sex, preferredUnit).
+  Future<void> update({
+    required String id,
+    required String name,
+    String? nickname,
+    required DateTime dob,
+    BabySex? sex,
+    PreferredUnit preferredUnit = PreferredUnit.oz,
+  }) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc();
+    final nowIso = now.toIso8601String();
+    final sexStr = switch (sex) {
+      BabySex.male => 'male',
+      BabySex.female => 'female',
+      _ => 'unspecified',
+    };
+    final unitStr = preferredUnit == PreferredUnit.oz ? 'oz' : 'ml';
+
+    await db.transaction((txn) async {
+      await txn.rawUpdate(
+        '''
+        UPDATE baby
+        SET name           = ?,
+            nickname       = ?,
+            dob            = ?,
+            sex            = ?,
+            preferred_unit = ?,
+            updated_at     = ?,
+            version        = version + 1
+        WHERE id = ? AND deleted_at IS NULL
+        ''',
+        [name, nickname, dob.toUtc().toIso8601String(), sexStr, unitStr, nowIso, id],
+      );
+      final rows = await txn.query('baby', columns: ['version'], where: 'id = ?', whereArgs: [id], limit: 1);
+      final newVersion = rows.isEmpty ? 1 : rows.first['version'] as int;
+      await txn.insert(
+        'sync_state',
+        {'record_id': id, 'table_name': 'baby', 'version': newVersion, 'updated_at': nowIso, 'dirty': 1},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
+  }
+
   /// Soft-delete: sets deleted_at, bumps version, marks sync_state dirty.
   Future<void> softDelete(String id) async {
     final db = await _db;
@@ -149,6 +196,7 @@ class BabyRepository {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
 }
 

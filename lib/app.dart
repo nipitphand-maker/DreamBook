@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/providers/locale_provider.dart';
+import 'core/providers/text_scale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/sync/sync_lifecycle_controller.dart';
 import 'core/theme/theme_mode_controller.dart';
@@ -36,12 +38,15 @@ class _DreamBookAppState extends ConsumerState<DreamBookApp> {
   Widget build(BuildContext context) {
     final theme = ref.watch(themeProvider);
     final router = ref.watch(appRouterProvider);
+    final locale = ref.watch(localeProvider);
+    final textScale = ref.watch(textScaleProvider);
 
     return MaterialApp.router(
       title: 'DreamBook',
       debugShowCheckedModeBanner: false,
       theme: theme,
       routerConfig: router,
+      locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -49,6 +54,12 @@ class _DreamBookAppState extends ConsumerState<DreamBookApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(textScale.factor),
+        ),
+        child: child!,
+      ),
     );
   }
 }

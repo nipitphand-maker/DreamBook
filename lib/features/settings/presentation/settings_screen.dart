@@ -5,11 +5,20 @@ import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/providers/locale_provider.dart';
+import 'package:dreambook/core/providers/text_scale_provider.dart';
+import 'package:dreambook/core/theme/theme_mode_controller.dart';
+import 'package:dreambook/features/baby/data/baby_repository.dart';
+import 'package:dreambook/features/baby/data/current_baby_provider.dart';
+import 'package:dreambook/features/baby/presentation/add_baby_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _kPortionOz = 'settings.pump.portionOz';
+const _mlPerOz = 29.5735;
+const _privacyPolicyUrl = 'https://dreambookapp.com/privacy';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -28,11 +37,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.read(sharedPreferencesProvider).getDouble(_kPortionOz) ?? 4.0;
   }
 
+  Future<void> _launchPrivacy() async {
+    final uri = Uri.parse(_privacyPolicyUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.settingsPrivacyError)),
+      );
+    }
+  }
+
+  Future<void> _editBabyProfile() async {
+    final baby = await ref.read(babyRepositoryProvider).getActive();
+    if (baby == null || !mounted) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => AddBabyScreen(baby: baby)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final prefs = ref.watch(unitPreferencesProvider);
     final notifier = ref.read(unitPreferencesProvider.notifier);
+    final themeChoice =
+        ref.watch(themeModeControllerProvider).value?.choice ??
+            UserThemeChoice.system;
+    final themeNotifier = ref.read(themeModeControllerProvider.notifier);
+    final locale = ref.watch(localeProvider);
+    final localeCode = locale?.languageCode ?? 'system';
+    final localeNotifier = ref.read(localeProvider.notifier);
+    final textScale = ref.watch(textScaleProvider);
+    final textScaleNotifier = ref.read(textScaleProvider.notifier);
+    final babyId = ref.watch(currentBabyIdProvider);
+
+    final portionDisplay = prefs.volume == VolumeUnit.oz
+        ? '${_portionOz.toStringAsFixed(1)} oz'
+        : '${(_portionOz * _mlPerOz).round()} ml';
+    final portionStep = prefs.volume == VolumeUnit.oz ? 0.5 : 5 / _mlPerOz;
 
     return Scaffold(
       appBar: AppBar(
@@ -43,6 +85,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         children: [
           const _PremiumTile(),
+          _SectionHeader(title: l10n.settingsSectionBabyProfile),
+          ListTile(
+            leading: const Icon(Icons.child_care_outlined),
+            title: Text(l10n.settingsEditBabyProfile),
+            trailing: const Icon(Icons.chevron_right),
+            enabled: babyId != null,
+            onTap: babyId == null ? null : _editBabyProfile,
+          ),
           _SectionHeader(title: l10n.settingsSectionMeasurements),
           _UnitTile<VolumeUnit>(
             label: l10n.settingsVolumeLabel,
@@ -99,6 +149,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
             onSelectionChanged: (s) => notifier.setWeekStart(s.first),
           ),
+          _UnitTile<UserThemeChoice>(
+            label: l10n.settingsThemeLabel,
+            selected: {themeChoice},
+            segments: [
+              ButtonSegment(
+                value: UserThemeChoice.system,
+                label: Text(l10n.settingsThemeSystem),
+              ),
+              ButtonSegment(
+                value: UserThemeChoice.light,
+                label: Text(l10n.settingsThemeLight),
+              ),
+              ButtonSegment(
+                value: UserThemeChoice.dark,
+                label: Text(l10n.settingsThemeDark),
+              ),
+              ButtonSegment(
+                value: UserThemeChoice.nightTint,
+                label: Text(l10n.settingsThemeNight),
+              ),
+            ],
+            onSelectionChanged: (s) => themeNotifier.setChoice(s.first),
+          ),
+          _UnitTile<String>(
+            label: l10n.settingsLanguage,
+            selected: {localeCode},
+            segments: [
+              ButtonSegment(
+                value: 'system',
+                label: Text(l10n.settingsThemeSystem),
+              ),
+              ButtonSegment(
+                value: 'en',
+                label: Text(l10n.settingsLanguageEn),
+              ),
+              ButtonSegment(
+                value: 'th',
+                label: Text(l10n.settingsLanguageTh),
+              ),
+            ],
+            onSelectionChanged: (s) {
+              final v = s.first;
+              localeNotifier.setLocale(v == 'system' ? null : Locale(v));
+            },
+          ),
+          _UnitTile<AppTextScale>(
+            label: l10n.settingsTextSizeLabel,
+            selected: {textScale},
+            segments: [
+              ButtonSegment(
+                value: AppTextScale.small,
+                label: Text(l10n.settingsTextSmall),
+              ),
+              ButtonSegment(
+                value: AppTextScale.normal,
+                label: Text(l10n.settingsTextNormal),
+              ),
+              ButtonSegment(
+                value: AppTextScale.large,
+                label: Text(l10n.settingsTextLarge),
+              ),
+            ],
+            onSelectionChanged: (s) => textScaleNotifier.set(s.first),
+          ),
           _SectionHeader(title: l10n.settingsSectionPumping),
           ListTile(
             title: Text(l10n.settingsBottleSizeLabel),
@@ -109,29 +223,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onPressed: _portionOz <= 0.5
                       ? null
                       : () {
-                          final next = double.parse(
-                              (_portionOz - 0.5).toStringAsFixed(1));
-                          setState(() => _portionOz = next);
+                          final next =
+                              (_portionOz - portionStep).clamp(0.5, 16.0);
+                          final stored = prefs.volume == VolumeUnit.oz
+                              ? double.parse(next.toStringAsFixed(1))
+                              : next;
+                          setState(() => _portionOz = stored);
                           ref
                               .read(sharedPreferencesProvider)
-                              .setDouble(_kPortionOz, next);
+                              .setDouble(_kPortionOz, stored);
                         },
                   icon: const Icon(Icons.remove),
                 ),
                 Text(
-                  '${_portionOz.toStringAsFixed(1)} oz',
+                  portionDisplay,
                   style: AppTypography.numeric(size: 14),
                 ),
                 IconButton(
                   onPressed: _portionOz >= 16.0
                       ? null
                       : () {
-                          final next = double.parse(
-                              (_portionOz + 0.5).toStringAsFixed(1));
-                          setState(() => _portionOz = next);
+                          final next =
+                              (_portionOz + portionStep).clamp(0.5, 16.0);
+                          final stored = prefs.volume == VolumeUnit.oz
+                              ? double.parse(next.toStringAsFixed(1))
+                              : next;
+                          setState(() => _portionOz = stored);
                           ref
                               .read(sharedPreferencesProvider)
-                              .setDouble(_kPortionOz, next);
+                              .setDouble(_kPortionOz, stored);
                         },
                   icon: const Icon(Icons.add),
                 ),
@@ -142,8 +262,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.vaccines_outlined),
             title: Text(l10n.settingsVaccinations),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.inkSecondary),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoutes.vaccination),
+          ),
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf_outlined),
+            title: Text(l10n.settingsVisitReport),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.visitReport),
           ),
           _SectionHeader(title: l10n.settingsSectionAbout),
           ListTile(
@@ -155,7 +281,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.privacy_tip_outlined),
             title: Text(l10n.settingsPrivacyPolicy),
             trailing: const Icon(Icons.open_in_new_outlined, size: 16),
-            onTap: () {},
+            onTap: _launchPrivacy,
           ),
         ],
       ),
@@ -163,11 +289,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-/// Top-of-settings premium upsell.
-///
-/// Non-premium users see a tappable "Get DreamBook Premium" ListTile that
-/// routes to the paywall. Premium users see a non-tappable "Premium ✓ Active"
-/// confirmation. While entitlement is loading, renders nothing.
 class _PremiumTile extends ConsumerWidget {
   const _PremiumTile();
 
@@ -192,7 +313,7 @@ class _PremiumTile extends ConsumerWidget {
         return ListTile(
           leading: const Icon(
             Icons.workspace_premium_outlined,
-            color: AppColors.lavender700,
+            color: AppColors.peach700,
           ),
           title: Text(l10n.settingsPremiumCta),
           subtitle: Text(l10n.settingsPremiumSubtitle),
@@ -210,6 +331,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -219,7 +341,11 @@ class _SectionHeader extends StatelessWidget {
       ),
       child: Text(
         title,
-        style: AppTypography.labelLarge(color: AppColors.lavender700),
+        style: AppTypography.labelLarge(
+          color: isDark
+              ? Theme.of(context).colorScheme.primary
+              : AppColors.lavender700,
+        ),
       ),
     );
   }
@@ -251,7 +377,9 @@ class _UnitTile<T> extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: AppTypography.bodyMedium(color: AppColors.inkPrimary),
+              style: AppTypography.bodyMedium(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
           SegmentedButton<T>(

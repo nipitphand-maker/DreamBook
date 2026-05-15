@@ -13,16 +13,18 @@ import '../../../core/crypto/invite_code_service.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../baby/data/baby_repository.dart';
+import '../../baby/data/current_baby_provider.dart';
 
 const _kFamilyIdKey = 'family.id';
 
-// flutter_secure_storage v10 migrates legacy entries to custom ciphers
-// automatically; no explicit Android options needed.
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
 /// Plan C-3 §2 — caregiver redeems an invite code, joins the family,
-/// and lands on Home with K_family installed locally.
+/// pulls the first sync, and lands on Home with K_family installed and
+/// baby data already in the local DB.
 class ClaimInviteScreen extends ConsumerStatefulWidget {
   const ClaimInviteScreen({super.key});
 
@@ -33,6 +35,7 @@ class ClaimInviteScreen extends ConsumerStatefulWidget {
 class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
   final TextEditingController _controller = TextEditingController();
   bool _connecting = false;
+  bool _syncing = false;
   String? _errorText;
 
   @override
@@ -43,26 +46,32 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
 
   bool get _canSubmit {
     final v = _controller.text.replaceAll('-', '').trim();
-    return !_connecting && v.length == 8;
+    return !_connecting && !_syncing && v.length == 8;
   }
 
   Future<void> _onConnect() async {
     final raw = _controller.text.trim();
     if (raw.isEmpty) return;
+    final notAdminMsg = context.l10n.claimInviteNotAdmin;
+    final notFoundMsg = context.l10n.claimInviteNotFound;
+    final expiredMsg = context.l10n.claimInviteExpired;
+    final tooManyMsg = context.l10n.claimInviteTooMany;
+    final serverErrorMsg = context.l10n.claimInviteServerError;
     setState(() {
       _connecting = true;
+      _syncing = false;
       _errorText = null;
     });
 
     try {
       final supa = Supabase.instance.client;
-      // Edge Function requires a JWT — anon counts.
       if (supa.auth.currentSession == null) {
-        await supa.auth.signInAnonymously();
+        try {
+          await supa.auth.signInAnonymously();
+        } catch (_) {}
       }
 
-      final identity =
-          await DeviceIdentityService(_secureStorage).getOrCreate();
+      final identity = await DeviceIdentityService(_secureStorage).getOrCreate();
       final resp = await supa.functions.invoke(
         'claim_invite',
         body: {
@@ -71,15 +80,18 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
         },
       );
 
-      if (resp.status != 200) {
-        throw Exception('claim_invite failed (${resp.status}): ${resp.data}');
-      }
+      if (resp.status == 403) throw Exception(notAdminMsg);
+      if (resp.status == 404) throw Exception(notFoundMsg);
+      if (resp.status == 410) throw Exception(expiredMsg);
+      if (resp.status == 429) throw Exception(tooManyMsg);
+      if (resp.status != 200) throw Exception(serverErrorMsg);
       final data = resp.data;
-      if (data is! Map) {
-        throw Exception('claim_invite returned unexpected payload');
-      }
-      final salt = base64Decode(data['salt'] as String);
-      final wrappedKey = base64Decode(data['wrapped_key'] as String);
+      if (data is! Map) throw Exception('claim_invite returned unexpected payload');
+
+      final salt = base64Decode(
+          (data['salt'] as String).replaceAll('\n', '').replaceAll('\r', ''));
+      final wrappedKey = base64Decode(
+          (data['wrapped_key'] as String).replaceAll('\n', '').replaceAll('\r', ''));
       final familyId = data['family_id'] as String;
       final keyVersion = data['key_version'] as int;
 
@@ -95,31 +107,44 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
         bytes: familyKeyBytes,
         keyVersion: keyVersion,
       );
+
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setString(_kFamilyIdKey, familyId);
+      // Mark onboarding done so the router stops redirecting to /welcome.
+      await prefs.setBool(kOnboardingDoneKey, true);
+
+      // Rebuild sync controller from no-op → real worker now that family.id exists.
+      ref.invalidate(syncLifecycleControllerProvider);
+
+      if (!mounted) return;
+      setState(() {
+        _connecting = false;
+        _syncing = true;
+      });
+
+      // Pull all family rows from Supabase and decrypt into local DB.
+      await ref.read(syncLifecycleControllerProvider).syncNow();
+
+      // Activate the first baby that arrived via sync.
+      final babies = await ref.read(babyRepositoryProvider).list();
+      if (babies.isNotEmpty) {
+        await ref.read(currentBabyIdProvider.notifier).select(babies.first.id);
+      }
 
       if (!mounted) return;
       context.go(AppRoutes.home);
     } catch (err) {
       if (!mounted) return;
-      setState(() {
-        _errorText = err.toString();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.errorGeneric)),
-      );
+      setState(() => _errorText = err.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _connecting = false;
-        });
-      }
+      if (mounted) setState(() { _connecting = false; _syncing = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final busy = _connecting || _syncing;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.joinTitle)),
       body: SafeArea(
@@ -138,6 +163,7 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
               TextField(
                 controller: _controller,
                 autofocus: true,
+                enabled: !busy,
                 keyboardType: TextInputType.visiblePassword,
                 textCapitalization: TextCapitalization.characters,
                 autocorrect: false,
@@ -163,7 +189,7 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
                   if (_errorText != null) {
                     setState(() => _errorText = null);
                   } else {
-                    setState(() {}); // refresh submit-enabled state
+                    setState(() {});
                   }
                 },
                 onSubmitted: (_) {
@@ -173,7 +199,7 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
               const SizedBox(height: AppSpacing.lg),
               FilledButton.icon(
                 onPressed: _canSubmit ? _onConnect : null,
-                icon: _connecting
+                icon: busy
                     ? const SizedBox(
                         width: 16,
                         height: 16,
@@ -181,7 +207,11 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
                       )
                     : const Icon(Icons.login),
                 label: Text(
-                  _connecting ? l10n.joinConnecting : l10n.joinConnectButton,
+                  _syncing
+                      ? l10n.joinSyncing
+                      : _connecting
+                          ? l10n.joinConnecting
+                          : l10n.joinConnectButton,
                 ),
               ),
             ],
@@ -202,9 +232,7 @@ class _InviteCodeFormatter extends TextInputFormatter {
     final cleaned = newValue.text
         .toUpperCase()
         .replaceAll(RegExp(r'[^A-Z0-9]'), '');
-    // Cap to 8 alphanumerics (the code's actual payload).
-    final capped =
-        cleaned.length > 8 ? cleaned.substring(0, 8) : cleaned;
+    final capped = cleaned.length > 8 ? cleaned.substring(0, 8) : cleaned;
     final formatted = capped.length > 4
         ? '${capped.substring(0, 4)}-${capped.substring(4)}'
         : capped;

@@ -113,28 +113,36 @@ class _BabySwitcherScreenState extends ConsumerState<BabySwitcherScreen> {
                 );
               }
               // Free-tier gate hint after the list (only when not premium).
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.md,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.lock_outline,
-                      size: 16,
-                      color: AppColors.inkSecondary,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: Text(
-                        l10n.babiesFreeTierGate,
-                        style: AppTypography.labelLarge(
-                          color: AppColors.inkSecondary,
+              return InkWell(
+                onTap: () => context.push(AppRoutes.premium),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.lock_outline,
+                        size: 16,
+                        color: AppColors.inkSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          l10n.babiesFreeTierGate,
+                          style: AppTypography.labelLarge(
+                            color: AppColors.inkSecondary,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 16,
+                        color: AppColors.inkSecondary,
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
