@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
@@ -86,9 +87,15 @@ class BabyRepository {
   /// Returns null if no babies exist yet.
   Future<Baby?> getActive() async {
     final db = await _db;
+    final familyId =
+        _ref.read(sharedPreferencesProvider).getString('family.id') ?? '';
+    final (where, whereArgs) = familyId.isEmpty
+        ? ('deleted_at IS NULL', <Object?>[])
+        : ('deleted_at IS NULL AND family_id = ?', [familyId]);
     final rows = await db.query(
       'baby',
-      where: 'deleted_at IS NULL',
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'created_at ASC',
       limit: 1,
     );
@@ -99,9 +106,15 @@ class BabyRepository {
   /// All non-deleted babies, oldest first (created_at ASC).
   Future<List<Baby>> list() async {
     final db = await _db;
+    final familyId =
+        _ref.read(sharedPreferencesProvider).getString('family.id') ?? '';
+    final (where, whereArgs) = familyId.isEmpty
+        ? ('deleted_at IS NULL', <Object?>[])
+        : ('deleted_at IS NULL AND family_id = ?', [familyId]);
     final rows = await db.query(
       'baby',
-      where: 'deleted_at IS NULL',
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'created_at ASC',
     );
     return rows.map(Baby.fromRow).toList(growable: false);
