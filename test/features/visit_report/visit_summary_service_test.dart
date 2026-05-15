@@ -3,9 +3,11 @@ import 'package:dreambook/core/db/migrations/m001_initial.dart';
 import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/m003_v3.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/features/visit_report/data/visit_summary_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -32,9 +34,13 @@ void main() {
     );
     await db.execute('PRAGMA foreign_keys = ON');
 
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
     container = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWith((_) async => db),
+        sharedPreferencesProvider.overrideWithValue(prefs),
       ],
     );
     service = container.read(visitSummaryServiceProvider);
