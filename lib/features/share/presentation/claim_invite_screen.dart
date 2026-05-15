@@ -68,9 +68,10 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
     try {
       final supa = Supabase.instance.client;
       if (supa.auth.currentSession == null) {
-        try {
-          await supa.auth.signInAnonymously();
-        } catch (_) {}
+        // Don't swallow silently — without a session the subsequent
+        // claim_invite Edge Function will fail with an opaque "unexpected
+        // payload" error. Surface the real cause.
+        await supa.auth.signInAnonymously();
       }
 
       final identity = await DeviceIdentityService(_secureStorage).getOrCreate();

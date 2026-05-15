@@ -18,6 +18,21 @@ class SupabaseSyncServer implements SyncServer {
 
   final SupabaseClient _client;
 
+  /// PostgREST sends Map values through JSON. A raw `Uint8List` becomes a JSON
+  /// array of integers, and the Postgres `bytea` column ends up storing the
+  /// ASCII bytes of the array literal (`[1,61,235,...]`) instead of the bytes
+  /// themselves — every cross-device pull then fails the AAD-hash check (the
+  /// 225-byte stringified array never equals the 64-byte Blake2b digest).
+  /// Encoding as a `\xHEX` string forces Postgres to parse it as a bytea
+  /// literal and store the raw bytes. Mirrors `decodeBytea` on the pull side.
+  static String _byteaHex(List<int> bytes) {
+    final sb = StringBuffer(r'\x');
+    for (final b in bytes) {
+      sb.write(b.toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString();
+  }
+
   /// Diagnostic — used by SyncWorker to log auth state alongside each push
   /// attempt so we can correlate 42501 RLS rejections with the JWT actually
   /// in-flight (vs the one bootstrap_family used).
@@ -69,8 +84,8 @@ class SupabaseSyncServer implements SyncServer {
         'record_id': recordId,
         'version': version,
         'key_version': keyVersion,
-        'ciphertext': ciphertext,
-        'aad_hash': aadHash,
+        'ciphertext': _byteaHex(ciphertext),
+        'aad_hash': _byteaHex(aadHash),
         'written_by_device': writtenByDevice, // text column (migration 0014)
         'updated_at': updatedAt.toIso8601String(),
         'deleted_at': deletedAt?.toIso8601String(),
@@ -166,15 +181,20 @@ class SupabaseSyncServer implements SyncServer {
   Future<List<KeyDistributionEnvelope>> pullKeyDistribution({
     required String recipientDeviceFp,
   }) async {
+    // `recipient_device_fp` is a bytea column; PostgREST needs the `\x` prefix
+    // on the filter value so it parses as a bytea literal (same root cause
+    // as the ciphertext/aad_hash bug solved by _byteaHex). Without this the
+    // filter never matches and a caregiver post-rotation can never fetch
+    // their new wrapped K_family.
     final rows = await _client
         .from('key_distribution')
         .select()
-        .eq('recipient_device_fp', recipientDeviceFp);
+        .eq('recipient_device_fp', '\\x$recipientDeviceFp');
     return (rows as List).map((r) {
       final m = r as Map<String, dynamic>;
       return KeyDistributionEnvelope(
         familyId: m['family_id'] as String,
-        recipientDeviceFp: m['recipient_device_fp'] as String,
+        recipientDeviceFp: recipientDeviceFp,
         keyVersion: m['key_version'] as int,
         wrappedKey: decodeBytea(m['wrapped_key']),
       );
@@ -212,11 +232,15 @@ class SupabaseSyncServer implements SyncServer {
     required int keyVersion,
     required Uint8List wrappedKey,
   }) async {
+    // Both bytea columns need `\xHEX` literal encoding — same root cause as
+    // ciphertext/aad_hash. recipient_device_fp arrives as plain hex from the
+    // caller and must get the prefix; wrapped_key is raw bytes and needs the
+    // full _byteaHex conversion.
     await _client.from('key_distribution').insert({
       'family_id': familyId,
-      'recipient_device_fp': recipientDeviceFp,
+      'recipient_device_fp': '\\x$recipientDeviceFp',
       'key_version': keyVersion,
-      'wrapped_key': wrappedKey,
+      'wrapped_key': _byteaHex(wrappedKey),
     });
   }
 

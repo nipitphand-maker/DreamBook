@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'sync_server.dart';
 
 typedef IncomingRowHandler = Future<void> Function(RemoteEncryptedRow row);
@@ -137,9 +139,15 @@ class RealtimeSubscriber {
     if (generation != _generation) return; // stale callback
     try {
       await onIncomingRow(row);
-    } catch (_) {
+    } catch (e) {
       // Swallow — handler errors should not kill the subscription.
-      // SyncWorker._applyIncoming already discards bad rows silently.
+      // SyncWorker._applyIncoming already discards bad rows silently, but
+      // unexpected throws (DB lock, missing key, deserialise crash) deserve a
+      // debug-only log so they're not invisible.
+      if (kDebugMode) {
+        debugPrint('[realtime-drop] table=${row.tableName} '
+            'id=${row.recordId} ver=${row.version} err=$e');
+      }
     }
   }
 

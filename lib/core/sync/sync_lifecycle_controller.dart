@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -8,13 +9,18 @@ import '../crypto/family_key_service.dart';
 import '../db/database_provider.dart';
 import '../families/family_provider.dart';
 import '../providers/device_id_provider.dart';
+import '../../features/baby/data/current_baby_provider.dart';
+import '../../features/diaper/data/diaper_repository.dart';
+import '../../features/feed/data/feed_repository.dart';
+import '../../features/pump/data/pump_repository.dart';
+import '../../features/sleep/data/sleep_repository.dart';
+import 'realtime_subscriber.dart';
 import 'supabase_client_service.dart';
 import 'supabase_sync_server.dart';
 import 'sync_error_reporter.dart';
 import 'sync_server.dart';
 import 'sync_status_provider.dart';
 import 'sync_trigger.dart';
-import 'realtime_subscriber.dart';
 import 'sync_worker.dart';
 
 /// Lazy resolver for the [SyncStatusNotifier]. Provided as a closure so the
@@ -32,7 +38,14 @@ class SyncLifecycleController extends WidgetsBindingObserver {
   SyncLifecycleController({
     required SyncStatusResolver resolveStatus,
     required this.worker,
+    this.onAfterPull,
   }) : _resolveStatus = resolveStatus;
+
+  /// Optional callback fired after each successful `pullOnce`. The provider
+  /// builder uses this to invalidate Today/feed/diaper/sleep/pump providers
+  /// so peer-pushed rows surface in the UI without requiring a manual
+  /// hot-reload. Cheap — only invalidates 4 family providers per pull cycle.
+  final void Function()? onAfterPull;
 
   /// Convenience constructor for production: bind the controller to a
   /// provider's [Ref]. The closure captures `ref.read` so the same reader
@@ -80,10 +93,14 @@ class SyncLifecycleController extends WidgetsBindingObserver {
   Future<void> syncNow({SyncTrigger trigger = SyncTrigger.foreground}) async {
     // TODO(P2.28 BG-6): emit sync_background_started audit event for background trigger
     // Requires Supabase URL to be available in background isolate context.
+    if (kDebugMode) {
+      debugPrint('[sync] syncNow entry trigger=$trigger');
+    }
     final status = _resolveStatus();
     status.startSync();
     try {
       await worker.pullOnce();
+      onAfterPull?.call();
       await worker.pushOnce();
       status.completeSync(at: DateTime.now().toUtc());
       // TODO(P2.28 BG-6): emit sync_background_finished audit event with duration_ms
@@ -240,5 +257,18 @@ final syncLifecycleControllerProvider =
   realtime.connect(familyId: familyId).ignore();
   ref.onDispose(realtime.disconnect);
 
-  return SyncLifecycleController.fromRef(ref: ref, worker: worker);
+  return SyncLifecycleController(
+    resolveStatus: () => ref.read(syncStatusProvider.notifier),
+    worker: worker,
+    onAfterPull: () {
+      // Surface peer-pushed rows in Today/Recent providers without waiting
+      // for a hot-reload. Cheap: 4 family providers per pull cycle.
+      final babyId = ref.read(currentBabyIdProvider);
+      if (babyId == null) return;
+      ref.invalidate(feedTodayProvider(babyId));
+      ref.invalidate(diaperTodayProvider(babyId));
+      ref.invalidate(sleepTodayProvider(babyId));
+      ref.invalidate(pumpTodayProvider(babyId));
+    },
+  );
 });

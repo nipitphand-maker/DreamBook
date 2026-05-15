@@ -180,11 +180,17 @@ class SyncWorker {
       _lastPullAt = await _readCursor();
       _cursorLoaded = true;
     }
+    if (kDebugMode) {
+      debugPrint('[pull] pullOnce familyId=$familyId since=$_lastPullAt');
+    }
     // RetryPolicy.run wraps transient transport faults (Socket/Timeout/5xx)
     // with exponential backoff; terminal errors are rethrown immediately.
     final rows = await RetryPolicy.run(
       () => server.pullRows(familyId: familyId, since: _lastPullAt),
     );
+    if (kDebugMode) {
+      debugPrint('[pull] got ${rows.length} rows from server');
+    }
     for (final row in rows) {
       await _applyIncoming(row);
     }
@@ -230,11 +236,24 @@ class SyncWorker {
   }
 
   /// Called by RealtimeSubscriber (Task 7) when a row arrives via websocket.
-  Future<void> onIncomingRow(RemoteEncryptedRow row) => _applyIncoming(row);
+  Future<void> onIncomingRow(RemoteEncryptedRow row) {
+    if (kDebugMode) {
+      debugPrint('[rt] onIncomingRow table=${row.tableName} id=${row.recordId} '
+          'ver=${row.version}');
+    }
+    return _applyIncoming(row);
+  }
 
   Future<void> _applyIncoming(RemoteEncryptedRow row) async {
     final key = await familyKeys.read(familyId: familyId);
-    if (key == null) return;
+    if (key == null) {
+      if (kDebugMode) {
+        debugPrint('[pull-drop] reason=no_family_key table=${row.tableName} '
+            'id=${row.recordId} ver=${row.version} keyVer=${row.keyVersion} '
+            'familyId=$familyId');
+      }
+      return;
+    }
 
     final expectedAad = EncryptedRow.aadFor(
       tableName: row.tableName,
@@ -247,7 +266,13 @@ class SyncWorker {
       (await Blake2b().hash(utf8.encode(expectedAad))).bytes,
     );
     if (!_constantTimeEquals(expectedHash, row.aadHash)) {
-      // Tampered metadata — discard silently.
+      // Tampered metadata — discard silently in prod, log in debug.
+      if (kDebugMode) {
+        debugPrint('[pull-drop] reason=aad_mismatch table=${row.tableName} '
+            'id=${row.recordId} ver=${row.version} keyVer=${row.keyVersion} '
+            'rowFamilyId=${row.familyId} workerFamilyId=$familyId '
+            'localKeyVer=${key.keyVersion}');
+      }
       return;
     }
     Uint8List plaintextBytes;
@@ -257,8 +282,13 @@ class SyncWorker {
         SecretKey(key.bytes),
         utf8.encode(expectedAad),
       );
-    } catch (_) {
+    } catch (e) {
       // Wrong key / modified ciphertext — discard, continue loop.
+      if (kDebugMode) {
+        debugPrint('[pull-drop] reason=decrypt_fail table=${row.tableName} '
+            'id=${row.recordId} ver=${row.version} keyVer=${row.keyVersion} '
+            'localKeyVer=${key.keyVersion} err=$e');
+      }
       return;
     }
     final plaintext = jsonDecode(utf8.decode(plaintextBytes)) as Map<String, Object?>;
