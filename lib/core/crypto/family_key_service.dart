@@ -25,6 +25,7 @@ class FamilyKeyService {
   FamilyKeyService.forTest(dynamic storage) : _storage = storage;
 
   static const String _aliasPrefix = 'dreambook_family_key_v1::';
+  static const int _kKeyLength = 32;
 
   // Typed as dynamic to allow both FlutterSecureStorage and the test fake
   // without bringing the fake into production code paths.
@@ -39,7 +40,7 @@ class FamilyKeyService {
   }) async {
     final rng = Random.secure();
     final bytes = Uint8List.fromList(
-      List<int>.generate(32, (_) => rng.nextInt(256)),
+      List<int>.generate(_kKeyLength, (_) => rng.nextInt(256)),
     );
     await _write(familyId: familyId, bytes: bytes, keyVersion: keyVersion);
     return bytes;
@@ -77,8 +78,8 @@ class FamilyKeyService {
     required Uint8List bytes,
     required int keyVersion,
   }) async {
-    if (bytes.length != 32) {
-      throw ArgumentError('K_family must be exactly 32 bytes');
+    if (bytes.length != _kKeyLength) {
+      throw ArgumentError('K_family must be exactly $_kKeyLength bytes');
     }
     await _write(familyId: familyId, bytes: bytes, keyVersion: keyVersion);
   }

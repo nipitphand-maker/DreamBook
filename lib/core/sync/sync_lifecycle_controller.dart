@@ -76,7 +76,8 @@ class SyncLifecycleController extends WidgetsBindingObserver {
       await worker.pullOnce();
       await worker.pushOnce();
       status.completeSync(at: DateTime.now().toUtc());
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('SyncWorker error [${e.runtimeType}]: $e\n$st');
       status.failSync(e);
     }
   }

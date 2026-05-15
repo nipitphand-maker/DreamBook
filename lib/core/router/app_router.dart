@@ -8,6 +8,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/pump/presentation/pump_session_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/caregivers/presentation/caregivers_screen.dart';
 import '../../features/share/presentation/claim_invite_screen.dart';
 import '../../features/share/presentation/share_invite_screen.dart';
 import '../../features/sleep/presentation/sleep_timer_screen.dart';
@@ -17,11 +18,13 @@ import '../../features/summary/presentation/daily_summary_screen.dart';
 import '../../features/vaccination/presentation/vaccination_log_screen.dart';
 import '../../features/visit_report/presentation/visit_report_screen.dart';
 import '../providers/shared_preferences_provider.dart';
+import '../widgets/scaffold_with_nav_bar.dart';
 
 class AppRoutes {
   AppRoutes._();
   static const welcome      = '/welcome';
   static const home         = '/';
+  static const caregivers   = '/caregivers';
   static const shareInvite  = '/share/invite';
   static const shareClaim   = '/share/claim';
   static const babies       = '/babies';
@@ -37,15 +40,23 @@ class AppRoutes {
   static const visitReport  = '/visit-report';
 }
 
-const _kOnboardingDoneKey = 'onboarding.done';
+const kOnboardingDoneKey = 'onboarding.done';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return GoRouter(
     initialLocation: AppRoutes.home,
     redirect: (context, state) {
-      final onboarded = prefs.getBool(_kOnboardingDoneKey) ?? false;
-      if (!onboarded && state.matchedLocation != AppRoutes.welcome) {
+      final onboarded = prefs.getBool(kOnboardingDoneKey) ?? false;
+      if (!onboarded &&
+          state.matchedLocation != AppRoutes.welcome &&
+          state.matchedLocation != AppRoutes.shareClaim) {
+        // B-2: Save the intended deep-link path so WelcomeScreen can
+        // resume it after onboarding completes.
+        final intended = state.uri.toString();
+        if (intended != AppRoutes.home) {
+          prefs.setString('router.pendingDeepLink', intended);
+        }
         return AppRoutes.welcome;
       }
       if (onboarded && state.matchedLocation == AppRoutes.welcome) {
@@ -58,9 +69,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.welcome,
         builder: (_, __) => const WelcomeScreen(),
       ),
+      // Shell wraps the 4 primary tab destinations with the bottom nav bar.
+      ShellRoute(
+        builder: (context, state, child) => ScaffoldWithNavBar(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.home,
+            builder: (_, __) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.summary,
+            builder: (_, __) => const DailySummaryScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.stash,
+            builder: (_, __) => const StashListScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (_, __) => const SettingsScreen(),
+          ),
+        ],
+      ),
+      // Full-screen routes — no bottom nav shown.
       GoRoute(
-        path: AppRoutes.home,
-        builder: (_, __) => const HomeScreen(),
+        path: AppRoutes.caregivers,
+        builder: (_, __) => const CaregiversScreen(),
       ),
       GoRoute(
         path: AppRoutes.shareInvite,
@@ -87,14 +121,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const PumpSessionScreen(),
       ),
       GoRoute(
-        path: AppRoutes.settings,
-        builder: (_, __) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.stash,
-        builder: (_, __) => const StashListScreen(),
-      ),
-      GoRoute(
         path: AppRoutes.diaperNew,
         builder: (_, __) => const DiaperLogScreen(),
       ),
@@ -103,14 +129,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const SleepTimerScreen(),
       ),
       GoRoute(
-        path: AppRoutes.summary,
-        builder: (_, __) => const DailySummaryScreen(),
-      ),
-      GoRoute(
         path: AppRoutes.vaccination,
         builder: (_, __) => const VaccinationLogScreen(),
       ),
       GoRoute(
+        // TODO: add entry point in SettingsScreen
         path: AppRoutes.visitReport,
         builder: (_, __) => const VisitReportScreen(),
       ),

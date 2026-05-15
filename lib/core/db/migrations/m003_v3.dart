@@ -8,6 +8,12 @@ import 'package:uuid/uuid.dart';
 /// Existing rows are backfilled with a single newly-generated `family_id`
 /// representing the upgrading user's family. `device_pub_key` column is
 /// added to `caregiver` for the handshake fan-out flow.
+///
+/// NOTE: SQLite auto-commits every DDL statement regardless of any wrapping
+/// transaction, so DDL (CREATE TABLE, ALTER TABLE) is run sequentially
+/// without a transaction wrapper. The IF NOT EXISTS guard on CREATE TABLE
+/// makes this step idempotent against the partial-apply scenario handled by
+/// m004 on existing devices.
 Future<void> m003V3(Database db) async {
   const syncable = [
     'baby',
@@ -23,30 +29,36 @@ Future<void> m003V3(Database db) async {
   final uuid = const Uuid().v4();
   final now = DateTime.now().toUtc().toIso8601String();
 
+  // --- DDL: run outside any transaction (SQLite auto-commits DDL anyway) ---
+
+  for (final t in syncable) {
+    await db.execute(
+        "ALTER TABLE $t ADD COLUMN family_id TEXT NOT NULL DEFAULT ''");
+    await db.execute(
+        'ALTER TABLE $t ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1');
+  }
+
+  await db.execute('ALTER TABLE caregiver ADD COLUMN device_pub_key BLOB');
+
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS family_metadata (
+      id TEXT PRIMARY KEY,
+      current_key_version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS key_rotation_state (
+      family_id TEXT PRIMARY KEY,
+      target_key_version INTEGER NOT NULL,
+      started_at TEXT NOT NULL,
+      last_processed_row TEXT
+    )
+  ''');
+
+  // --- DML: backfill existing rows inside a transaction ---
+
   await db.transaction((txn) async {
-    for (final t in syncable) {
-      await txn.execute("ALTER TABLE $t ADD COLUMN family_id TEXT NOT NULL DEFAULT ''");
-      await txn.execute('ALTER TABLE $t ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1');
-    }
-
-    await txn.execute('ALTER TABLE caregiver ADD COLUMN device_pub_key BLOB');
-
-    await txn.execute('''
-      CREATE TABLE family_metadata (
-        id TEXT PRIMARY KEY,
-        current_key_version INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL
-      )
-    ''');
-    await txn.execute('''
-      CREATE TABLE key_rotation_state (
-        family_id TEXT PRIMARY KEY,
-        target_key_version INTEGER NOT NULL,
-        started_at TEXT NOT NULL,
-        last_processed_row TEXT
-      )
-    ''');
-
     final anyBaby = await txn.rawQuery('SELECT COUNT(*) AS c FROM baby');
     final count = (anyBaby.first['c'] as int?) ?? 0;
     if (count > 0) {

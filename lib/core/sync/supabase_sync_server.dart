@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'sync_server.dart';
@@ -77,6 +79,14 @@ class SupabaseSyncServer implements SyncServer {
       allRows.addAll(pageList);
       if (pageList.length < _pageSize) break;
       offset += _pageSize;
+    }
+    if (allRows.isNotEmpty) {
+      debugPrint(
+        '[SupabaseSyncServer] pullRows first row ciphertext type: '
+        '${allRows.first["ciphertext"].runtimeType}, '
+        'aad_hash type: ${allRows.first["aad_hash"].runtimeType}, '
+        'sample: ${allRows.first["ciphertext"].toString().substring(0, 30.clamp(0, allRows.first["ciphertext"].toString().length))}',
+      );
     }
     return allRows.map((m) {
       return RemoteEncryptedRow(

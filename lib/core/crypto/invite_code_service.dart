@@ -57,7 +57,8 @@ class InviteCodeService {
   /// Named with a trailing underscore to avoid clashing with Object.hashCode.
   Future<Uint8List> hashCode_(String code) async {
     final normalised = _normalise(code);
-    final hasher = Blake2b();
+    // Must match blake2b(..., undefined, 64) in claim_invite Edge Function.
+    final hasher = Blake2b(hashLengthInBytes: 64);
     final hash = await hasher.hash(utf8.encode(normalised));
     return Uint8List.fromList(hash.bytes);
   }

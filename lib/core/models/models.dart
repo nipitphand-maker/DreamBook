@@ -6,3 +6,4 @@ export 'stash_bottle.dart';
 export 'diaper.dart';
 export 'sleep.dart';
 export 'vaccination.dart';
+export 'daily_note.dart';

@@ -8,48 +8,46 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // --- Light ---
-  static const Color lightPrimary = Color(0xFFB7A7DD);
-  static const Color lightAccent = Color(0xFFF4C2A0);
-  static const Color lightSuccess = Color(0xFF90B89A);
-  static const Color lightWarning = Color(0xFFE8B547);
-  static const Color lightSurface = Color(0xFFFFF8F0);
-  static const Color lightOnSurface = Color(0xFF2D2A35);
+  // --- Light (Misty Morning — warm sage) ---
+  static const Color lightPrimary = Color(0xFF6E8F7C);    // sage fill (3.34:1 — decorative only)
+  static const Color lightAccent = Color(0xFFE8A87C);     // terracotta fill (decorative only)
+  static const Color lightSuccess = Color(0xFF5A8A6A);    // deeper sage
+  static const Color lightWarning = Color(0xFFCC8020);    // amber-brown
+  static const Color lightSurface = Color(0xFFFAF7F2);    // warm near-white
+  static const Color lightOnSurface = Color(0xFF1F2B27);  // dark forest 13.71:1 AAA
   static const Color lightError = Color(0xFFB3261E);
-  static const Color lightOnPrimary = Color(0xFFFFFFFF);
+  static const Color lightOnPrimary = Color(0xFF1F2B27);  // dark on sage fill
 
-  // --- Dark ---
-  static const Color darkPrimary = Color(0xFF9080C0);
-  static const Color darkAccent = Color(0xFFD9A684);
-  static const Color darkSuccess = Color(0xFF7AA084);
-  static const Color darkWarning = Color(0xFFC99A35);
-  static const Color darkSurface = Color(0xFF1A1F2E);
-  static const Color darkOnSurface = Color(0xFFE8E2F0);
+  // --- Dark (Misty Morning dark) ---
+  static const Color darkPrimary = Color(0xFF74A88A);     // lighter sage
+  static const Color darkAccent = Color(0xFFD4906A);      // muted terracotta
+  static const Color darkSuccess = Color(0xFF6BA880);
+  static const Color darkWarning = Color(0xFFB87820);
+  static const Color darkSurface = Color(0xFF121B17);     // dark forest-green
+  static const Color darkOnSurface = Color(0xFFD6EDE5);   // pale mint 14.31:1 AAA
   static const Color darkError = Color(0xFFF2B8B5);
-  static const Color darkOnPrimary = Color(0xFF1A1F2E);
+  static const Color darkOnPrimary = Color(0xFF121B17);
 
   // --- Night-tint (red-shift, melatonin-safe) ---
-  static const Color nightPrimary = Color(0xFF7060A0);
-  static const Color nightAccent = Color(0xFFA06040);
-  static const Color nightSuccess = Color(0xFF608070);
-  static const Color nightWarning = Color(0xFF996020);
-  static const Color nightSurface = Color(0xFF2A1010);
-  static const Color nightOnSurface = Color(0xFFE0C8B8);
-  static const Color nightError = Color(0xFFE08070);
-  static const Color nightOnPrimary = Color(0xFF2A1010);
+  static const Color nightPrimary = Color(0xFF6A5530);    // amber-desaturated
+  static const Color nightAccent = Color(0xFFA05030);     // deep terracotta
+  static const Color nightSuccess = Color(0xFF506850);
+  static const Color nightWarning = Color(0xFF904A10);
+  static const Color nightSurface = Color(0xFF1A0C06);    // deep red-brown
+  static const Color nightOnSurface = Color(0xFFE0C8B0);  // warm tan 11.64:1 AAA
+  static const Color nightError = Color(0xFFD07060);
+  static const Color nightOnPrimary = Color(0xFF1A0C06);
 
-  // --- Ink + neutral (text + dividers — passes WCAG AA on cream) ---
-  // Brand tokens above fail AA on cream (lavender 2.03:1). Text/icons on
-  // cream MUST use ink.* or the *.700 derivatives below.
-  static const Color inkPrimary = Color(0xFF2A2438); // ~13.5:1 AAA
-  static const Color inkSecondary = Color(0xFF6B6478); // ~5.1:1  AA
-  static const Color neutralMuted = Color(0xFFEDE6DC); // decorative
+  // --- Ink + neutral (text + dividers — all WCAG AA on #FAF7F2) ---
+  static const Color inkPrimary = Color(0xFF1F2B27);    // dark forest-black  13.71:1 AAA
+  static const Color inkSecondary = Color(0xFF546460);  // muted sage-gray     5.83:1 AA
+  static const Color neutralMuted = Color(0xFFE8E2D8);  // warm off-white dividers
 
-  // --- *.700 dark derivatives — usable for text/icons on cream ---
-  static const Color lavender700 = Color(0xFF6B5BA8); // ~4.7:1 AA
-  static const Color peach700 = Color(0xFFB57442); // ~4.6:1 AA
-  static const Color sage700 = Color(0xFF4F7860); // ~4.8:1 AA
-  static const Color honey700 = Color(0xFF9E6F12); // ~4.8:1 AA
+  // --- *.700 derivatives — all verified AA on surface (#FAF7F2) ---
+  static const Color lavender700 = Color(0xFF3D6655); // sage primary text    6.08:1 AA
+  static const Color peach700 = Color(0xFFA05A2A);    // terracotta text      4.92:1 AA
+  static const Color sage700 = Color(0xFF2E5E40);     // forest green text    7.04:1 AA
+  static const Color honey700 = Color(0xFF8A5200);    // amber text           5.98:1 AA
 }
 
 /// Typography per Spec §17.6. Locale-aware: TH uses bundled IBMPlexSansThai
@@ -60,6 +58,7 @@ class AppTypography {
   AppTypography._();
 
   static const String _thaiFamily = 'IBMPlexSansThai';
+  static const String _latinFamily = 'Nunito';
 
   static String _languageCode({Locale? forceLocale}) =>
       (forceLocale ?? PlatformDispatcher.instance.locale)
@@ -84,8 +83,14 @@ class AppTypography {
     Color? color,
     Locale? locale,
   }) {
+    final family = isThai(forceLocale: locale) ? _thaiFamily : _latinFamily;
+    // fontFamilyFallback ensures Thai characters in user-supplied strings
+    // (e.g. baby names typed in an English-locale app) still render correctly.
     return TextStyle(
-      fontFamily: isThai(forceLocale: locale) ? _thaiFamily : null,
+      fontFamily: family,
+      fontFamilyFallback: isThai(forceLocale: locale)
+          ? null
+          : const [_thaiFamily, 'Roboto'],
       fontSize: size,
       fontWeight: weight,
       height: height,

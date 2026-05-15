@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../providers/premium_provider.dart';
 import '../router/app_router.dart';
 
@@ -49,7 +50,7 @@ class _DefaultLockedWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Chip(
       avatar: const Icon(Icons.lock_outline, size: 14),
-      label: const Text('Premium'),
+      label: Text(context.l10n.premiumLabel),
       backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
     );
   }
