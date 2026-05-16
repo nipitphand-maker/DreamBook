@@ -78,5 +78,7 @@ class NotificationService {
     );
   }
 
+  static Future<void> cancel(int id) => _plugin.cancel(id: id);
+
   static Future<void> cancelAll() => _plugin.cancelAll();
 }

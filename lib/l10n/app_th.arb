@@ -660,5 +660,12 @@
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
   "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
-  "summaryCurrentStash": "คลังนมปัจจุบัน"
+  "summaryCurrentStash": "คลังนมปัจจุบัน",
+
+  "feedAlertSettingTitle": "การแจ้งเตือนช่วงเวลาให้นม",
+  "feedAlertSettingSubtitle": "แจ้งเตือนหลังจาก {hours} ชั่วโมงที่ไม่ได้ให้นม",
+  "@feedAlertSettingSubtitle": { "placeholders": { "hours": { "type": "int" } } },
+  "feedAlertNotifTitle": "ถึงเวลาให้นมแล้ว",
+  "feedAlertNotifBody": "{babyName} ยังไม่ได้กินนม {hours} ชั่วโมงแล้ว",
+  "@feedAlertNotifBody": { "placeholders": { "babyName": { "type": "String" }, "hours": { "type": "int" } } }
 }
