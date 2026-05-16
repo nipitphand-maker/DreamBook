@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/day_start_hour_provider.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/sync/sync_constants.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/utils/day_boundary.dart';
 import 'package:dreambook/core/widgets/premium_gate.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/feed/data/feed_repository.dart' show feedTodayProvider;
@@ -118,25 +120,46 @@ class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
     setState(() => _period = p);
   }
 
-  /// Computes the from/to range based on the current period.
+  /// Computes the [start, endExclusive) range based on the current period
+  /// and the user's [dayStartHourProvider] preference. Aligning these
+  /// cutoffs to the logical-day boundary keeps Range totals consistent
+  /// with the Today view (a feed at 03:00 with dayStartHour=6 belongs to
+  /// the prior logical day in BOTH views).
   (DateTime, DateTime) get _rangeForPeriod {
-    final now = _dateOnly(DateTime.now());
+    // ref.watch so the screen rebuilds (and re-queries) when the user
+    // changes "Day starts at" in Settings.
+    final dayStartHour = ref.watch(dayStartHourProvider);
+    final todayStart = currentLogicalDayStart(DateTime.now(), dayStartHour);
+    final tomorrowStart = todayStart.add(const Duration(days: 1));
+    final customStart = _customFrom == null
+        ? null
+        : DateTime(_customFrom!.year, _customFrom!.month, _customFrom!.day,
+            dayStartHour);
+    final customEndExcl = _customTo == null
+        ? null
+        : DateTime(_customTo!.year, _customTo!.month, _customTo!.day,
+                dayStartHour)
+            .add(const Duration(days: 1));
     return switch (_period) {
-      SummaryPeriod.today => (now, now),
-      SummaryPeriod.week =>
-        (now.subtract(const Duration(days: 6)), now),
-      SummaryPeriod.month =>
-        (now.subtract(const Duration(days: 29)), now),
+      SummaryPeriod.today => (todayStart, tomorrowStart),
+      SummaryPeriod.week => (
+          todayStart.subtract(const Duration(days: 6)),
+          tomorrowStart,
+        ),
+      SummaryPeriod.month => (
+          todayStart.subtract(const Duration(days: 29)),
+          tomorrowStart,
+        ),
       SummaryPeriod.custom => (
-          _customFrom ?? now.subtract(const Duration(days: 6)),
-          _customTo ?? now,
+          customStart ?? todayStart.subtract(const Duration(days: 6)),
+          customEndExcl ?? tomorrowStart,
         ),
     };
   }
 
   int get _rangeDayCount {
-    final (from, to) = _rangeForPeriod;
-    return to.difference(from).inDays + 1;
+    final (from, toExcl) = _rangeForPeriod;
+    return toExcl.difference(from).inDays;
   }
 
   @override

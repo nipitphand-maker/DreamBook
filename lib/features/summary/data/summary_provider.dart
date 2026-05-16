@@ -238,27 +238,26 @@ final dailySummaryForDateProvider =
 });
 
 // ── Range provider ──────────────────────────────────────────────────────────
-// Params: (babyId, from, to) — inclusive of from, exclusive of the day after to.
-// Uses LOCAL midnight boundaries (NOT .toUtc()).
+// Params: (babyId, fromCutoff, toExclCutoff) — both are EXACT local-time
+// DateTime cutoffs already aligned to the user's dayStartHour boundary by
+// the caller (see _rangeForPeriod). Provider just converts to UTC ISO for
+// SQL comparison.
 
-/// Aggregated [DailySummary] totals for a date range [from]…[to] (inclusive).
+/// Aggregated [DailySummary] totals for the half-open range
+/// `[fromCutoff, toExclCutoff)`.
 ///
-/// Queries each table directly via raw SQL with local-midnight boundaries
-/// so that the range matches what the user sees on their device clock.
-/// [stashOz] is the current stash total (not date-scoped).
+/// The caller is responsible for aligning the cutoffs to the user's
+/// dayStartHour so this matches the Today-view bucketing. [stashOz] is
+/// the current stash total (not date-scoped).
 final summaryForRangeProvider =
     FutureProvider.family<DailySummary, (String, DateTime, DateTime)>(
         (ref, params) async {
-  final (babyId, from, to) = params;
+  final (babyId, fromCutoff, toExclCutoff) = params;
   ref.watch(appDatabaseProvider);
   final db = await ref.read(appDatabaseProvider.future);
 
-  // Local midnight of [from] and midnight of the day AFTER [to], converted to
-  // UTC so the comparison matches the UTC ISO strings stored in the DB.
-  final fromStr =
-      DateTime(from.year, from.month, from.day).toUtc().toIso8601String();
-  final toExclStr =
-      DateTime(to.year, to.month, to.day + 1).toUtc().toIso8601String();
+  final fromStr = fromCutoff.toUtc().toIso8601String();
+  final toExclStr = toExclCutoff.toUtc().toIso8601String();
 
   // Feed totals
   final feedRows = await db.rawQuery(
