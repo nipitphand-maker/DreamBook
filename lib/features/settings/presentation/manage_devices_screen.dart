@@ -204,14 +204,25 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final d = _devices![i];
-                        final displayName = d.isThisDevice
-                            ? l10n.manageDevicesThisDevice
-                            : d.nickname.isNotEmpty
-                                ? d.nickname
+                        // Nickname always wins; "This device" is just the
+                        // default label when no nickname is set on own row.
+                        final displayName = d.nickname.isNotEmpty
+                            ? d.nickname
+                            : d.isThisDevice
+                                ? l10n.manageDevicesThisDevice
                                 : d.deviceFpDisplay;
                         final roleLabel = d.role == 'admin'
                             ? l10n.manageDevicesAdmin
                             : l10n.manageDevicesEditor;
+                        final joinedDate =
+                            d.joinedAt.toLocal().toString().substring(0, 10);
+                        // Suffix "· This device" on the subtitle so the user
+                        // can still identify their own row after renaming.
+                        final subtitle = d.isThisDevice
+                            ? (d.nickname.isNotEmpty
+                                ? '$roleLabel · $joinedDate · ${l10n.manageDevicesThisDevice}'
+                                : '$roleLabel · $joinedDate')
+                            : '$roleLabel · $joinedDate';
                         return ListTile(
                           leading: Icon(
                             d.role == 'admin'
@@ -219,28 +230,23 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
                                 : Icons.person,
                           ),
                           title: Text(displayName),
-                          subtitle: Text(
-                            d.isThisDevice
-                                ? d.joinedAt.toLocal().toString().substring(0, 10)
-                                : '$roleLabel · ${d.joinedAt.toLocal().toString().substring(0, 10)}',
-                          ),
-                          trailing: d.isThisDevice
-                              ? null
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined),
-                                      tooltip: l10n.deviceNicknameEdit,
-                                      onPressed: () => _renameDevice(d),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_circle_outline),
-                                      tooltip: l10n.manageDevicesRevokeButton,
-                                      onPressed: () => _revoke(d),
-                                    ),
-                                  ],
+                          subtitle: Text(subtitle),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                tooltip: l10n.deviceNicknameEdit,
+                                onPressed: () => _renameDevice(d),
+                              ),
+                              if (!d.isThisDevice)
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline),
+                                  tooltip: l10n.manageDevicesRevokeButton,
+                                  onPressed: () => _revoke(d),
                                 ),
+                            ],
+                          ),
                         );
                       },
                     ),

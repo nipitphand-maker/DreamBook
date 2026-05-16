@@ -6,10 +6,11 @@ const String kDayStartHour = 'settings.dayStartHour';
 
 /// The hour (0–23) at which a new logical day begins.
 ///
-/// Default is 6 (6 AM), matching Huckleberry's industry standard.
-/// Sessions started before this hour are attributed to the previous
-/// calendar day.
+/// Default is 0 (midnight) — matches the user's naive expectation that
+/// "today" starts at the calendar boundary. Users who do overnight feeds
+/// can switch to 3/5/6/7/8 AM via Settings so a 2 AM session is attributed
+/// to the same logical day as the prior evening.
 final dayStartHourProvider = Provider<int>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  return prefs.getInt(kDayStartHour) ?? 6;
+  return prefs.getInt(kDayStartHour) ?? 0;
 });
