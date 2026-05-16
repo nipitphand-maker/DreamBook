@@ -323,6 +323,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => context.push(AppRoutes.vaccination),
           ),
           ListTile(
+            leading: const Icon(Icons.emoji_events_outlined),
+            title: Text(l10n.navMilestones),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.milestones),
+          ),
+          ListTile(
             leading: const Icon(Icons.picture_as_pdf_outlined),
             title: Text(l10n.settingsVisitReport),
             trailing: const Icon(Icons.chevron_right),
