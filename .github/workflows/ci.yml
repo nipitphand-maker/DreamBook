@@ -35,6 +35,8 @@ jobs:
           flutter-version: '3.41.x'
           channel: stable
       - run: flutter pub get
+      - name: Create placeholder assets/.env (gitignored at runtime)
+        run: mkdir -p assets && touch assets/.env
       - run: flutter test --tags unit
 
   lint-migrations:
@@ -94,6 +96,8 @@ jobs:
           echo "SUPABASE_URL=$(supabase status --output env | grep SUPABASE_URL | cut -d= -f2)" >> $GITHUB_ENV
           echo "SUPABASE_ANON_KEY=$(supabase status --output env | grep SUPABASE_ANON_KEY | cut -d= -f2)" >> $GITHUB_ENV
       - run: flutter pub get
+      - name: Create placeholder assets/.env (gitignored at runtime)
+        run: mkdir -p assets && touch assets/.env
       - run: flutter test --tags integration
       - name: Stop Supabase
         if: always()
