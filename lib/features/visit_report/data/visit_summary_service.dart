@@ -1,6 +1,7 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/features/baby/data/baby_repository.dart';
+import 'package:dreambook/features/medication/data/medication_repository.dart';
 import 'package:dreambook/features/vaccination/data/vaccination_repository.dart';
 import 'package:dreambook/features/visit_report/data/visit_summary_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,12 +85,24 @@ class VisitSummaryService {
     final vaccinations =
         await _ref.read(vaccinationRepositoryProvider).listFor(babyId);
 
+    final medRepo = _ref.read(medicationRepositoryProvider);
+    final allMedications = await medRepo.forBabyDateRange(
+      babyId,
+      rangeStartLocal.toUtc(),
+      rangeEndLocal.toUtc(),
+    );
+
     final days = <DaySummary>[];
     for (var i = 0; i < rangeDays; i++) {
       // Use local midnight windows so events are bucketed by the user's calendar
       // day, not by UTC day.
       final dayStart = rangeStartLocal.add(Duration(days: i));
       final dayEnd = dayStart.add(const Duration(days: 1));
+
+      final dayMedications = allMedications
+          .where((m) =>
+              !m.givenAt.isBefore(dayStart) && m.givenAt.isBefore(dayEnd))
+          .toList();
 
       final dayFeeds = feeds
           .where((f) =>
@@ -131,6 +144,7 @@ class VisitSummaryService {
         soiledDiapers: soiledDiapers,
         totalSleepMin: totalSleepMin,
         longestSleepStretchMin: longestStretch,
+        medications: dayMedications,
       ));
     }
 

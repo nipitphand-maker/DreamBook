@@ -663,5 +663,24 @@
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
   "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
-  "summaryCurrentStash": "Current stash"
+  "summaryCurrentStash": "Current stash",
+
+  "medTitle": "Medication",
+  "medNavLabel": "Medication",
+  "medDrugNameHint": "e.g. Paracetamol, Tylenol",
+  "medDoseAmount": "Dose amount",
+  "medUnitMg": "mg",
+  "medUnitMl": "ml",
+  "medUnitTablet": "tablet",
+  "medGivenAt": "Given at",
+  "medSetNextDose": "Set next dose reminder",
+  "medNextDoseAt": "Next dose at {time}",
+  "@medNextDoseAt": { "placeholders": { "time": { "type": "String" } } },
+  "medNextDoseOverdue": "Next dose overdue",
+  "medNotifTitle": "Next dose time",
+  "medNotifBody": "{drugName} — safe to give next dose",
+  "@medNotifBody": { "placeholders": { "drugName": { "type": "String" } } },
+  "medHistoryEmpty": "No doses today",
+  "medSaved": "Saved",
+  "medPdfSectionTitle": "Medications"
 }

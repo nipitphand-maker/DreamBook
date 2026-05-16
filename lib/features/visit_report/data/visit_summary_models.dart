@@ -1,3 +1,4 @@
+import 'package:dreambook/core/models/medication_dose.dart';
 import 'package:dreambook/core/models/vaccination.dart';
 import 'package:flutter/foundation.dart';
 
@@ -10,6 +11,7 @@ class DaySummary {
     required this.soiledDiapers,
     required this.totalSleepMin,
     required this.longestSleepStretchMin,
+    this.medications = const [],
   });
 
   /// Midnight UTC of this calendar day.
@@ -23,6 +25,7 @@ class DaySummary {
   final int soiledDiapers;
   final int totalSleepMin;
   final int longestSleepStretchMin;
+  final List<MedicationDose> medications;
 }
 
 @immutable
