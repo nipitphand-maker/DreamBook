@@ -24,6 +24,8 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
   final hasVaccinations = data.vaccinations.isNotEmpty;
   final hasConcerns = concerns != null && concerns.trim().isNotEmpty;
   final hasAnyTemps = data.days.any((d) => d.temperatures.isNotEmpty);
+  final hasAnyMedication = data.days.any((d) => d.medications.isNotEmpty);
+  final timeFmt = DateFormat.jm();
 
   final headerStyle =
       pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold);
@@ -166,6 +168,27 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
           ],
         ));
         widgets.add(pw.SizedBox(height: 14));
+
+        // Medications
+        if (hasAnyMedication) {
+          widgets.add(pw.Text('Medications', style: sectionStyle));
+          widgets.add(pw.SizedBox(height: 6));
+          for (final d in data.days) {
+            if (d.medications.isEmpty) continue;
+            widgets.add(pw.Text(dayFmt.format(d.date),
+                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)));
+            for (final m in d.medications) {
+              final amountStr = m.doseAmount % 1 == 0
+                  ? m.doseAmount.toInt().toString()
+                  : m.doseAmount.toString();
+              widgets.add(pw.Bullet(
+                text: '${m.drugName} $amountStr${m.doseUnit} at ${timeFmt.format(m.givenAt.toLocal())}',
+                style: bodyStyle,
+              ));
+            }
+          }
+          widgets.add(pw.SizedBox(height: 14));
+        }
 
         // Vaccinations
         if (hasVaccinations) {

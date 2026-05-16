@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/baby/presentation/baby_switcher_screen.dart';
 import '../../features/diaper/presentation/diaper_log_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
+import '../../features/medication/presentation/medication_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/temperature/presentation/temperature_screen.dart';
@@ -51,9 +52,10 @@ class AppRoutes {
   static const manageDevices = '/settings/devices';
   static const cloudBackup   = '/settings/cloud-backup';
   static const families      = '/settings/families';
-  static const cloudRestore  = '/recovery/cloud-restore';
-  static const milestones    = '/milestones';
+  static const cloudRestore   = '/recovery/cloud-restore';
+  static const milestones     = '/milestones';
   static const temperatureNew = '/temperature/new';
+  static const medicationNew  = '/medication/new';
 }
 
 const kOnboardingDoneKey = 'onboarding.done';
@@ -204,6 +206,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.temperatureNew,
         builder: (_, __) => const TemperatureScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.medicationNew,
+        builder: (_, __) => const MedicationScreen(),
       ),
     ],
   );

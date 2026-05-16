@@ -689,5 +689,24 @@
   "tempSaved": "บันทึกแล้ว",
   "tempHistoryEmpty": "ยังไม่มีข้อมูล",
   "tempPdfSectionTitle": "สุขภาพ",
-  "tempPdfFeverLabel": "⚠ มีไข้"
+  "tempPdfFeverLabel": "⚠ มีไข้",
+
+  "medTitle": "ยาและการรักษา",
+  "medNavLabel": "ยา",
+  "medDrugNameHint": "เช่น พาราเซตามอล, ไทลินอล",
+  "medDoseAmount": "ปริมาณยา",
+  "medUnitMg": "มก.",
+  "medUnitMl": "มล.",
+  "medUnitTablet": "เม็ด",
+  "medGivenAt": "ให้เมื่อ",
+  "medSetNextDose": "ตั้งเวลายาครั้งต่อไป",
+  "medNextDoseAt": "ยาครั้งต่อไปเวลา {time}",
+  "@medNextDoseAt": { "placeholders": { "time": { "type": "String" } } },
+  "medNextDoseOverdue": "ถึงเวลาให้ยาแล้ว",
+  "medNotifTitle": "ถึงเวลาให้ยา",
+  "medNotifBody": "{drugName} — ให้ยาครั้งต่อไปได้แล้ว",
+  "@medNotifBody": { "placeholders": { "drugName": { "type": "String" } } },
+  "medHistoryEmpty": "ยังไม่มีการให้ยาวันนี้",
+  "medSaved": "บันทึกแล้ว",
+  "medPdfSectionTitle": "ยาที่ได้รับ"
 }

@@ -29,6 +29,7 @@ const List<String> _syncableTables = [
   'vaccination',
   'daily_note',
   'temp_reading',
+  'medication_dose',
 ];
 
 /// Push (Task 5) + pull (Task 6) of encrypted rows. Tests inject a
@@ -509,6 +510,7 @@ class SyncWorker {
       case 'daily_note':
       case 'vaccination':
       case 'temp_reading':
+      case 'medication_dose':
         return 2;
       case 'stash_bottle': // FK → pump_session
         return 3;

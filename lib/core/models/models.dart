@@ -9,3 +9,4 @@ export 'vaccination.dart';
 export 'daily_note.dart';
 export 'milestone_achievement.dart';
 export 'temp_reading.dart';
+export 'medication_dose.dart';

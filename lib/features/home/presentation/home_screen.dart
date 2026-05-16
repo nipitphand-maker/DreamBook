@@ -84,6 +84,14 @@ class HomeScreen extends ConsumerWidget {
                     AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
                 sliver: SliverToBoxAdapter(child: _QuickLogRow()),
               ),
+              // Medication quick-action
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _MedicationQuickAction(),
+                ),
+              ),
               // "Recent activity" label + "All →" button
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
@@ -556,6 +564,43 @@ String _fmtDuration(int minutes) {
   if (h > 0 && m > 0) return '${h}h ${m}m';
   if (h > 0) return '${h}h';
   return '${m}m';
+}
+
+// ── Medication quick-action card ──────────────────────────────────────────
+
+class _MedicationQuickAction extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        onTap: () => context.push(AppRoutes.medicationNew),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              Icon(Icons.medication_outlined,
+                  size: 20, color: scheme.onSecondaryContainer),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                l10n.medNavLabel,
+                style: AppTypography.bodyMedium(
+                    color: scheme.onSecondaryContainer),
+              ),
+              const Spacer(),
+              Icon(Icons.chevron_right,
+                  size: 18, color: scheme.onSecondaryContainer),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Quick-log row ──────────────────────────────────────────────────────────
