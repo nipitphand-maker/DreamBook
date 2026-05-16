@@ -63,3 +63,4 @@ skills-lock.json
 
 # Claude agent worktrees (transient — not project work)
 .claude/worktrees/
+.worktrees/
