@@ -110,6 +110,40 @@ void main() {
     });
   }
 
+  Future<void> insertTempReading({
+    required String id,
+    required DateTime takenAt,
+    required double celsius,
+  }) async {
+    await db.insert('temp_reading', {
+      'id': id,
+      'baby_id': 'b1',
+      'celsius': celsius,
+      'taken_at': takenAt.toIso8601String(),
+      'version': 1,
+      'updated_at': takenAt.toIso8601String(),
+    });
+  }
+
+  Future<void> insertMedication({
+    required String id,
+    required DateTime givenAt,
+    String drugName = 'Paracetamol',
+    double doseAmount = 5.0,
+    String doseUnit = 'ml',
+  }) async {
+    await db.insert('medication_dose', {
+      'id': id,
+      'baby_id': 'b1',
+      'drug_name': drugName,
+      'dose_amount': doseAmount,
+      'dose_unit': doseUnit,
+      'given_at': givenAt.toIso8601String(),
+      'version': 1,
+      'updated_at': givenAt.toIso8601String(),
+    });
+  }
+
   test('buildSummary returns empty days with zero totals when no data in range',
       () async {
     final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
@@ -196,4 +230,76 @@ void main() {
     final totalWet = data.days.fold<int>(0, (a, d) => a + d.wetDiapers);
     expect(totalWet, 1);
   });
+
+  test(
+    'buildSummary populates temperatures for the correct day',
+    () async {
+      final earlyToday = todayMidnightUtc.add(const Duration(hours: 8));
+      final laterToday = todayMidnightUtc.add(const Duration(hours: 14));
+
+      await insertTempReading(id: 't1', takenAt: earlyToday, celsius: 37.5);
+      await insertTempReading(id: 't2', takenAt: laterToday, celsius: 38.2);
+
+      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+      final today = data.days.last;
+
+      expect(today.temperatures.length, 2);
+      expect(today.temperatures.map((t) => t.id).toSet(), {'t1', 't2'});
+
+      // Other days must have empty temperatures.
+      for (var i = 0; i < data.days.length - 1; i++) {
+        expect(data.days[i].temperatures, isEmpty);
+      }
+    },
+  );
+
+  test(
+    'buildSummary populates medications for the correct day',
+    () async {
+      final t = todayMidnightUtc.add(const Duration(hours: 9));
+
+      await insertMedication(id: 'm1', givenAt: t, drugName: 'Paracetamol');
+      await insertMedication(
+        id: 'm2',
+        givenAt: t.add(const Duration(hours: 4)),
+        drugName: 'Ibuprofen',
+      );
+
+      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+      final today = data.days.last;
+
+      expect(today.medications.length, 2);
+      expect(today.medications.map((m) => m.id).toSet(), {'m1', 'm2'});
+
+      for (var i = 0; i < data.days.length - 1; i++) {
+        expect(data.days[i].medications, isEmpty);
+      }
+    },
+  );
+
+  test(
+    'buildSummary excludes temperatures and medications outside the date range',
+    () async {
+      final farPast = todayMidnightUtc
+          .subtract(const Duration(days: 10))
+          .add(const Duration(hours: 10));
+      final today = todayMidnightUtc.add(const Duration(hours: 9));
+
+      await insertTempReading(id: 'old-t', takenAt: farPast, celsius: 39.0);
+      await insertTempReading(id: 'new-t', takenAt: today, celsius: 37.5);
+
+      await insertMedication(id: 'old-m', givenAt: farPast);
+      await insertMedication(id: 'new-m', givenAt: today);
+
+      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+
+      final totalTemps =
+          data.days.fold<int>(0, (a, d) => a + d.temperatures.length);
+      expect(totalTemps, 1, reason: 'only the in-range temperature');
+
+      final totalMeds =
+          data.days.fold<int>(0, (a, d) => a + d.medications.length);
+      expect(totalMeds, 1, reason: 'only the in-range medication');
+    },
+  );
 }
