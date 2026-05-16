@@ -8,6 +8,7 @@ import 'package:dreambook/core/sync/sync_status_provider.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/baby_repository.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
+import 'package:dreambook/features/diaper/presentation/diaper_stock_widgets.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/features/home/data/home_timeline_provider.dart';
@@ -55,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // Banners: family switcher, sync status, active sleep
+              // Banners: family switcher, sync status, active sleep, diaper stock
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 sliver: SliverToBoxAdapter(
@@ -65,6 +66,8 @@ class HomeScreen extends ConsumerWidget {
                       const _FamilyBanner(),
                       _SyncStatusRow(syncStatus: syncStatus),
                       if (babyId != null) _ActiveSleepBanner(babyId: babyId),
+                      if (babyId != null) DiaperStockBanner(babyId: babyId),
+                      if (babyId != null) DiaperStockHintCard(babyId: babyId),
                     ],
                   ),
                 ),
@@ -141,54 +144,46 @@ class _TodaySummaryStrip extends ConsumerWidget {
             color: scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Column(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatTile(
-                      icon: Icons.water_drop_outlined,
-                      label: context.l10n.homeQuickLogFeed,
-                      value: s.feedCount == 0 ? '—' : _fmtVol(s.feedOz, unit),
-                      sub: s.feedCount == 0 ? null : '${s.feedCount}×',
-                      color: AppColors.lavender700,
-                      onTap: () => context.push(AppRoutes.feedNew),
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatTile(
-                      icon: Icons.compress_outlined,
-                      label: context.l10n.homeQuickLogPump,
-                      value: s.pumpCount == 0 ? '—' : _fmtVol(s.pumpOz, unit),
-                      sub: s.pumpCount == 0 ? null : '${s.pumpCount}×',
-                      color: AppColors.honey700,
-                      onTap: () => context.push(AppRoutes.pumpNew),
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.water_drop_outlined,
+                  label: context.l10n.homeQuickLogFeed,
+                  value: s.feedCount == 0 ? '—' : _fmtVol(s.feedOz, unit),
+                  sub: s.feedCount == 0 ? null : '${s.feedCount}×',
+                  color: AppColors.lavender700,
+                  onTap: () => context.push(AppRoutes.feedNew),
+                ),
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatTile(
-                      icon: Icons.baby_changing_station_outlined,
-                      label: context.l10n.homeQuickLogDiaper,
-                      value: s.diaperCount == 0 ? '—' : '${s.diaperCount}×',
-                      color: AppColors.peach700,
-                      onTap: () => context.push(AppRoutes.diaperNew),
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatTile(
-                      icon: Icons.bedtime_outlined,
-                      label: context.l10n.homeQuickLogSleep,
-                      value: s.sleepFormatted,
-                      color: AppColors.sage700,
-                      onTap: () => context.push(AppRoutes.sleep),
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.compress_outlined,
+                  label: context.l10n.homeQuickLogPump,
+                  value: s.pumpCount == 0 ? '—' : _fmtVol(s.pumpOz, unit),
+                  sub: s.pumpCount == 0 ? null : '${s.pumpCount}×',
+                  color: AppColors.honey700,
+                  onTap: () => context.push(AppRoutes.pumpNew),
+                ),
+              ),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.baby_changing_station_outlined,
+                  label: context.l10n.homeQuickLogDiaper,
+                  value: s.diaperCount == 0 ? '—' : '${s.diaperCount}×',
+                  color: AppColors.peach700,
+                  onTap: () => context.push(AppRoutes.diaperNew),
+                ),
+              ),
+              Expanded(
+                child: _StatTile(
+                  icon: Icons.bedtime_outlined,
+                  label: context.l10n.homeQuickLogSleep,
+                  value: s.sleepFormatted,
+                  color: AppColors.sage700,
+                  onTap: () => context.push(AppRoutes.sleep),
+                ),
               ),
             ],
           ),
@@ -268,7 +263,7 @@ class _StatStripSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final cell = Expanded(
       child: Container(
-        height: 70,
+        height: 78,
         margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
         decoration: BoxDecoration(
           color: AppColors.neutralMuted.withValues(alpha: 0.5),
@@ -668,6 +663,7 @@ class _QuickLogRow extends StatelessWidget {
                   icon: Icons.emoji_events_outlined,
                   label: l10n.navMilestones,
                   onTap: () => context.push(AppRoutes.milestones),
+                  compact: true,
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
@@ -676,6 +672,7 @@ class _QuickLogRow extends StatelessWidget {
                   icon: Icons.thermostat_outlined,
                   label: l10n.tempNavLabel,
                   onTap: () => context.push(AppRoutes.temperatureNew),
+                  compact: true,
                 ),
               ),
             ],
@@ -691,10 +688,16 @@ class _QuickLogPill extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.compact = false,
   });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
+  /// Compact mode shrinks the pill to ~60dp tall (vs 88dp default) and uses
+  /// a smaller icon (22 vs 28). Used for secondary actions like Milestones
+  /// and Temperature where vertical space matters more than visual emphasis.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -706,16 +709,18 @@ class _QuickLogPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 88),
+          constraints: BoxConstraints(minHeight: compact ? 60 : 88),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.xs,
+              vertical: compact ? AppSpacing.xs : AppSpacing.sm,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 28, color: scheme.primary),
-                const SizedBox(height: 4),
+                Icon(icon, size: compact ? 22 : 28, color: scheme.primary),
+                SizedBox(height: compact ? 2 : 4),
                 Text(
                   label,
                   textAlign: TextAlign.center,

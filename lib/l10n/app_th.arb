@@ -170,6 +170,42 @@
       "count": {"type": "int"}
     }
   },
+  "diaperStockRestockTitle": "เติมผ้าอ้อม",
+  "diaperStockPackSizeHint": "ในแพ็คมีกี่ชิ้น?",
+  "diaperStockCurrentRemaining": "เหลืออยู่ {current} / {initial}",
+  "@diaperStockCurrentRemaining": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "initial": {"type": "int"}
+    }
+  },
+  "diaperStockSavedSnack": "อัปเดตจำนวนผ้าอ้อมแล้ว",
+  "diaperStockErrorInvalid": "กรุณาระบุจำนวนให้ถูกต้อง",
+  "diaperStockStopTracking": "หยุดติดตาม",
+  "diaperStockBannerEmpty": "ผ้าอ้อมหมดแล้ว — แตะเพื่อเติม",
+  "diaperStockBannerCritical": "ใกล้หมดแล้ว — เหลือ {remaining} ชิ้น",
+  "@diaperStockBannerCritical": {
+    "placeholders": {
+      "remaining": {"type": "int"}
+    }
+  },
+  "diaperStockBannerWarning": "ผ้าอ้อมเริ่มน้อย — เหลือ {remaining} / {initial}",
+  "@diaperStockBannerWarning": {
+    "placeholders": {
+      "remaining": {"type": "int"},
+      "initial": {"type": "int"}
+    }
+  },
+  "diaperStockHint": "ติดตามจำนวนผ้าอ้อมเพื่อรับแจ้งเตือนตอนใกล้หมด",
+  "settingsDiaperStockTitle": "เติมจำนวนผ้าอ้อม",
+  "settingsDiaperStockSubtitleNone": "ยังไม่ได้ติดตาม — แตะเพื่อเปิด",
+  "settingsDiaperStockSubtitleActive": "เหลือ {current} / {initial}",
+  "@settingsDiaperStockSubtitleActive": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "initial": {"type": "int"}
+    }
+  },
 
   "sleepTitle": "บันทึกการนอน",
   "sleepStart": "เริ่ม",

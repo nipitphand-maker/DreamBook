@@ -14,6 +14,8 @@ import 'package:dreambook/core/theme/theme_mode_controller.dart';
 import 'package:dreambook/features/baby/data/baby_repository.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/baby/presentation/add_baby_screen.dart';
+import 'package:dreambook/features/diaper/data/diaper_stock_provider.dart';
+import 'package:dreambook/features/diaper/presentation/diaper_stock_widgets.dart';
 import 'package:dreambook/features/feed/data/feed_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -316,6 +318,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
+          const _DiaperStockTile(),
           _SectionHeader(title: l10n.settingsSectionHealth),
           ListTile(
             leading: const Icon(Icons.vaccines_outlined),
@@ -636,6 +639,28 @@ class _UnitTile<T> extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DiaperStockTile extends ConsumerWidget {
+  const _DiaperStockTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final babyId = ref.watch(currentBabyIdProvider);
+    if (babyId == null) return const SizedBox.shrink();
+    final stock = ref.watch(diaperStockProvider(babyId));
+    final subtitle = stock == null
+        ? l10n.settingsDiaperStockSubtitleNone
+        : l10n.settingsDiaperStockSubtitleActive(stock.current, stock.initial);
+    return ListTile(
+      leading: const Icon(Icons.inventory_2_outlined),
+      title: Text(l10n.settingsDiaperStockTitle),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => showDiaperRestockDialog(context, ref, babyId),
     );
   }
 }

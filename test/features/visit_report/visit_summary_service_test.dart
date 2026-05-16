@@ -67,8 +67,13 @@ void main() {
       'version': 1,
     });
 
-    final now = DateTime.now().toUtc();
-    todayMidnightUtc = DateTime.utc(now.year, now.month, now.day);
+    // Service buckets by LOCAL calendar day (DateTime.now() local time).
+    // Use local midnight (kept as a non-UTC DateTime — the variable name is
+    // historical) so fixtures align with the service's bucket boundaries
+    // regardless of the runner's timezone or wall-clock hour.
+    final nowLocal = DateTime.now();
+    todayMidnightUtc =
+        DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
   });
 
   tearDown(() async {

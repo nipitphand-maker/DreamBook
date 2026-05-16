@@ -170,6 +170,42 @@
       "count": {"type": "int"}
     }
   },
+  "diaperStockRestockTitle": "Restock diapers",
+  "diaperStockPackSizeHint": "How many in the new pack?",
+  "diaperStockCurrentRemaining": "Currently {current} / {initial} left",
+  "@diaperStockCurrentRemaining": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "initial": {"type": "int"}
+    }
+  },
+  "diaperStockSavedSnack": "Diaper stock updated",
+  "diaperStockErrorInvalid": "Please enter a valid pack size",
+  "diaperStockStopTracking": "Stop tracking",
+  "diaperStockBannerEmpty": "Out of diapers — tap to restock",
+  "diaperStockBannerCritical": "Almost out — {remaining} left",
+  "@diaperStockBannerCritical": {
+    "placeholders": {
+      "remaining": {"type": "int"}
+    }
+  },
+  "diaperStockBannerWarning": "Running low — {remaining} / {initial} left",
+  "@diaperStockBannerWarning": {
+    "placeholders": {
+      "remaining": {"type": "int"},
+      "initial": {"type": "int"}
+    }
+  },
+  "diaperStockHint": "Track diaper stock to get low-stock alerts",
+  "settingsDiaperStockTitle": "Restock diapers",
+  "settingsDiaperStockSubtitleNone": "Not tracked — tap to enable",
+  "settingsDiaperStockSubtitleActive": "{current} / {initial} remaining",
+  "@settingsDiaperStockSubtitleActive": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "initial": {"type": "int"}
+    }
+  },
 
   "sleepTitle": "Log sleep",
   "sleepStart": "Start",

@@ -1,8 +1,10 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/day_start_hour_provider.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:dreambook/core/utils/day_boundary.dart';
+import 'package:dreambook/features/diaper/data/diaper_stock_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -89,6 +91,12 @@ class DiaperRepository {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
+
+    // Decrement diaper stock counter (no-op if user hasn't opted into
+    // tracking). Invalidate so the Home banner re-renders.
+    final prefs = _ref.read(sharedPreferencesProvider);
+    await DiaperStockService.decrement(prefs, babyId);
+    _ref.invalidate(diaperStockProvider(babyId));
 
     _ref.invalidate(diaperTodayProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();

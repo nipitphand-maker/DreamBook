@@ -90,15 +90,19 @@ void main() {
 
   // Test 4: todayFor orders by occurred_at DESC
   test('todayFor orders by occurred_at DESC', () async {
-    final now = DateTime.now().toUtc();
-    final earlier = now.subtract(const Duration(hours: 3));
-    final middle = now.subtract(const Duration(hours: 1));
+    // Use a fixed mid-day local time so all 3 inserts land in the same
+    // logical day regardless of when the test runs (e.g. running at 00:30
+    // local would put `now - 3h` into the previous logical day).
+    final fixedLocalNow = DateTime(2026, 5, 15, 14);
+    final fixedUtcNow = fixedLocalNow.toUtc();
+    final earlier = fixedUtcNow.subtract(const Duration(hours: 3));
+    final middle = fixedUtcNow.subtract(const Duration(hours: 1));
 
     await repo.insert(babyId: 'b1', type: DiaperType.pee, occurredAt: earlier);
-    await repo.insert(babyId: 'b1', type: DiaperType.poop, occurredAt: now);
+    await repo.insert(babyId: 'b1', type: DiaperType.poop, occurredAt: fixedUtcNow);
     await repo.insert(babyId: 'b1', type: DiaperType.mixed, occurredAt: middle);
 
-    final diapers = await repo.todayFor('b1');
+    final diapers = await repo.todayFor('b1', now: fixedLocalNow);
     expect(diapers.length, 3);
     // DESC: now first, then middle, then earlier
     expect(diapers[0].occurredAt.isAfter(diapers[1].occurredAt), isTrue);
