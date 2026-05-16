@@ -692,6 +692,17 @@
   "summaryPeriodWeek": "สัปดาห์",
   "summaryPeriodMonth": "เดือน",
   "summaryPeriodCustom": "กำหนดเอง",
+  "summaryPeriodLast7Days": "ย้อนหลัง 7 วัน",
+  "summaryPeriodLast30Days": "ย้อนหลัง 30 วัน",
+  "summaryPeriodThisMonth": "เดือนนี้",
+  "summaryPeriodChooseRange": "เลือกช่วงเวลา",
+  "summaryPeriodChange": "เปลี่ยน",
+  "summaryRangeDays": "{n} วัน",
+  "@summaryRangeDays": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
   "summaryRangeTotal": "รวม {n} วัน",
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
@@ -731,7 +742,7 @@
   "tempPdfFeverLabel": "⚠ มีไข้",
 
   "medTitle": "ยาและการรักษา",
-  "medNavLabel": "ยา",
+  "medNavLabel": "ประวัติการกินยา",
   "medDrugNameHint": "เช่น พาราเซตามอล, ไทลินอล",
   "medDoseAmount": "ปริมาณยา",
   "medUnitMg": "มก.",

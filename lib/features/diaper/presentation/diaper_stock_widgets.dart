@@ -8,11 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Tracks whether the user has dismissed the [DiaperStockHintCard].
 ///
-/// Read from SharedPreferences under `diaper.stock.hint.dismissed`. Watched by
-/// the hint card; invalidated when the user taps the close icon so the card
-/// disappears immediately.
-final diaperStockHintDismissedProvider =
-    Provider.family<bool, String>((ref, babyId) {
+/// App-level (not per-baby): once dismissed, the hint stays dismissed
+/// across all babies in the household. Resets when the user calls
+/// [DiaperStockService.clear] (stops tracking) so they can re-enable later.
+final diaperStockHintDismissedProvider = Provider<bool>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return prefs.getBool(_hintDismissedKey) ?? false;
 });
@@ -93,7 +92,7 @@ class _DiaperRestockDialogState extends ConsumerState<_DiaperRestockDialog> {
     ref.invalidate(diaperStockProvider(widget.babyId));
     // clear() also resets the hint-dismissed flag so the discovery hint
     // can reappear on Home — refresh the provider so the UI rebuilds.
-    ref.invalidate(diaperStockHintDismissedProvider(widget.babyId));
+    ref.invalidate(diaperStockHintDismissedProvider);
     navigator.pop();
   }
 
@@ -247,13 +246,13 @@ class DiaperStockHintCard extends ConsumerWidget {
   Future<void> _dismiss(WidgetRef ref) async {
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setBool(_hintDismissedKey, true);
-    ref.invalidate(diaperStockHintDismissedProvider(babyId));
+    ref.invalidate(diaperStockHintDismissedProvider);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stock = ref.watch(diaperStockProvider(babyId));
-    final dismissed = ref.watch(diaperStockHintDismissedProvider(babyId));
+    final dismissed = ref.watch(diaperStockHintDismissedProvider);
     if (stock != null || dismissed) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;

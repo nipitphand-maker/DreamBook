@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/day_start_hour_provider.dart';
@@ -25,7 +27,7 @@ import 'package:intl/intl.dart';
 
 // ── Period enum ─────────────────────────────────────────────────────────────
 
-enum SummaryPeriod { today, week, month, custom }
+enum SummaryPeriod { today, week, month, thisMonth, custom }
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
@@ -140,7 +142,15 @@ class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
         : DateTime(_customTo!.year, _customTo!.month, _customTo!.day,
                 dayStartHour)
             .add(const Duration(days: 1));
-    return switch (_period) {
+    // "เดือนนี้" = full calendar month containing today (1st to 1st of next),
+    // aligned to dayStartHour. Day 1 of the current month at hour H → Day 1
+    // of next month at hour H.
+    final nowLocal = DateTime.now();
+    final thisMonthStart =
+        DateTime(nowLocal.year, nowLocal.month, 1, dayStartHour);
+    final thisMonthEndExcl =
+        DateTime(nowLocal.year, nowLocal.month + 1, 1, dayStartHour);
+    final result = switch (_period) {
       SummaryPeriod.today => (todayStart, tomorrowStart),
       SummaryPeriod.week => (
           todayStart.subtract(const Duration(days: 6)),
@@ -150,11 +160,23 @@ class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
           todayStart.subtract(const Duration(days: 29)),
           tomorrowStart,
         ),
+      SummaryPeriod.thisMonth => (thisMonthStart, thisMonthEndExcl),
       SummaryPeriod.custom => (
           customStart ?? todayStart.subtract(const Duration(days: 6)),
           customEndExcl ?? tomorrowStart,
         ),
     };
+    // Debug log so we can diagnose the "Month = 8 vs Custom 1-17 = 17" report.
+    // Remove after the bug is confirmed fixed.
+    if (kDebugMode) {
+      debugPrint(
+        '[Summary] period=$_period dayStartHour=$dayStartHour '
+        'from=${result.$1.toIso8601String()} '
+        'toExcl=${result.$2.toIso8601String()} '
+        'days=${result.$2.difference(result.$1).inDays}',
+      );
+    }
+    return result;
   }
 
   int get _rangeDayCount {
@@ -193,105 +215,226 @@ class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
       ),
       body: babyId == null
           ? const _NoBabyPlaceholder()
-          : Column(
-              children: [
-                _PeriodChips(
-                  period: _period,
-                  onSelect: _selectPeriod,
-                ),
-                Expanded(
-                  child: _period == SummaryPeriod.today
-                      ? _SummaryBody(
-                          babyId: babyId,
-                          dateStr: dateStr,
-                          isToday: isToday,
-                        )
-                      : _RangeSummaryBody(
-                          babyId: babyId,
-                          from: _rangeForPeriod.$1,
-                          to: _rangeForPeriod.$2,
-                          dayCount: _rangeDayCount,
-                          period: _period,
-                          customFrom: _customFrom,
-                          customTo: _customTo,
-                        ),
-                ),
-              ],
+          : Builder(
+              builder: (_) {
+                final (from, toExcl) = _rangeForPeriod;
+                return Column(
+                  children: [
+                    _PeriodHeader(
+                      period: _period,
+                      from: from,
+                      toExcl: toExcl,
+                      onTap: _openPeriodPicker,
+                    ),
+                    Expanded(
+                      child: _period == SummaryPeriod.today
+                          ? _SummaryBody(
+                              babyId: babyId,
+                              dateStr: dateStr,
+                              isToday: isToday,
+                            )
+                          : _RangeSummaryBody(
+                              babyId: babyId,
+                              from: from,
+                              to: toExcl,
+                              dayCount: _rangeDayCount,
+                              period: _period,
+                              customFrom: _customFrom,
+                              customTo: _customTo,
+                            ),
+                    ),
+                  ],
+                );
+              },
             ),
     );
   }
-}
 
-// ── Period chip row ─────────────────────────────────────────────────────────
-
-class _PeriodChips extends StatelessWidget {
-  const _PeriodChips({required this.period, required this.onSelect});
-
-  final SummaryPeriod period;
-  final void Function(SummaryPeriod) onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          _Chip(
-            label: l10n.summaryPeriodToday,
-            selected: period == SummaryPeriod.today,
-            onTap: () => onSelect(SummaryPeriod.today),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          _Chip(
-            label: l10n.summaryPeriodWeek,
-            selected: period == SummaryPeriod.week,
-            onTap: () => onSelect(SummaryPeriod.week),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          _Chip(
-            label: l10n.summaryPeriodMonth,
-            selected: period == SummaryPeriod.month,
-            onTap: () => onSelect(SummaryPeriod.month),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          _Chip(
-            label: '${l10n.summaryPeriodCustom} ↗',
-            selected: period == SummaryPeriod.custom,
-            onTap: () => onSelect(SummaryPeriod.custom),
-          ),
-        ],
-      ),
+  Future<void> _openPeriodPicker() async {
+    final picked = await showPeriodPicker(
+      context: context,
+      current: _period,
     );
+    if (picked == null || !mounted) return;
+    _selectPeriod(picked);
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
+// ── Period header (Option D) ────────────────────────────────────────────────
+
+/// Resolves the localized label for a [SummaryPeriod].
+String _periodLabel(SummaryPeriod p, AppLocalizations l10n) {
+  switch (p) {
+    case SummaryPeriod.today:
+      return l10n.summaryPeriodToday;
+    case SummaryPeriod.week:
+      return l10n.summaryPeriodLast7Days;
+    case SummaryPeriod.month:
+      return l10n.summaryPeriodLast30Days;
+    case SummaryPeriod.thisMonth:
+      return l10n.summaryPeriodThisMonth;
+    case SummaryPeriod.custom:
+      return l10n.summaryPeriodCustom;
+  }
+}
+
+/// Builds the subtitle line under the period name, e.g.
+/// "May 17" (Today) or "Apr 18 – May 17 (30 days)" (Range).
+String _periodSubtitle(
+  SummaryPeriod p,
+  DateTime from,
+  DateTime toExcl,
+  AppLocalizations l10n,
+) {
+  final dateFmt = DateFormat.MMMd();
+  final inclusiveLastDay = toExcl.subtract(const Duration(days: 1));
+  final days = toExcl.difference(from).inDays;
+  if (p == SummaryPeriod.today) {
+    return dateFmt.format(from);
+  }
+  return '${dateFmt.format(from)} – ${dateFmt.format(inclusiveLastDay)} '
+      '(${l10n.summaryRangeDays(days)})';
+}
+
+/// Header row with the current period name + "Change ▾" affordance and a
+/// subtitle showing the actual date range. Tapping anywhere on the header
+/// opens the period picker bottom sheet.
+class _PeriodHeader extends StatelessWidget {
+  const _PeriodHeader({
+    required this.period,
+    required this.from,
+    required this.toExcl,
     required this.onTap,
   });
 
-  final String label;
-  final bool selected;
+  final SummaryPeriod period;
+  final DateTime from;
+  final DateTime toExcl;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      visualDensity: VisualDensity.compact,
-      labelStyle: AppTypography.labelLarge(
-        color: selected ? AppColors.inkPrimary : AppColors.inkSecondary,
+    final l10n = context.l10n;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    _periodLabel(period, l10n),
+                    style: AppTypography.titleLarge(
+                      color: AppColors.inkPrimary,
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      l10n.summaryPeriodChange,
+                      style: AppTypography.labelLarge(
+                        color: AppColors.inkSecondary,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      color: AppColors.inkSecondary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              _periodSubtitle(period, from, toExcl, l10n),
+              style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Opens the period-picker bottom sheet. Returns the user's selection, or
+/// `null` if the sheet was dismissed without picking. "Custom" returns
+/// [SummaryPeriod.custom] so the caller can run its own date-range picker.
+Future<SummaryPeriod?> showPeriodPicker({
+  required BuildContext context,
+  required SummaryPeriod current,
+}) {
+  return showModalBottomSheet<SummaryPeriod>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: false,
+    builder: (sheetCtx) {
+      final l10n = sheetCtx.l10n;
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm,
+                  horizontal: AppSpacing.xs,
+                ),
+                child: Text(
+                  l10n.summaryPeriodChooseRange,
+                  style:
+                      AppTypography.titleLarge(color: AppColors.inkPrimary),
+                ),
+              ),
+              RadioGroup<SummaryPeriod>(
+                groupValue: current,
+                onChanged: (v) {
+                  if (v != null) Navigator.of(sheetCtx).pop(v);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final p in SummaryPeriod.values)
+                      RadioListTile<SummaryPeriod>(
+                        title: Text(
+                          p == SummaryPeriod.custom
+                              ? '${_periodLabel(p, l10n)}…'
+                              : _periodLabel(p, l10n),
+                        ),
+                        value: p,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: () => Navigator.of(sheetCtx).pop(),
+                  child: Text(l10n.actionCancel),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 // ── Day navigator (Today mode) ───────────────────────────────────────────────

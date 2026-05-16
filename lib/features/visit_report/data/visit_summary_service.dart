@@ -18,6 +18,16 @@ class VisitSummaryService {
 
   final Ref _ref;
 
+  /// IMPORTANT — DESIGN NOTE:
+  /// Visit Summary buckets events by LOCAL CALENDAR DAYS (00:00 to 23:59),
+  /// NOT by the user's [dayStartHourProvider] preference. This is intentional:
+  /// clinical PDF reports are read by doctors who expect calendar dates.
+  ///
+  /// Daily Summary (lib/features/summary/) DOES respect dayStartHour and
+  /// uses [currentLogicalDayStart]. When dayStartHour != 0, the same event
+  /// may appear in different day buckets between the two views. The 03:00
+  /// feed appearing under "yesterday" in DailySummary but under "today" in
+  /// the PDF is correct behavior, not a bug.
   Future<VisitSummaryData> buildSummary({
     required String babyId,
     required int rangeDays,

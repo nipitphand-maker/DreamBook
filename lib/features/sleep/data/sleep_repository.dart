@@ -34,7 +34,8 @@ class SleepRepository {
   }) async {
     final db = await _db;
     final n = now ?? DateTime.now();
-    final (start, end) = logicalDayBounds(n, dayStartHour);
+    final start = currentLogicalDayStart(n, dayStartHour);
+    final end = start.add(const Duration(days: 1));
     final startStr = start.toUtc().toIso8601String();
     final endStr = end.toUtc().toIso8601String();
     final rows = await db.query(

@@ -36,7 +36,8 @@ class DiaperRepository {
   }) async {
     final db = await _db;
     final n = now ?? DateTime.now();
-    final (start, end) = logicalDayBounds(n, dayStartHour);
+    final start = currentLogicalDayStart(n, dayStartHour);
+    final end = start.add(const Duration(days: 1));
     final startStr = start.toUtc().toIso8601String();
     final endStr = end.toUtc().toIso8601String();
     final rows = await db.query(
@@ -92,10 +93,14 @@ class DiaperRepository {
       );
     });
 
-    // Decrement diaper stock counter (no-op if user hasn't opted into
-    // tracking). Invalidate so the Home banner re-renders.
+    // Auto-decrement stock counter (best-effort UX nudge — diaper row is
+    // already committed to DB above, so failure here mustn't break the flow).
     final prefs = _ref.read(sharedPreferencesProvider);
-    await DiaperStockService.decrement(prefs, babyId);
+    try {
+      await DiaperStockService.decrement(prefs, babyId);
+    } catch (_) {
+      // Non-critical — stock counter UX, not data integrity.
+    }
     _ref.invalidate(diaperStockProvider(babyId));
 
     _ref.invalidate(diaperTodayProvider(babyId));

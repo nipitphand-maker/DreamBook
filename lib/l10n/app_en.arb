@@ -695,6 +695,17 @@
   "summaryPeriodWeek": "Week",
   "summaryPeriodMonth": "Month",
   "summaryPeriodCustom": "Custom",
+  "summaryPeriodLast7Days": "Last 7 days",
+  "summaryPeriodLast30Days": "Last 30 days",
+  "summaryPeriodThisMonth": "This month",
+  "summaryPeriodChooseRange": "Choose range",
+  "summaryPeriodChange": "Change",
+  "summaryRangeDays": "{n} days",
+  "@summaryRangeDays": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
   "summaryRangeTotal": "{n}-day total",
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
@@ -734,7 +745,7 @@
   "tempPdfFeverLabel": "⚠ Fever",
 
   "medTitle": "Medication",
-  "medNavLabel": "Medication",
+  "medNavLabel": "Medication history",
   "medDrugNameHint": "e.g. Paracetamol, Tylenol",
   "medDoseAmount": "Dose amount",
   "medUnitMg": "mg",

@@ -281,23 +281,27 @@ class _DiaperStockPill extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadii.sm),
         onTap: () => showDiaperRestockDialog(context, ref, babyId),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: fg),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.labelLarge(color: fg),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(minHeight: AppSpacing.minTouchTarget),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: fg),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: AppTypography.labelLarge(color: fg),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right, size: 18, color: fg),
-            ],
+                Icon(Icons.chevron_right, size: 18, color: fg),
+              ],
+            ),
           ),
         ),
       ),
