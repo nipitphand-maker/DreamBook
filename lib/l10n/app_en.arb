@@ -663,5 +663,17 @@
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
   "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
-  "summaryCurrentStash": "Current stash"
+  "summaryCurrentStash": "Current stash",
+
+  "navMilestones": "Milestones",
+  "milestonesTitle": "Baby Milestones",
+  "milestoneMarkDoneTitle": "Mark as achieved?",
+  "milestoneUnmarkTitle": "Remove achievement?",
+  "milestoneUnmarkConfirm": "Remove",
+  "milestoneAgeGroup0": "1–3 months",
+  "milestoneAgeGroup1": "4–6 months",
+  "milestoneAgeGroup2": "7–9 months",
+  "milestoneAgeGroup3": "10–12 months",
+  "milestoneAgeGroup4": "13–18 months",
+  "milestoneAgeGroup5": "19–24 months"
 }

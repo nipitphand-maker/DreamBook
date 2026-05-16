@@ -660,5 +660,17 @@
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
   "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
-  "summaryCurrentStash": "คลังนมปัจจุบัน"
+  "summaryCurrentStash": "คลังนมปัจจุบัน",
+
+  "navMilestones": "พัฒนาการ",
+  "milestonesTitle": "พัฒนาการของลูก",
+  "milestoneMarkDoneTitle": "บันทึกพัฒนาการนี้?",
+  "milestoneUnmarkTitle": "ลบการบันทึกนี้?",
+  "milestoneUnmarkConfirm": "ลบ",
+  "milestoneAgeGroup0": "1–3 เดือน",
+  "milestoneAgeGroup1": "4–6 เดือน",
+  "milestoneAgeGroup2": "7–9 เดือน",
+  "milestoneAgeGroup3": "10–12 เดือน",
+  "milestoneAgeGroup4": "13–18 เดือน",
+  "milestoneAgeGroup5": "19–24 เดือน"
 }
