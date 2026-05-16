@@ -682,5 +682,15 @@
   "milestoneAgeGroup2": "7–9 months",
   "milestoneAgeGroup3": "10–12 months",
   "milestoneAgeGroup4": "13–18 months",
-  "milestoneAgeGroup5": "19–24 months"
+  "milestoneAgeGroup5": "19–24 months",
+
+  "tempTitle": "Temperature",
+  "tempNavLabel": "Temperature",
+  "tempUnitCelsius": "°C",
+  "tempUnitFahrenheit": "°F",
+  "tempFever": "Fever",
+  "tempSaved": "Saved",
+  "tempHistoryEmpty": "No readings yet",
+  "tempPdfSectionTitle": "Health",
+  "tempPdfFeverLabel": "⚠ Fever"
 }

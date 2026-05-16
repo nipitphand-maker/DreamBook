@@ -605,10 +605,24 @@ class _QuickLogRow extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
-        _QuickLogPill(
-          icon: Icons.emoji_events_outlined,
-          label: l10n.navMilestones,
-          onTap: () => context.push(AppRoutes.milestones),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.emoji_events_outlined,
+                label: l10n.navMilestones,
+                onTap: () => context.push(AppRoutes.milestones),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.thermostat_outlined,
+                label: l10n.tempNavLabel,
+                onTap: () => context.push(AppRoutes.temperatureNew),
+              ),
+            ),
+          ],
         ),
       ],
     );

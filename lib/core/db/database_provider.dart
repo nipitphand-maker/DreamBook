@@ -11,6 +11,7 @@ import 'migrations/m005_daily_note.dart';
 import 'migrations/m006_sync_written_by.dart';
 import 'migrations/m007_sync_cursors.dart';
 import 'migrations/m008_milestone.dart';
+import 'migrations/m009_temp_reading.dart';
 import 'migrations/migrations.dart';
 
 final migrationsProvider = Provider<Migrations>(
@@ -23,6 +24,7 @@ final migrationsProvider = Provider<Migrations>(
     m006SyncWrittenBy,
     m007SyncCursors,
     m008Milestone,
+    m009TempReading,
   ]),
 );
 

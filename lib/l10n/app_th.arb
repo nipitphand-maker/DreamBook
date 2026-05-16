@@ -679,5 +679,15 @@
   "milestoneAgeGroup2": "7–9 เดือน",
   "milestoneAgeGroup3": "10–12 เดือน",
   "milestoneAgeGroup4": "13–18 เดือน",
-  "milestoneAgeGroup5": "19–24 เดือน"
+  "milestoneAgeGroup5": "19–24 เดือน",
+
+  "tempTitle": "อุณหภูมิ",
+  "tempNavLabel": "อุณหภูมิ",
+  "tempUnitCelsius": "°C",
+  "tempUnitFahrenheit": "°F",
+  "tempFever": "มีไข้",
+  "tempSaved": "บันทึกแล้ว",
+  "tempHistoryEmpty": "ยังไม่มีข้อมูล",
+  "tempPdfSectionTitle": "สุขภาพ",
+  "tempPdfFeverLabel": "⚠ มีไข้"
 }
