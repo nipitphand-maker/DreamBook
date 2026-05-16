@@ -18,8 +18,8 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
             "$SUPABASE_URL/rest/v1/families?select=id&limit=1")
           echo "HTTP status: $STATUS"
-          if [ "$STATUS" = "200" ] || [ "$STATUS" = "406" ]; then
-            echo "Supabase is alive."
-          else
-            echo "Unexpected status: $STATUS" && exit 1
-          fi
+          # 200/406 = OK, 401/403 = RLS-blocked but server is alive (E2E app: anon has no table grants by design)
+          case "$STATUS" in
+            200|401|403|406) echo "Supabase is alive." ;;
+            *) echo "Unexpected status: $STATUS" && exit 1 ;;
+          esac
