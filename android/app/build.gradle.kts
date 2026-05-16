@@ -40,8 +40,8 @@ android {
         applicationId = "studio.niyoko.dreambook"
         minSdk = flutter.minSdkVersion
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {

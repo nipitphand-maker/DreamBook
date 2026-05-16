@@ -1,7 +1,7 @@
 name: dreambook
 description: Baby daybook for new parents — privacy-first, family share.
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.1.0+5001
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
