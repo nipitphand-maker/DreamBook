@@ -84,6 +84,14 @@ class HomeScreen extends ConsumerWidget {
                     AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
                 sliver: SliverToBoxAdapter(child: _QuickLogRow()),
               ),
+              // Medication quick-action
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _MedicationQuickAction(),
+                ),
+              ),
               // "Recent activity" label + "All →" button
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
@@ -558,6 +566,43 @@ String _fmtDuration(int minutes) {
   return '${m}m';
 }
 
+// ── Medication quick-action card ──────────────────────────────────────────
+
+class _MedicationQuickAction extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        onTap: () => context.push(AppRoutes.medicationNew),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              Icon(Icons.medication_outlined,
+                  size: 20, color: scheme.onSecondaryContainer),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                l10n.medNavLabel,
+                style: AppTypography.bodyMedium(
+                    color: scheme.onSecondaryContainer),
+              ),
+              const Spacer(),
+              Icon(Icons.chevron_right,
+                  size: 18, color: scheme.onSecondaryContainer),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Quick-log row ──────────────────────────────────────────────────────────
 
 class _QuickLogRow extends StatelessWidget {
@@ -566,38 +611,63 @@ class _QuickLogRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.water_drop_outlined,
-            label: l10n.homeQuickLogFeed,
-            onTap: () => context.push(AppRoutes.feedNew),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.water_drop_outlined,
+                label: l10n.homeQuickLogFeed,
+                onTap: () => context.push(AppRoutes.feedNew),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.compress_outlined,
+                label: l10n.homeQuickLogPump,
+                onTap: () => context.push(AppRoutes.pumpNew),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.baby_changing_station_outlined,
+                label: l10n.homeQuickLogDiaper,
+                onTap: () => context.push(AppRoutes.diaperNew),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.bedtime_outlined,
+                label: l10n.homeQuickLogSleep,
+                onTap: () => context.push(AppRoutes.sleep),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.compress_outlined,
-            label: l10n.homeQuickLogPump,
-            onTap: () => context.push(AppRoutes.pumpNew),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.baby_changing_station_outlined,
-            label: l10n.homeQuickLogDiaper,
-            onTap: () => context.push(AppRoutes.diaperNew),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.bedtime_outlined,
-            label: l10n.homeQuickLogSleep,
-            onTap: () => context.push(AppRoutes.sleep),
-          ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.emoji_events_outlined,
+                label: l10n.navMilestones,
+                onTap: () => context.push(AppRoutes.milestones),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.thermostat_outlined,
+                label: l10n.tempNavLabel,
+                onTap: () => context.push(AppRoutes.temperatureNew),
+              ),
+            ),
+          ],
         ),
       ],
     );

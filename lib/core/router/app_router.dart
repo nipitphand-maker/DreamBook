@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../features/baby/presentation/baby_switcher_screen.dart';
 import '../../features/diaper/presentation/diaper_log_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
+import '../../features/medication/presentation/medication_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
+import '../../features/temperature/presentation/temperature_screen.dart';
 import '../../features/onboarding/presentation/bip39_setup_screen.dart';
 import '../../features/onboarding/presentation/bip39_verify_screen.dart';
 import '../../features/onboarding/presentation/bip39_restore_screen.dart';
@@ -20,6 +22,7 @@ import '../../features/sleep/presentation/sleep_timer_screen.dart';
 import '../../features/stash/presentation/stash_list_screen.dart';
 import '../../features/subscription/presentation/paywall_screen.dart';
 import '../../features/summary/presentation/daily_summary_screen.dart';
+import '../../features/milestone/presentation/milestone_screen.dart';
 import '../../features/vaccination/presentation/vaccination_log_screen.dart';
 import '../../features/visit_report/presentation/visit_report_screen.dart';
 import '../providers/shared_preferences_provider.dart';
@@ -49,7 +52,10 @@ class AppRoutes {
   static const manageDevices = '/settings/devices';
   static const cloudBackup   = '/settings/cloud-backup';
   static const families      = '/settings/families';
-  static const cloudRestore  = '/recovery/cloud-restore';
+  static const cloudRestore   = '/recovery/cloud-restore';
+  static const milestones     = '/milestones';
+  static const temperatureNew = '/temperature/new';
+  static const medicationNew  = '/medication/new';
 }
 
 const kOnboardingDoneKey = 'onboarding.done';
@@ -192,6 +198,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.cloudRestore,
         builder: (_, __) => const CloudRestoreScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.milestones,
+        builder: (_, __) => const MilestoneScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.temperatureNew,
+        builder: (_, __) => const TemperatureScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.medicationNew,
+        builder: (_, __) => const MedicationScreen(),
       ),
     ],
   );

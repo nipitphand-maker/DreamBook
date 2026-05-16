@@ -23,6 +23,9 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
   final hasAnyFeed = data.days.any((d) => d.totalFeedOz > 0);
   final hasVaccinations = data.vaccinations.isNotEmpty;
   final hasConcerns = concerns != null && concerns.trim().isNotEmpty;
+  final hasAnyTemps = data.days.any((d) => d.temperatures.isNotEmpty);
+  final hasAnyMedication = data.days.any((d) => d.medications.isNotEmpty);
+  final timeFmt = DateFormat.jm();
 
   final headerStyle =
       pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold);
@@ -166,6 +169,27 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
         ));
         widgets.add(pw.SizedBox(height: 14));
 
+        // Medications
+        if (hasAnyMedication) {
+          widgets.add(pw.Text('Medications', style: sectionStyle));
+          widgets.add(pw.SizedBox(height: 6));
+          for (final d in data.days) {
+            if (d.medications.isEmpty) continue;
+            widgets.add(pw.Text(dayFmt.format(d.date),
+                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)));
+            for (final m in d.medications) {
+              final amountStr = m.doseAmount % 1 == 0
+                  ? m.doseAmount.toInt().toString()
+                  : m.doseAmount.toString();
+              widgets.add(pw.Bullet(
+                text: '${m.drugName} $amountStr${m.doseUnit} at ${timeFmt.format(m.givenAt.toLocal())}',
+                style: bodyStyle,
+              ));
+            }
+          }
+          widgets.add(pw.SizedBox(height: 14));
+        }
+
         // Vaccinations
         if (hasVaccinations) {
           widgets.add(pw.Text('Vaccinations', style: sectionStyle));
@@ -180,6 +204,34 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
             ));
           }
           widgets.add(pw.SizedBox(height: 14));
+        }
+
+        // Health — temperature readings
+        if (hasAnyTemps) {
+          widgets.add(pw.Text('Health', style: sectionStyle));
+          widgets.add(pw.SizedBox(height: 6));
+          for (final day in data.days) {
+            if (day.temperatures.isEmpty) continue;
+            widgets.add(pw.Text(dayFmt.format(day.date), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)));
+            widgets.add(pw.SizedBox(height: 4));
+            for (final t in day.temperatures) {
+              final cStr = t.celsius.toStringAsFixed(1);
+              final fStr = t.fahrenheit.toStringAsFixed(1);
+              final timeStr = DateFormat.Hm().format(t.takenAt.toLocal());
+              final isFever = t.celsius >= 38.0;
+              final label = isFever
+                  ? '$cStr°C ($fStr°F) at $timeStr  ⚠ Fever'
+                  : '$cStr°C ($fStr°F) at $timeStr';
+              widgets.add(pw.Bullet(
+                text: label,
+                style: isFever
+                    ? const pw.TextStyle(fontSize: 11, color: PdfColors.red)
+                    : bodyStyle,
+              ));
+            }
+            widgets.add(pw.SizedBox(height: 6));
+          }
+          widgets.add(pw.SizedBox(height: 8));
         }
 
         // Concerns / Notes
