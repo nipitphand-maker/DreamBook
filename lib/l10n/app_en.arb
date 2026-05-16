@@ -671,6 +671,9 @@
   "feedAlertNotifTitle": "Time to feed",
   "feedAlertNotifBody": "{babyName} hasn't fed in {hours}h",
   "@feedAlertNotifBody": { "placeholders": { "babyName": { "type": "String" }, "hours": { "type": "int" } } },
+  "feedAlertIntervalTitle": "Reminder interval",
+  "feedAlertIntervalHours": "{hours} hours",
+  "@feedAlertIntervalHours": { "placeholders": { "hours": { "type": "int" } } },
 
   "navMilestones": "Milestones",
   "milestonesTitle": "Baby Milestones",

@@ -668,6 +668,9 @@
   "feedAlertNotifTitle": "ถึงเวลาให้นมแล้ว",
   "feedAlertNotifBody": "{babyName} ยังไม่ได้กินนม {hours} ชั่วโมงแล้ว",
   "@feedAlertNotifBody": { "placeholders": { "babyName": { "type": "String" }, "hours": { "type": "int" } } },
+  "feedAlertIntervalTitle": "ระยะเวลาแจ้งเตือน",
+  "feedAlertIntervalHours": "ทุก {hours} ชั่วโมง",
+  "@feedAlertIntervalHours": { "placeholders": { "hours": { "type": "int" } } },
 
   "navMilestones": "พัฒนาการ",
   "milestonesTitle": "พัฒนาการของลูก",

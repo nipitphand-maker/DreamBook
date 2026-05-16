@@ -9,13 +9,13 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 // Minimal valid Feed factory used throughout this file.
-Feed _makeFeed({DateTime? endedAt}) {
+Feed _makeFeed({DateTime? endedAt, DateTime? startedAt}) {
   final now = DateTime.now().toUtc();
   return Feed(
     id: 'test-feed-id',
     babyId: 'test-baby-id',
     type: FeedType.breast,
-    startedAt: now.subtract(const Duration(minutes: 30)),
+    startedAt: startedAt ?? now.subtract(const Duration(minutes: 30)),
     endedAt: endedAt,
     createdAt: now,
     updatedAt: now,
@@ -137,23 +137,63 @@ void main() {
       );
     }); // platform channel best-effort
 
-    test('returns without error when feed has no endedAt', () async {
-      SharedPreferences.setMockInitialValues({
-        FeedAlertService.enabledKey: true,
-      });
-      final prefs = await SharedPreferences.getInstance();
-      final feed = _makeFeed(endedAt: null);
+    test(
+      'schedules using startedAt when endedAt is null (bottle feeds)',
+      () async {
+        // Bottle feeds save `endedAt = null`. The service must fall back to
+        // `startedAt` as the anchor so bottle-only families still get the
+        // interval reminder.
+        //
+        // startedAt = 30 min from now, default 3h interval →
+        // fireAt = startedAt + 3h = ~3.5h from now (future) → schedules.
+        SharedPreferences.setMockInitialValues({
+          FeedAlertService.enabledKey: true,
+          // prefsKey absent → defaults to 3h
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final feed = _makeFeed(
+          startedAt: DateTime.now().toUtc().add(const Duration(minutes: 30)),
+          endedAt: null,
+        );
 
-      await expectLater(
-        FeedAlertService.scheduleForLastFeed(
-          prefs: prefs,
-          lastFeed: feed,
-          title: 'Title',
-          body: 'Body',
-        ),
-        completes,
-      );
-    }); // platform channel best-effort
+        await expectLater(
+          FeedAlertService.scheduleForLastFeed(
+            prefs: prefs,
+            lastFeed: feed,
+            title: 'Title',
+            body: 'Body',
+          ),
+          completes,
+        );
+      },
+    ); // platform channel best-effort
+
+    test(
+      'cancels when endedAt is null and startedAt is far in the past (overdue bottle feed)',
+      () async {
+        // Bottle feed from 10h ago: startedAt = 10h ago, endedAt = null →
+        // anchor = startedAt → fireAt = startedAt + 3h = 7h ago (past) →
+        // overdue → cancel (does NOT fire a stale alert).
+        SharedPreferences.setMockInitialValues({
+          FeedAlertService.enabledKey: true,
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final feed = _makeFeed(
+          startedAt: DateTime.now().toUtc().subtract(const Duration(hours: 10)),
+          endedAt: null,
+        );
+
+        await expectLater(
+          FeedAlertService.scheduleForLastFeed(
+            prefs: prefs,
+            lastFeed: feed,
+            title: 'Title',
+            body: 'Body',
+          ),
+          completes,
+        );
+      },
+    ); // platform channel best-effort
 
     test('returns without error when fireAt is in the past', () async {
       // endedAt = 10 hours ago → fireAt (default 3h interval) = 7 hours ago.

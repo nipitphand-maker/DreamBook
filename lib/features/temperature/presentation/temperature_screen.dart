@@ -193,7 +193,16 @@ class _TempHistory extends ConsumerWidget {
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Text(
+          l10n.errorGeneric,
+          textAlign: TextAlign.center,
+          style: AppTypography.bodyMedium(
+            color: Theme.of(context).colorScheme.error,
+          ),
+        ),
+      ),
       data: (readings) {
         if (readings.isEmpty) {
           return Padding(
@@ -216,7 +225,11 @@ class _TempHistory extends ConsumerWidget {
             itemCount: recent.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: AppSpacing.xxs),
-            itemBuilder: (_, i) => _TempRow(reading: recent[i], unit: unit),
+            itemBuilder: (_, i) => _TempRow(
+              reading: recent[i],
+              unit: unit,
+              babyId: babyId,
+            ),
           ),
         );
       },
@@ -224,13 +237,18 @@ class _TempHistory extends ConsumerWidget {
   }
 }
 
-class _TempRow extends StatelessWidget {
-  const _TempRow({required this.reading, required this.unit});
+class _TempRow extends ConsumerWidget {
+  const _TempRow({
+    required this.reading,
+    required this.unit,
+    required this.babyId,
+  });
   final TempReading reading;
   final TempUnit unit;
+  final String babyId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isFever = reading.celsius >= 38.0;
     final scheme = Theme.of(context).colorScheme;
     final valueColor = isFever ? scheme.error : scheme.onSurface;
@@ -243,44 +261,58 @@ class _TempRow extends StatelessWidget {
     final timeLabel =
         DateFormat.jm().format(reading.takenAt.toLocal());
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xs,
+    return Dismissible(
+      key: ValueKey(reading.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: AppSpacing.md),
+        color: scheme.error,
+        child: Icon(Icons.delete_outline, color: scheme.onError),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.thermostat_outlined,
-            size: 18,
-            color: isFever ? scheme.error : scheme.onSurface.withValues(alpha: 0.6),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '${displayValue.toStringAsFixed(1)}$unitLabel',
-            style: AppTypography.numeric(
-              size: 15,
-              weight: FontWeight.w700,
-              color: valueColor,
+      onDismissed: (_) async {
+        await ref.read(tempReadingRepositoryProvider).softDelete(reading.id);
+        ref.invalidate(tempReadingsProvider(babyId));
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.thermostat_outlined,
+              size: 18,
+              color: isFever ? scheme.error : scheme.onSurface.withValues(alpha: 0.6),
             ),
-          ),
-          if (isFever) ...[
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: AppSpacing.sm),
             Text(
-              context.l10n.tempFever,
-              style: AppTypography.labelLarge(color: scheme.error),
+              '${displayValue.toStringAsFixed(1)}$unitLabel',
+              style: AppTypography.numeric(
+                size: 15,
+                weight: FontWeight.w700,
+                color: valueColor,
+              ),
+            ),
+            if (isFever) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                context.l10n.tempFever,
+                style: AppTypography.labelLarge(color: scheme.error),
+              ),
+            ],
+            const Spacer(),
+            Text(
+              timeLabel,
+              style: AppTypography.numeric(
+                size: 13,
+                weight: FontWeight.w400,
+                color: scheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
-          const Spacer(),
-          Text(
-            timeLabel,
-            style: AppTypography.numeric(
-              size: 13,
-              weight: FontWeight.w400,
-              color: scheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

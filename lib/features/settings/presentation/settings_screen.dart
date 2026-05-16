@@ -18,6 +18,7 @@ import 'package:dreambook/features/feed/data/feed_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _kPortionOz = 'settings.pump.portionOz';
@@ -475,28 +476,21 @@ class _FeedAlertTile extends ConsumerStatefulWidget {
 
 class _FeedAlertTileState extends ConsumerState<_FeedAlertTile> {
   late bool _enabled;
+  late int _intervalHours;
 
   @override
   void initState() {
     super.initState();
     final prefs = ref.read(sharedPreferencesProvider);
     _enabled = prefs.getBool(FeedAlertService.enabledKey) ?? true;
+    _intervalHours = prefs.getInt(FeedAlertService.prefsKey) ?? 3;
   }
 
-  Future<void> _toggle(bool value) async {
-    final prefs = ref.read(sharedPreferencesProvider);
-    final l10n = context.l10n;
-    await prefs.setBool(FeedAlertService.enabledKey, value);
-    setState(() => _enabled = value);
-
-    if (!value) {
-      await FeedAlertService.cancel();
-      return;
-    }
-
+  Future<void> _reschedule(SharedPreferences prefs) async {
     final babyId = ref.read(currentBabyIdProvider);
     if (babyId == null) return;
 
+    final l10n = context.l10n;
     final lastFeed =
         await ref.read(feedRepositoryProvider).getLastFeedForBaby(babyId);
     final intervalHours = prefs.getInt(FeedAlertService.prefsKey) ?? 3;
@@ -516,18 +510,89 @@ class _FeedAlertTileState extends ConsumerState<_FeedAlertTile> {
     );
   }
 
+  Future<void> _toggle(bool value) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final l10n = context.l10n;
+    await prefs.setBool(FeedAlertService.enabledKey, value);
+    if (!mounted) return;
+    setState(() => _enabled = value);
+
+    if (!value) {
+      await FeedAlertService.cancel();
+      return;
+    }
+
+    final babyId = ref.read(currentBabyIdProvider);
+    if (babyId == null) {
+      // No active baby — revert the toggle and let the user know.
+      await prefs.setBool(FeedAlertService.enabledKey, false);
+      await FeedAlertService.cancel();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.errorNoBabyProfile)),
+      );
+      setState(() => _enabled = false);
+      return;
+    }
+
+    await _reschedule(prefs);
+  }
+
+  Future<void> _showIntervalDialog() async {
+    const options = [2, 3, 4, 5, 6];
+    final l10n = context.l10n;
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.feedAlertIntervalTitle),
+        children: options
+            .map(
+              (h) => ListTile(
+                title: Text(l10n.feedAlertIntervalHours(h)),
+                trailing: h == _intervalHours
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(ctx).colorScheme.primary,
+                      )
+                    : null,
+                onTap: () => Navigator.of(ctx).pop(h),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setInt(FeedAlertService.prefsKey, selected);
+    if (!mounted) return;
+    setState(() => _intervalHours = selected);
+    // Re-schedule with the new interval (service reads interval from prefs).
+    await _reschedule(prefs);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final prefs = ref.read(sharedPreferencesProvider);
-    final intervalHours = prefs.getInt(FeedAlertService.prefsKey) ?? 3;
 
-    return SwitchListTile(
-      secondary: const Icon(Icons.notifications_outlined),
-      title: Text(l10n.feedAlertSettingTitle),
-      subtitle: Text(l10n.feedAlertSettingSubtitle(intervalHours)),
-      value: _enabled,
-      onChanged: _toggle,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SwitchListTile(
+          secondary: const Icon(Icons.notifications_outlined),
+          title: Text(l10n.feedAlertSettingTitle),
+          subtitle: Text(l10n.feedAlertSettingSubtitle(_intervalHours)),
+          value: _enabled,
+          onChanged: _toggle,
+        ),
+        if (_enabled)
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: Text(l10n.feedAlertIntervalTitle),
+            subtitle: Text(l10n.feedAlertIntervalHours(_intervalHours)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showIntervalDialog,
+          ),
+      ],
     );
   }
 }

@@ -25,13 +25,17 @@ class FeedAlertService {
       return;
     }
 
-    if (lastFeed == null || lastFeed.endedAt == null) {
+    if (lastFeed == null) {
       await cancel();
       return;
     }
 
     final intervalHours = prefs.getInt(prefsKey) ?? 3;
-    final fireAt = lastFeed.endedAt!.add(Duration(hours: intervalHours));
+    // Bottle feeds save `endedAt = null`; for them the "finished eating" anchor
+    // is effectively `startedAt` (a few minutes off, dwarfed by the 3–5h
+    // interval). Falling back ensures bottle-only families still get reminders.
+    final anchor = lastFeed.endedAt ?? lastFeed.startedAt;
+    final fireAt = anchor.add(Duration(hours: intervalHours));
 
     if (!fireAt.isAfter(DateTime.now())) {
       // Overdue — don't fire a stale alert.

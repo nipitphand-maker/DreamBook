@@ -280,8 +280,14 @@ class _MedicationTodayList extends ConsumerWidget {
     final async = ref.watch(medicationTodayProvider(babyId));
 
     return async.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Center(child: Text(l10n.errorGeneric)),
+      ),
       data: (doses) {
         if (doses.isEmpty) {
           return Padding(
@@ -339,6 +345,9 @@ class _DoseRow extends ConsumerWidget {
         child: Icon(Icons.delete_outline, color: scheme.onError),
       ),
       onDismissed: (_) async {
+        if (dose.nextDoseAt != null && dose.nextDoseAt!.isAfter(DateTime.now())) {
+          await NotificationService.cancel(_kNextDoseNotifId);
+        }
         await ref.read(medicationRepositoryProvider).softDelete(dose.id);
         ref.invalidate(medicationTodayProvider(babyId));
       },

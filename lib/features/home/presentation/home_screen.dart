@@ -79,19 +79,23 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               // Quick-log row — positioned between stats and timeline
-              const SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
-                sliver: SliverToBoxAdapter(child: _QuickLogRow()),
-              ),
-              // Medication quick-action
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+                    AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
                 sliver: SliverToBoxAdapter(
-                  child: _MedicationQuickAction(),
+                  child: _QuickLogRow(showBabyOnlyActions: babyId != null),
                 ),
               ),
+              // Medication quick-action — only visible when a baby exists,
+              // since the destination requires babyId and would error out.
+              if (babyId != null)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: _MedicationQuickAction(),
+                  ),
+                ),
               // "Recent activity" label + "All →" button
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
@@ -606,7 +610,13 @@ class _MedicationQuickAction extends StatelessWidget {
 // ── Quick-log row ──────────────────────────────────────────────────────────
 
 class _QuickLogRow extends StatelessWidget {
-  const _QuickLogRow();
+  const _QuickLogRow({this.showBabyOnlyActions = true});
+
+  /// When `false`, the second row (Milestones + Temperature) is hidden —
+  /// those destinations require a current baby and would otherwise show
+  /// error screens. The first row stays visible to match the pre-existing
+  /// pattern where Feed/Pump/Diaper/Sleep are always shown.
+  final bool showBabyOnlyActions;
 
   @override
   Widget build(BuildContext context) {
@@ -649,26 +659,28 @@ class _QuickLogRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Row(
-          children: [
-            Expanded(
-              child: _QuickLogPill(
-                icon: Icons.emoji_events_outlined,
-                label: l10n.navMilestones,
-                onTap: () => context.push(AppRoutes.milestones),
+        if (showBabyOnlyActions) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickLogPill(
+                  icon: Icons.emoji_events_outlined,
+                  label: l10n.navMilestones,
+                  onTap: () => context.push(AppRoutes.milestones),
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: _QuickLogPill(
-                icon: Icons.thermostat_outlined,
-                label: l10n.tempNavLabel,
-                onTap: () => context.push(AppRoutes.temperatureNew),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _QuickLogPill(
+                  icon: Icons.thermostat_outlined,
+                  label: l10n.tempNavLabel,
+                  onTap: () => context.push(AppRoutes.temperatureNew),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ],
     );
   }
