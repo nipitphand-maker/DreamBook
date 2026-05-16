@@ -663,5 +663,15 @@
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
   "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
-  "summaryCurrentStash": "Current stash"
+  "summaryCurrentStash": "Current stash",
+
+  "tempTitle": "Temperature",
+  "tempNavLabel": "Temperature",
+  "tempUnitCelsius": "°C",
+  "tempUnitFahrenheit": "°F",
+  "tempFever": "Fever",
+  "tempSaved": "Saved",
+  "tempHistoryEmpty": "No readings yet",
+  "tempPdfSectionTitle": "Health",
+  "tempPdfFeverLabel": "⚠ Fever"
 }

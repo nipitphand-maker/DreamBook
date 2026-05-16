@@ -660,5 +660,15 @@
   "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
   "summaryCustomRange": "{from} – {to}",
   "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
-  "summaryCurrentStash": "คลังนมปัจจุบัน"
+  "summaryCurrentStash": "คลังนมปัจจุบัน",
+
+  "tempTitle": "อุณหภูมิ",
+  "tempNavLabel": "อุณหภูมิ",
+  "tempUnitCelsius": "°C",
+  "tempUnitFahrenheit": "°F",
+  "tempFever": "มีไข้",
+  "tempSaved": "บันทึกแล้ว",
+  "tempHistoryEmpty": "ยังไม่มีข้อมูล",
+  "tempPdfSectionTitle": "สุขภาพ",
+  "tempPdfFeverLabel": "⚠ มีไข้"
 }

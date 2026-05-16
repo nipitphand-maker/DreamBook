@@ -566,38 +566,54 @@ class _QuickLogRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.water_drop_outlined,
-            label: l10n.homeQuickLogFeed,
-            onTap: () => context.push(AppRoutes.feedNew),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.water_drop_outlined,
+                label: l10n.homeQuickLogFeed,
+                onTap: () => context.push(AppRoutes.feedNew),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.compress_outlined,
+                label: l10n.homeQuickLogPump,
+                onTap: () => context.push(AppRoutes.pumpNew),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.baby_changing_station_outlined,
+                label: l10n.homeQuickLogDiaper,
+                onTap: () => context.push(AppRoutes.diaperNew),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.bedtime_outlined,
+                label: l10n.homeQuickLogSleep,
+                onTap: () => context.push(AppRoutes.sleep),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.compress_outlined,
-            label: l10n.homeQuickLogPump,
-            onTap: () => context.push(AppRoutes.pumpNew),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.baby_changing_station_outlined,
-            label: l10n.homeQuickLogDiaper,
-            onTap: () => context.push(AppRoutes.diaperNew),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: _QuickLogPill(
-            icon: Icons.bedtime_outlined,
-            label: l10n.homeQuickLogSleep,
-            onTap: () => context.push(AppRoutes.sleep),
-          ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickLogPill(
+                icon: Icons.thermostat_outlined,
+                label: l10n.tempNavLabel,
+                onTap: () => context.push(AppRoutes.temperatureNew),
+              ),
+            ),
+          ],
         ),
       ],
     );

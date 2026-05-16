@@ -7,3 +7,4 @@ export 'diaper.dart';
 export 'sleep.dart';
 export 'vaccination.dart';
 export 'daily_note.dart';
+export 'temp_reading.dart';

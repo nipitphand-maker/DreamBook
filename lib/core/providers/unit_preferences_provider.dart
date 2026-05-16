@@ -91,3 +91,9 @@ final unitPreferencesProvider =
     NotifierProvider<UnitPreferencesNotifier, UnitPreferences>(
   UnitPreferencesNotifier.new,
 );
+
+/// Convenience provider — same value as `unitPreferencesProvider.select`,
+/// but lets temperature-only widgets avoid watching the full preferences object.
+final temperatureUnitProvider = Provider<TempUnit>((ref) {
+  return ref.watch(unitPreferencesProvider).temp;
+});
