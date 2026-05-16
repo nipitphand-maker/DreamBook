@@ -5,7 +5,9 @@ import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/core/widgets/logged_at_chip.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
+import 'package:dreambook/features/diaper/data/diaper_stock_provider.dart';
 import 'package:dreambook/features/diaper/presentation/diaper_history_section.dart';
+import 'package:dreambook/features/diaper/presentation/diaper_stock_widgets.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -91,13 +93,19 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: AppSpacing.xs),
+              // Compact stock pill (visible when tracking is enabled OR as
+              // a one-time discovery nudge). Tappable → restock dialog.
+              if (babyId != null) _DiaperStockPill(babyId: babyId),
               const SizedBox(height: AppSpacing.sm),
-              // Type selector — 2×2 grid of tap targets, height adapts to screen
+              // Type selector — 2×2 grid of tap targets. childAspectRatio 2.2
+              // makes the tiles wider+shorter to free vertical space for the
+              // stock pill above.
               GridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: AppSpacing.sm,
                   crossAxisSpacing: AppSpacing.sm,
-                  childAspectRatio: 1.6,
+                  childAspectRatio: 2.2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
@@ -221,6 +229,78 @@ class _DiaperTodaySummary extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// Stock pill — compact "เหลือ X/Y" badge. Tappable → restock dialog.
+// Color tracks the same critical/warning thresholds as the home banner.
+class _DiaperStockPill extends ConsumerWidget {
+  const _DiaperStockPill({required this.babyId});
+  final String babyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final stock = ref.watch(diaperStockProvider(babyId));
+
+    // Pick colors + label per state.
+    final Color bg;
+    final Color fg;
+    final IconData icon;
+    final String label;
+    if (stock == null) {
+      bg = scheme.surfaceContainerHigh;
+      fg = scheme.onSurface.withValues(alpha: 0.7);
+      icon = Icons.inventory_2_outlined;
+      label = l10n.diaperStockHint;
+    } else if (stock.isCritical) {
+      bg = scheme.errorContainer;
+      fg = scheme.onErrorContainer;
+      icon = Icons.inventory_2_outlined;
+      label = stock.current == 0
+          ? l10n.diaperStockBannerEmpty
+          : l10n.diaperStockBannerCritical(stock.current);
+    } else if (stock.isWarning) {
+      bg = AppColors.honey700.withValues(alpha: 0.15);
+      fg = AppColors.honey700;
+      icon = Icons.inventory_2_outlined;
+      label = l10n.diaperStockBannerWarning(stock.current, stock.initial);
+    } else {
+      // Plenty left — neutral info pill so user always knows the count.
+      bg = scheme.surfaceContainerHigh;
+      fg = scheme.onSurface.withValues(alpha: 0.8);
+      icon = Icons.inventory_2_outlined;
+      label = l10n.diaperStockCurrentRemaining(stock.current, stock.initial);
+    }
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        onTap: () => showDiaperRestockDialog(context, ref, babyId),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTypography.labelLarge(color: fg),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: fg),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

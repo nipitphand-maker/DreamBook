@@ -132,29 +132,23 @@ class _DiaperRestockDialogState extends ConsumerState<_DiaperRestockDialog> {
           ],
         ],
       ),
-      actionsAlignment: MainAxisAlignment.spaceBetween,
+      // Flat actions list — wrapping Cancel + Save inside a Row breaks
+      // Material 3's OverflowBar layout (Save ended up clipped off-screen
+      // on narrow phones, leaving only Cancel visible).
       actions: [
         if (hasTracking)
           TextButton.icon(
             onPressed: _stopTracking,
             icon: const Icon(Icons.delete_outline, size: 18),
             label: Text(l10n.diaperStockStopTracking),
-          )
-        else
-          const SizedBox.shrink(),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l10n.actionCancel),
-            ),
-            const SizedBox(width: AppSpacing.xxs),
-            FilledButton(
-              onPressed: _save,
-              child: Text(l10n.actionSave),
-            ),
-          ],
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: Text(l10n.actionSave),
         ),
       ],
     );
