@@ -20,7 +20,7 @@ void main() {
   late SharedPreferences prefs;
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'feed.alertEnabled': false});
     prefs = await SharedPreferences.getInstance();
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,

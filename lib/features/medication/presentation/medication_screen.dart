@@ -70,7 +70,7 @@ class _MedicationScreenState extends ConsumerState<MedicationScreen> {
     final drug = _drugNameCtrl.text.trim();
     if (drug.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a drug name.')),
+        SnackBar(content: Text(context.l10n.medErrorEmptyDrugName)),
       );
       return;
     }
@@ -78,7 +78,7 @@ class _MedicationScreenState extends ConsumerState<MedicationScreen> {
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid dose amount.')),
+        SnackBar(content: Text(context.l10n.medErrorInvalidAmount)),
       );
       return;
     }

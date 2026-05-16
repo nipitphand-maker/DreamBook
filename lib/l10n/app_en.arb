@@ -711,5 +711,7 @@
   "@medNotifBody": { "placeholders": { "drugName": { "type": "String" } } },
   "medHistoryEmpty": "No doses today",
   "medSaved": "Saved",
-  "medPdfSectionTitle": "Medications"
+  "medPdfSectionTitle": "Medications",
+  "medErrorEmptyDrugName": "Please enter a drug name.",
+  "medErrorInvalidAmount": "Please enter a valid dose amount."
 }

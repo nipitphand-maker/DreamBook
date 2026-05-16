@@ -151,7 +151,7 @@ class FeedRepository {
 
     _ref.invalidate(feedTodayProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
-    unawaited(_scheduleAlert(babyId));
+    unawaited(_scheduleAlert(babyId).catchError((_) {}));
     return feed;
   }
 
@@ -192,7 +192,7 @@ class FeedRepository {
 
     _ref.invalidate(feedTodayProvider(next.babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
-    unawaited(_scheduleAlert(next.babyId));
+    unawaited(_scheduleAlert(next.babyId).catchError((_) {}));
     return next;
   }
 

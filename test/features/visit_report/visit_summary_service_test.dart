@@ -2,6 +2,13 @@ import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/db/migrations/m001_initial.dart';
 import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/m003_v3.dart';
+import 'package:dreambook/core/db/migrations/m004_v4.dart';
+import 'package:dreambook/core/db/migrations/m005_daily_note.dart';
+import 'package:dreambook/core/db/migrations/m006_sync_written_by.dart';
+import 'package:dreambook/core/db/migrations/m007_sync_cursors.dart';
+import 'package:dreambook/core/db/migrations/m008_milestone.dart';
+import 'package:dreambook/core/db/migrations/m009_temp_reading.dart';
+import 'package:dreambook/core/db/migrations/m010_medication.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/features/visit_report/data/visit_summary_service.dart';
@@ -26,9 +33,13 @@ void main() {
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 10,
         onCreate: (d, _) async {
-          await Migrations([m001Initial, m002V2, m003V3]).runAll(d);
+          await Migrations([
+            m001Initial, m002V2, m003V3, m004V4, m005DailyNote,
+            m006SyncWrittenBy, m007SyncCursors, m008Milestone,
+            m009TempReading, m010Medication,
+          ]).runAll(d);
         },
       ),
     );

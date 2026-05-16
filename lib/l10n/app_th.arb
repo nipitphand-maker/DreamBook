@@ -708,5 +708,7 @@
   "@medNotifBody": { "placeholders": { "drugName": { "type": "String" } } },
   "medHistoryEmpty": "ยังไม่มีการให้ยาวันนี้",
   "medSaved": "บันทึกแล้ว",
-  "medPdfSectionTitle": "ยาที่ได้รับ"
+  "medPdfSectionTitle": "ยาที่ได้รับ",
+  "medErrorEmptyDrugName": "กรุณาระบุชื่อยา",
+  "medErrorInvalidAmount": "กรุณาระบุปริมาณยาที่ถูกต้อง"
 }
