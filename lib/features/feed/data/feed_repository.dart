@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/day_start_hour_provider.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
+import 'package:dreambook/core/services/feed_alert_service.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:dreambook/core/utils/day_boundary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +41,37 @@ class FeedRepository {
   static const _uuid = Uuid();
 
   Future<Database> get _db => _ref.read(appDatabaseProvider.future);
+
+  Future<String> _babyName(String babyId) async {
+    final db = await _db;
+    final rows = await db.query(
+      'baby',
+      columns: ['name', 'nickname'],
+      where: 'id = ?',
+      whereArgs: [babyId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return '';
+    final nick = rows.first['nickname'] as String?;
+    return (nick != null && nick.isNotEmpty)
+        ? nick
+        : (rows.first['name'] as String? ?? '');
+  }
+
+  Future<void> _scheduleAlert(String babyId) async {
+    final prefs = _ref.read(sharedPreferencesProvider);
+    final lastFeed = await getLastFeedForBaby(babyId);
+    final name = await _babyName(babyId);
+    final intervalHours = prefs.getInt(FeedAlertService.prefsKey) ?? 3;
+    await FeedAlertService.scheduleForLastFeed(
+      prefs: prefs,
+      lastFeed: lastFeed,
+      title: 'Time to feed',
+      body: name.isEmpty
+          ? 'No feeding in ${intervalHours}h'
+          : '$name hasn\'t fed in ${intervalHours}h',
+    );
+  }
 
   /// All non-deleted feeds for [babyId] that fall within the logical day
   /// containing [now] (defaults to `DateTime.now()`), as defined by
@@ -116,6 +151,7 @@ class FeedRepository {
 
     _ref.invalidate(feedTodayProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
+    unawaited(_scheduleAlert(babyId));
     return feed;
   }
 
@@ -156,7 +192,29 @@ class FeedRepository {
 
     _ref.invalidate(feedTodayProvider(next.babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
+    unawaited(_scheduleAlert(next.babyId));
     return next;
+  }
+
+  /// Returns the most recent non-deleted feed for [babyId] regardless of date,
+  /// ordered by ended_at DESC NULLS LAST then started_at DESC. Returns null if
+  /// no feeds exist.
+  Future<Feed?> getLastFeedForBaby(String babyId) async {
+    final db = await _db;
+    final rows = await db.rawQuery(
+      '''
+      SELECT * FROM feed
+      WHERE baby_id = ? AND deleted_at IS NULL
+      ORDER BY
+        CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END,
+        ended_at DESC,
+        started_at DESC
+      LIMIT 1
+      ''',
+      [babyId],
+    );
+    if (rows.isEmpty) return null;
+    return Feed.fromRow(rows.first);
   }
 
   /// Soft-delete: stamps `deleted_at`, bumps version, marks `sync_state` dirty.

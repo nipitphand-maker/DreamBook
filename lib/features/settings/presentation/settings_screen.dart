@@ -5,6 +5,7 @@ import 'package:dreambook/core/providers/premium_provider.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/router/app_router.dart';
+import 'package:dreambook/core/services/feed_alert_service.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/core/providers/locale_provider.dart';
@@ -13,6 +14,7 @@ import 'package:dreambook/core/theme/theme_mode_controller.dart';
 import 'package:dreambook/features/baby/data/baby_repository.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/baby/presentation/add_baby_screen.dart';
+import 'package:dreambook/features/feed/data/feed_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -268,6 +270,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onSelectionChanged: (s) => textScaleNotifier.set(s.first),
           ),
           _SectionHeader(title: l10n.settingsSectionPumping),
+          const _FeedAlertTile(),
           ListTile(
             title: Text(l10n.settingsBottleSizeLabel),
             trailing: Row(
@@ -453,6 +456,72 @@ class _SectionHeader extends StatelessWidget {
               : AppColors.lavender700,
         ),
       ),
+    );
+  }
+}
+
+class _FeedAlertTile extends ConsumerStatefulWidget {
+  const _FeedAlertTile();
+
+  @override
+  ConsumerState<_FeedAlertTile> createState() => _FeedAlertTileState();
+}
+
+class _FeedAlertTileState extends ConsumerState<_FeedAlertTile> {
+  late bool _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefs = ref.read(sharedPreferencesProvider);
+    _enabled = prefs.getBool(FeedAlertService.enabledKey) ?? true;
+  }
+
+  Future<void> _toggle(bool value) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final l10n = context.l10n;
+    await prefs.setBool(FeedAlertService.enabledKey, value);
+    setState(() => _enabled = value);
+
+    if (!value) {
+      await FeedAlertService.cancel();
+      return;
+    }
+
+    final babyId = ref.read(currentBabyIdProvider);
+    if (babyId == null) return;
+
+    final lastFeed =
+        await ref.read(feedRepositoryProvider).getLastFeedForBaby(babyId);
+    final intervalHours = prefs.getInt(FeedAlertService.prefsKey) ?? 3;
+    final baby = await ref.read(babyRepositoryProvider).getActive();
+    final babyName = baby?.nickname?.isNotEmpty == true
+        ? baby!.nickname!
+        : (baby?.name ?? '');
+
+    if (!mounted) return;
+    await FeedAlertService.scheduleForLastFeed(
+      prefs: prefs,
+      lastFeed: lastFeed,
+      title: l10n.feedAlertNotifTitle,
+      body: babyName.isEmpty
+          ? l10n.feedAlertSettingSubtitle(intervalHours)
+          : l10n.feedAlertNotifBody(babyName, intervalHours),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final prefs = ref.read(sharedPreferencesProvider);
+    final intervalHours = prefs.getInt(FeedAlertService.prefsKey) ?? 3;
+
+    return SwitchListTile(
+      secondary: const Icon(Icons.notifications_outlined),
+      title: Text(l10n.feedAlertSettingTitle),
+      subtitle: Text(l10n.feedAlertSettingSubtitle(intervalHours)),
+      value: _enabled,
+      onChanged: _toggle,
     );
   }
 }
