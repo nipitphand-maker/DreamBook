@@ -173,14 +173,16 @@ void main() {
   test(
       'todayFor(babyId) returns rows for today sorted started_at DESC, excludes soft-deleted',
       () async {
-    final now = DateTime.utc(2026, 5, 13);
+    // LOCAL midnight + LOCAL fixture times — todayFor() uses logicalDayBounds
+    // with LOCAL `now`, so UTC fixtures fail at 00:00–03:00 local time.
+    final now = DateTime(2026, 5, 13);
     final earlier = await repo.insert(
       babyId: 'b1',
-      startedAt: DateTime.utc(2026, 5, 13, 8),
+      startedAt: DateTime(2026, 5, 13, 8),
     );
     final later = await repo.insert(
       babyId: 'b1',
-      startedAt: DateTime.utc(2026, 5, 13, 10),
+      startedAt: DateTime(2026, 5, 13, 10),
     );
 
     // Soft-delete the earlier session

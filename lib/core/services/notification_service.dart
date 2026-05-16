@@ -16,8 +16,7 @@ class NotificationService {
 
   static Future<void> init() async {
     tzdata.initializeTimeZones();
-    final tzName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(tzName));
+    await refreshLocalTimezone();
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
@@ -28,6 +27,19 @@ class NotificationService {
     await _plugin.initialize(
       settings: const InitializationSettings(android: android, iOS: ios),
     );
+  }
+
+  /// Re-read the device's current timezone and update `tz.local`. Call this
+  /// on app resume so notifications scheduled after a timezone change
+  /// (e.g. user travelled across time zones) fire at the new local time.
+  static Future<void> refreshLocalTimezone() async {
+    try {
+      final tzName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(tzName));
+    } catch (_) {
+      // Best-effort: if the platform channel fails we keep the previous
+      // tz.local rather than crash the app on resume.
+    }
   }
 
   static Future<bool> requestPermissions() async {

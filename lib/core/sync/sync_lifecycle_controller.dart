@@ -9,6 +9,7 @@ import '../crypto/family_key_service.dart';
 import '../db/database_provider.dart';
 import '../families/family_provider.dart';
 import '../providers/device_id_provider.dart';
+import '../services/notification_service.dart';
 import '../../features/baby/data/current_baby_provider.dart';
 import '../../features/diaper/data/diaper_repository.dart';
 import '../../features/feed/data/feed_repository.dart';
@@ -81,6 +82,9 @@ class SyncLifecycleController extends WidgetsBindingObserver {
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
+      // Refresh tz.local first — user may have crossed a timezone since
+      // last foreground. Cheap; failure is non-fatal.
+      await NotificationService.refreshLocalTimezone();
       await syncNow(trigger: SyncTrigger.foreground);
     }
   }

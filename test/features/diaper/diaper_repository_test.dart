@@ -77,14 +77,18 @@ void main() {
 
   // Test 3: todayFor excludes diapers from yesterday
   test('todayFor excludes diapers from yesterday', () async {
-    final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+    // Deterministic local times — running this test at 00:00–03:00 local
+    // with `DateTime.now()` makes the day boundary cross the fixture's
+    // "yesterday" timestamp.
+    final fixedLocalNow = DateTime(2026, 5, 13, 14);
+    final yesterday = DateTime(2026, 5, 12, 14);
     await repo.insert(
       babyId: 'b1',
       type: DiaperType.pee,
       occurredAt: yesterday,
     );
 
-    final diapers = await repo.todayFor('b1');
+    final diapers = await repo.todayFor('b1', now: fixedLocalNow);
     expect(diapers, isEmpty);
   });
 

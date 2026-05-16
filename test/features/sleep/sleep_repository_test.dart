@@ -77,13 +77,16 @@ void main() {
 
   // Test 3: todayFor excludes sessions from yesterday
   test('todayFor excludes sessions from yesterday', () async {
-    final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+    // Deterministic local times — running at 00:00–03:00 local with
+    // `DateTime.now()` makes the day boundary cross the fixture timestamp.
+    final fixedLocalNow = DateTime(2026, 5, 13, 14);
+    final yesterday = DateTime(2026, 5, 12, 14);
     await repo.start(
       babyId: 'b1',
       startedAt: yesterday,
     );
 
-    final sessions = await repo.todayFor('b1');
+    final sessions = await repo.todayFor('b1', now: fixedLocalNow);
     expect(sessions, isEmpty);
   });
 

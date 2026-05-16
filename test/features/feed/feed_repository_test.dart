@@ -147,8 +147,12 @@ void main() {
   test(
       'todayFor(babyId) returns only rows with started_at >= today-midnight-UTC',
       () async {
-    final now = DateTime.utc(2026, 5, 13, 14);
-    final todayMidnight = DateTime.utc(2026, 5, 13);
+    // Use LOCAL time — production todayFor() computes the day boundary
+    // via logicalDayBounds() with a LOCAL `now`. Mixing UTC fixtures here
+    // makes the test fail at 00:00–03:00 local (when UTC midnight already
+    // rolled over but local midnight hasn't).
+    final now = DateTime(2026, 5, 13, 14);
+    final todayMidnight = DateTime(2026, 5, 13);
     final yesterday = todayMidnight.subtract(const Duration(hours: 5));
     final todayMorning = todayMidnight.add(const Duration(hours: 6));
     final todayAfternoon = todayMidnight.add(const Duration(hours: 13));
