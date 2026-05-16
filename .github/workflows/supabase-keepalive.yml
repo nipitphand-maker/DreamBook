@@ -1,0 +1,25 @@
+name: supabase_keepalive
+on:
+  schedule:
+    - cron: "0 12 */5 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Ping Supabase REST API to prevent free-tier pause
+        run: |
+          SUPABASE_URL="https://cikqrzcdnlytwzfxibli.supabase.co"
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/families?select=id&limit=1")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "406" ]; then
+            echo "Supabase is alive."
+          else
+            echo "Unexpected status: $STATUS" && exit 1
+          fi

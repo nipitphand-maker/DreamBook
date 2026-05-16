@@ -1,6 +1,8 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/day_start_hour_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
+import 'package:dreambook/core/utils/day_boundary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -19,17 +21,27 @@ class SleepRepository {
 
   Future<Database> get _db => _ref.read(appDatabaseProvider.future);
 
-  /// All non-deleted sleep sessions for [babyId] that started on or after
-  /// midnight UTC of [now] (defaults to `DateTime.now()`). Ordered by
-  /// `started_at DESC` — freshest entry first.
-  Future<List<Sleep>> todayFor(String babyId, {DateTime? now}) async {
+  /// All non-deleted sleep sessions for [babyId] that fall within the logical
+  /// day containing [now] (defaults to `DateTime.now()`), as defined by
+  /// [dayStartHour]. Sessions started before [dayStartHour] are attributed to
+  /// the previous calendar day. Ordered by `started_at DESC` — freshest first.
+  ///
+  /// [dayStartHour] defaults to 0 (midnight) for backward compatibility.
+  Future<List<Sleep>> todayFor(
+    String babyId, {
+    DateTime? now,
+    int dayStartHour = 0,
+  }) async {
     final db = await _db;
-    final n = (now ?? DateTime.now()).toUtc();
-    final startOfDay = DateTime.utc(n.year, n.month, n.day).toIso8601String();
+    final n = now ?? DateTime.now();
+    final (start, end) = logicalDayBounds(n, dayStartHour);
+    final startStr = start.toUtc().toIso8601String();
+    final endStr = end.toUtc().toIso8601String();
     final rows = await db.query(
       'sleep',
-      where: 'baby_id = ? AND deleted_at IS NULL AND started_at >= ?',
-      whereArgs: [babyId, startOfDay],
+      where:
+          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
+      whereArgs: [babyId, startStr, endStr],
       orderBy: 'started_at DESC',
     );
     return rows.map(Sleep.fromRow).toList(growable: false);
@@ -110,15 +122,18 @@ class SleepRepository {
     late Sleep updated;
 
     await db.transaction((txn) async {
-      // Fetch startedAt to compute duration
+      // Fetch startedAt to compute duration — guard deleted rows so we never
+      // attempt to end a soft-deleted session.
       final rows = await txn.query(
         'sleep',
         columns: ['started_at', 'version'],
-        where: 'id = ?',
+        where: 'id = ? AND deleted_at IS NULL',
         whereArgs: [id],
         limit: 1,
       );
-      if (rows.isEmpty) throw StateError('Sleep record $id not found');
+      if (rows.isEmpty) {
+        throw StateError('Sleep record $id not found or already deleted');
+      }
 
       final startedAt = DateTime.parse(rows.first['started_at']! as String);
       final durationMin = endedAt.toUtc().difference(startedAt).inMinutes;
@@ -131,7 +146,7 @@ class SleepRepository {
             duration_min = ?,
             updated_at   = ?,
             version      = ?
-        WHERE id = ?
+        WHERE id = ? AND ended_at IS NULL
         ''',
         [endedAtStr, durationMin, nowStr, newVersion, id],
       );
@@ -256,6 +271,72 @@ class SleepRepository {
     _ref.invalidate(sleepActiveProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
+
+  /// Update mutable fields on an existing Sleep session. Bumps version, writes
+  /// sync_state dirty. Recalculates [durationMin] if both [startedAt] and
+  /// [endedAt] are present. Throws [StateError] if [sleep.id] does not exist.
+  ///
+  /// Invalidates [sleepTodayProvider] and [sleepActiveProvider] for
+  /// [sleep.babyId] on success.
+  Future<void> update(Sleep sleep) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc().toIso8601String();
+    final endedAtStr = sleep.endedAt?.toUtc().toIso8601String();
+    final durationMin = sleep.endedAt
+        ?.toUtc()
+        .difference(sleep.startedAt.toUtc())
+        .inMinutes;
+
+    await db.transaction((txn) async {
+      final affected = await txn.rawUpdate(
+        '''
+        UPDATE sleep
+        SET started_at   = ?,
+            ended_at     = ?,
+            duration_min = ?,
+            note         = ?,
+            updated_at   = ?,
+            version      = version + 1
+        WHERE id = ? AND deleted_at IS NULL
+        ''',
+        [
+          sleep.startedAt.toUtc().toIso8601String(),
+          endedAtStr,
+          durationMin,
+          sleep.note,
+          now,
+          sleep.id,
+        ],
+      );
+      if (affected == 0) {
+        throw StateError('Sleep ${sleep.id} not found or already deleted');
+      }
+
+      final newVersion = Sqflite.firstIntValue(
+            await txn.rawQuery(
+              'SELECT version FROM sleep WHERE id = ?',
+              [sleep.id],
+            ),
+          ) ??
+          1;
+
+      await txn.insert(
+        'sync_state',
+        {
+          'record_id': sleep.id,
+          'table_name': 'sleep',
+          'version': newVersion,
+          'updated_at': now,
+          'dirty': 1,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+
+    _ref.invalidate(sleepTodayProvider(sleep.babyId));
+    _ref.invalidate(sleepActiveProvider(sleep.babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
+  }
 }
 
 final sleepRepositoryProvider =
@@ -274,8 +355,12 @@ class SleepTodayNotifier extends AsyncNotifier<List<Sleep>> {
   final String babyId;
 
   @override
-  Future<List<Sleep>> build() =>
-      ref.read(sleepRepositoryProvider).todayFor(babyId);
+  Future<List<Sleep>> build() {
+    final dayStartHour = ref.watch(dayStartHourProvider);
+    return ref
+        .read(sleepRepositoryProvider)
+        .todayFor(babyId, dayStartHour: dayStartHour);
+  }
 }
 
 /// The current ongoing sleep session for [babyId], or null if awake.

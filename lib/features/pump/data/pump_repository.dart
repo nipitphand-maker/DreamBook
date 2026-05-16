@@ -1,16 +1,24 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/day_start_hour_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
+import 'package:dreambook/core/utils/day_boundary.dart';
+import 'package:dreambook/features/stash/data/stash_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 /// Represents a bottle portion to be stashed at pump-save time.
 class PendingBottle {
-  const PendingBottle({required this.oz, this.source = BottleSource.pump});
+  const PendingBottle({
+    required this.oz,
+    this.source = BottleSource.pump,
+    this.storage = StorageType.freezer,
+  });
 
   final double oz;
   final BottleSource source;
+  final StorageType storage;
 }
 
 /// Local persistence for PumpSession + companion StashBottle creation.
@@ -29,17 +37,27 @@ class PumpRepository {
 
   Future<Database> get _db => _ref.read(appDatabaseProvider.future);
 
-  /// All non-deleted pump sessions for [babyId] that started on or after
-  /// midnight UTC of [now] (defaults to `DateTime.now()`). Ordered by
-  /// `started_at DESC` — freshest session first.
-  Future<List<PumpSession>> todayFor(String babyId, {DateTime? now}) async {
+  /// All non-deleted pump sessions for [babyId] that fall within the logical
+  /// day containing [now] (defaults to `DateTime.now()`), as defined by
+  /// [dayStartHour]. Sessions started before [dayStartHour] are attributed to
+  /// the previous calendar day. Ordered by `started_at DESC` — freshest first.
+  ///
+  /// [dayStartHour] defaults to 0 (midnight) for backward compatibility.
+  Future<List<PumpSession>> todayFor(
+    String babyId, {
+    DateTime? now,
+    int dayStartHour = 0,
+  }) async {
     final db = await _db;
-    final n = now ?? DateTime.now(); // keep local time
-    final startOfDay = DateTime(n.year, n.month, n.day).toUtc().toIso8601String();
+    final n = now ?? DateTime.now();
+    final (start, end) = logicalDayBounds(n, dayStartHour);
+    final startStr = start.toUtc().toIso8601String();
+    final endStr = end.toUtc().toIso8601String();
     final rows = await db.query(
       'pump_session',
-      where: 'baby_id = ? AND deleted_at IS NULL AND started_at >= ?',
-      whereArgs: [babyId, startOfDay],
+      where:
+          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
+      whereArgs: [babyId, startStr, endStr],
       orderBy: 'started_at DESC',
     );
     return rows.map(PumpSession.fromRow).toList(growable: false);
@@ -95,7 +113,7 @@ class PumpRepository {
         pumpedAt: pumpedAtUtc,
         frozenAt: pumpedAtUtc,
         expiresAt: pumpedAtUtc.add(const Duration(days: 180)),
-        storage: StorageType.freezer,
+        storage: b.storage,
         source: b.source,
         createdAt: now,
         updatedAt: now,
@@ -135,6 +153,9 @@ class PumpRepository {
     });
 
     _ref.invalidate(pumpTodayProvider(babyId));
+    if (bottles.isNotEmpty) {
+      _ref.invalidate(stashAvailableProvider(babyId));
+    }
     _ref.read(syncLifecycleControllerProvider).schedulePush();
     return session;
   }
@@ -186,6 +207,64 @@ class PumpRepository {
     _ref.invalidate(pumpTodayProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
+
+  /// Update mutable fields on an existing PumpSession. Bumps version, writes
+  /// sync_state dirty. Throws [StateError] if [session.id] does not exist.
+  ///
+  /// Invalidates [pumpTodayProvider] for [session.babyId] on success.
+  Future<void> update(PumpSession session) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    await db.transaction((txn) async {
+      final affected = await txn.rawUpdate(
+        '''
+        UPDATE pump_session
+        SET started_at          = ?,
+            left_oz             = ?,
+            right_oz            = ?,
+            note                = ?,
+            updated_at          = ?,
+            version             = version + 1
+        WHERE id = ? AND deleted_at IS NULL
+        ''',
+        [
+          session.startedAt.toUtc().toIso8601String(),
+          session.leftOz,
+          session.rightOz,
+          session.note,
+          now,
+          session.id,
+        ],
+      );
+      if (affected == 0) {
+        throw StateError('PumpSession ${session.id} not found or already deleted');
+      }
+
+      final newVersion = Sqflite.firstIntValue(
+            await txn.rawQuery(
+              'SELECT version FROM pump_session WHERE id = ?',
+              [session.id],
+            ),
+          ) ??
+          1;
+
+      await txn.insert(
+        'sync_state',
+        {
+          'record_id': session.id,
+          'table_name': 'pump_session',
+          'version': newVersion,
+          'updated_at': now,
+          'dirty': 1,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+
+    _ref.invalidate(pumpTodayProvider(session.babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
+  }
 }
 
 final pumpRepositoryProvider =
@@ -208,6 +287,10 @@ class PumpTodayNotifier extends AsyncNotifier<List<PumpSession>> {
   final String babyId;
 
   @override
-  Future<List<PumpSession>> build() =>
-      ref.read(pumpRepositoryProvider).todayFor(babyId);
+  Future<List<PumpSession>> build() {
+    final dayStartHour = ref.watch(dayStartHourProvider);
+    return ref
+        .read(pumpRepositoryProvider)
+        .todayFor(babyId, dayStartHour: dayStartHour);
+  }
 }

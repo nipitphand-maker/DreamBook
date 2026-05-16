@@ -4,8 +4,10 @@ import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/widgets/logged_at_chip.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/sleep/data/sleep_repository.dart';
+import 'package:dreambook/features/sleep/presentation/sleep_history_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dreambook/core/router/app_router.dart';
@@ -34,8 +36,8 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
 
   // --- Past-entry form state ---
   bool _isPastMode = false;
-  DateTime _pastStart = DateTime.now().subtract(const Duration(hours: 2));
-  DateTime _pastEnd = DateTime.now();
+  DateTime? _pastStart;
+  DateTime? _pastEnd;
   SleepLocation _pastLocation = SleepLocation.crib;
   final _pastNotesCtrl = TextEditingController();
 
@@ -51,18 +53,38 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     final prefs = ref.read(sharedPreferencesProvider);
     final startedAtStr = prefs.getString(_kSleepStartedAt);
     final sleepId = prefs.getString(_kSleepId);
+    final babyId = ref.read(currentBabyIdProvider);
 
-    if (startedAtStr != null && sleepId != null) {
-      final startedAt = DateTime.parse(startedAtStr);
-      setState(() {
-        _activeSleepId = sleepId;
-        _activeSleepStartedAt = startedAt;
-        _elapsed = DateTime.now().difference(startedAt);
+    if (startedAtStr != null && sleepId != null && babyId != null) {
+      // Cross-check DB: prefs can be stale if another device ended the session.
+      ref.read(sleepActiveProvider(babyId).future).then((active) {
+        if (!mounted) return;
+        if (active?.id == sleepId) {
+          // DB confirms session is still open — restore timer from prefs start time.
+          final startedAt = DateTime.parse(startedAtStr);
+          setState(() {
+            _activeSleepId = sleepId;
+            _activeSleepStartedAt = startedAt;
+            _elapsed = DateTime.now().difference(startedAt);
+          });
+          _startTicker();
+        } else {
+          // Session ended (remotely or after crash) — clear stale prefs.
+          prefs.remove(_kSleepStartedAt);
+          prefs.remove(_kSleepId);
+          // Check DB for any other active session.
+          if (active != null) {
+            setState(() {
+              _activeSleepId = active.id;
+              _activeSleepStartedAt = active.startedAt;
+              _elapsed = DateTime.now().difference(active.startedAt);
+            });
+            _startTicker();
+          }
+        }
       });
-      _startTicker();
-    } else {
-      final babyId = ref.read(currentBabyIdProvider);
-      if (babyId == null) return;
+    } else if (babyId != null) {
+      // No prefs — DB is authoritative.
       ref.read(sleepActiveProvider(babyId).future).then((active) {
         if (!mounted) return;
         if (active != null) {
@@ -148,7 +170,13 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     final h = totalMin ~/ 60;
     final m = totalMin % 60;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(h > 0 ? 'Slept for ${h}h ${m}m' : 'Slept for ${m}m')),
+      SnackBar(
+        content: Text(
+          h > 0
+              ? context.l10n.sleepSleptForHM(h, m)
+              : context.l10n.sleepSleptForM(m),
+        ),
+      ),
     );
     if (context.canPop()) {
       context.pop();
@@ -159,7 +187,10 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
 
   Future<void> _onSavePast() async {
     final l10n = context.l10n;
-    if (!_pastEnd.isAfter(_pastStart)) {
+    final now = DateTime.now();
+    final effectiveStart = _pastStart ?? now.subtract(const Duration(hours: 2));
+    final effectiveEnd = _pastEnd ?? now;
+    if (!effectiveEnd.isAfter(effectiveStart)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.sleepEndBeforeStart)),
       );
@@ -175,8 +206,8 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     final note = _pastNotesCtrl.text.trim().isEmpty ? null : _pastNotesCtrl.text.trim();
     await ref.read(sleepRepositoryProvider).insertPast(
       babyId: babyId,
-      startedAt: _pastStart,
-      endedAt: _pastEnd,
+      startedAt: effectiveStart,
+      endedAt: effectiveEnd,
       location: _pastLocation,
       note: note,
     );
@@ -186,31 +217,10 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     );
     setState(() {
       _isPastMode = false;
+      _pastStart = null;
+      _pastEnd = null;
       _pastNotesCtrl.clear();
     });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Time picker helpers
-  // ---------------------------------------------------------------------------
-
-  Future<void> _pickDateTime({
-    required DateTime current,
-    required ValueChanged<DateTime> onPicked,
-  }) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: current,
-      firstDate: DateTime.now().subtract(const Duration(days: 30)),
-      lastDate: DateTime.now(),
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(current),
-    );
-    if (time == null) return;
-    onPicked(DateTime(date.year, date.month, date.day, time.hour, time.minute));
   }
 
   // ---------------------------------------------------------------------------
@@ -224,13 +234,8 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
-  String _fmtDateTime(DateTime dt) {
-    final date = '${dt.day}/${dt.month}/${dt.year}';
-    final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    return '$date  $time';
-  }
-
-  String _fmtDuration(DateTime start, DateTime end) {
+  String _fmtDuration(DateTime? start, DateTime? end) {
+    if (start == null || end == null) return '--';
     final diff = end.difference(start);
     if (diff.isNegative) return '--';
     final h = diff.inHours;
@@ -247,7 +252,7 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     final l10n = context.l10n;
     String title;
     if (_isActive) {
-      title = 'Sleeping... 💤';
+      title = l10n.sleepActiveTitle;
     } else if (_isPastMode) {
       title = l10n.sleepLogPast;
     } else {
@@ -285,21 +290,23 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildIdleBody(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Center(
-          child: Icon(Icons.bedtime_outlined, size: 80, color: AppColors.lavender700),
+        Center(
+          child: Icon(Icons.bedtime_outlined, size: 80, color: scheme.primary),
         ),
         const SizedBox(height: AppSpacing.md),
         Center(
           child: Text(
-            'Tap Start to begin tracking',
-            style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+            l10n.sleepTapStartHint,
+            style: AppTypography.bodyMedium(color: scheme.onSurface.withValues(alpha: 0.6)),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
         SegmentedButton<SleepLocation>(
+          showSelectedIcon: false,
           segments: [
             ButtonSegment(value: SleepLocation.crib, label: Text(l10n.sleepLocationCrib)),
             ButtonSegment(value: SleepLocation.stroller, label: Text(l10n.sleepLocationStroller)),
@@ -327,12 +334,28 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
         TextButton.icon(
           onPressed: () => setState(() {
             _isPastMode = true;
-            _pastStart = DateTime.now().subtract(const Duration(hours: 2));
-            _pastEnd = DateTime.now();
+            _pastStart = null;
+            _pastEnd = null;
             _pastLocation = SleepLocation.crib;
           }),
           icon: const Icon(Icons.history),
           label: Text(l10n.sleepLogPast),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // --- Today's history ---
+        Consumer(
+          builder: (context, ref, _) {
+            final babyId = ref.watch(currentBabyIdProvider);
+            if (babyId == null) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Divider(),
+                _SleepTodaySummary(babyId: babyId),
+                SleepHistorySection(babyId: babyId),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -343,56 +366,92 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildPastBody(AppLocalizations l10n) {
-    final durationText = _fmtDuration(_pastStart, _pastEnd);
+    final effectiveStart = _pastStart;
+    final effectiveEnd = _pastEnd;
+    final durationText = _fmtDuration(effectiveStart, effectiveEnd);
+    // Save requires an explicit start time; if end is set it must be after start.
+    final bool canSave = effectiveStart != null &&
+        (effectiveEnd == null || effectiveEnd.isAfter(effectiveStart));
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Start time
-        _TimeRow(
-          label: l10n.sleepFellAsleep,
-          value: _fmtDateTime(_pastStart),
-          onTap: () => _pickDateTime(
-            current: _pastStart,
-            onPicked: (dt) => setState(() => _pastStart = dt),
-          ),
+        Text(
+          l10n.sleepFellAsleep,
+          style: AppTypography.bodyMedium(
+              color: scheme.onSurface.withValues(alpha: 0.6)),
         ),
-        const Divider(height: 1),
+        const SizedBox(height: AppSpacing.xs),
+        LoggedAtChip(
+          value: _pastStart,
+          onTapToday: () async {
+            final picked = await pickTodayTime(context);
+            if (picked != null && mounted) setState(() => _pastStart = picked);
+          },
+          onTapPast: () async {
+            final picked = await pickPastDateTime(context, _pastStart);
+            if (picked != null && mounted) setState(() => _pastStart = picked);
+          },
+          onClear: _pastStart != null
+              ? () => setState(() => _pastStart = null)
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         // End time
-        _TimeRow(
-          label: l10n.sleepWokeUp,
-          value: _fmtDateTime(_pastEnd),
-          onTap: () => _pickDateTime(
-            current: _pastEnd,
-            onPicked: (dt) => setState(() => _pastEnd = dt),
-          ),
+        Text(
+          l10n.sleepWokeUp,
+          style: AppTypography.bodyMedium(
+              color: scheme.onSurface.withValues(alpha: 0.6)),
         ),
-        const Divider(height: 1),
+        const SizedBox(height: AppSpacing.xs),
+        LoggedAtChip(
+          value: _pastEnd,
+          onTapToday: () async {
+            final picked = await pickTodayTime(context);
+            if (picked != null && mounted) setState(() => _pastEnd = picked);
+          },
+          onTapPast: () async {
+            final picked = await pickPastDateTime(context, _pastEnd);
+            if (picked != null && mounted) setState(() => _pastEnd = picked);
+          },
+          onClear: _pastEnd != null
+              ? () => setState(() => _pastEnd = null)
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         // Duration (read-only)
         Padding(
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.sm,
             horizontal: AppSpacing.xs,
           ),
-          child: Row(
-            children: [
-              Text(l10n.sleepDuration,
-                  style: AppTypography.bodyMedium(color: AppColors.inkSecondary)),
-              const Spacer(),
-              Text(
-                durationText,
-                style: AppTypography.numeric(
-                  size: 16,
-                  color: _pastEnd.isAfter(_pastStart)
-                      ? AppColors.lavender700
-                      : AppColors.peach700,
+          child: Builder(builder: (ctx) {
+            final cs = Theme.of(ctx).colorScheme;
+            final isValid = effectiveStart != null &&
+                effectiveEnd != null &&
+                effectiveEnd.isAfter(effectiveStart);
+            return Row(
+              children: [
+                Text(l10n.sleepDuration,
+                    style: AppTypography.bodyMedium(color: cs.onSurface.withValues(alpha: 0.6))),
+                const Spacer(),
+                Text(
+                  durationText,
+                  style: AppTypography.numeric(
+                    size: 16,
+                    color: isValid ? cs.primary : cs.error,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ),
         const SizedBox(height: AppSpacing.md),
         // Location
         SegmentedButton<SleepLocation>(
+          showSelectedIcon: false,
           segments: [
             ButtonSegment(value: SleepLocation.crib, label: Text(l10n.sleepLocationCrib)),
             ButtonSegment(value: SleepLocation.stroller, label: Text(l10n.sleepLocationStroller)),
@@ -414,7 +473,7 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         FilledButton(
-          onPressed: _onSavePast,
+          onPressed: canSave ? _onSavePast : null,
           child: Text(l10n.actionSave),
         ),
       ],
@@ -426,28 +485,31 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildActiveBody(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Center(
           child: Text(
             _fmtElapsed(_elapsed),
-            style: AppTypography.statHero(color: AppColors.inkPrimary),
+            style: AppTypography.statHero(color: scheme.onSurface),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Center(
           child: Text(
-            'Baby is sleeping',
-            style: AppTypography.bodyLarge(color: AppColors.inkSecondary),
+            l10n.sleepBabyIsSleeping,
+            style: AppTypography.bodyLarge(color: scheme.onSurface.withValues(alpha: 0.6)),
           ),
         ),
         if (_activeSleepStartedAt != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Center(
             child: Text(
-              'Started at ${_activeSleepStartedAt!.hour.toString().padLeft(2, '0')}:${_activeSleepStartedAt!.minute.toString().padLeft(2, '0')}',
-              style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+              l10n.sleepStartedAtTime(
+                '${_activeSleepStartedAt!.hour.toString().padLeft(2, '0')}:${_activeSleepStartedAt!.minute.toString().padLeft(2, '0')}',
+              ),
+              style: AppTypography.bodyMedium(color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
           ),
         ],
@@ -463,42 +525,50 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Time row widget
+// Today summary bar
 // ---------------------------------------------------------------------------
 
-class _TimeRow extends StatelessWidget {
-  const _TimeRow({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-  final String label;
-  final String value;
-  final VoidCallback onTap;
+class _SleepTodaySummary extends ConsumerWidget {
+  const _SleepTodaySummary({required this.babyId});
+  final String babyId;
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.sm,
-          horizontal: AppSpacing.xs,
-        ),
-        child: Row(
-          children: [
-            Text(label,
-                style: AppTypography.bodyMedium(color: AppColors.inkSecondary)),
-            const Spacer(),
-            Text(
-              value,
-              style: AppTypography.numeric(size: 14, color: AppColors.inkPrimary),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            const Icon(Icons.edit_outlined, size: 16, color: AppColors.inkSecondary),
-          ],
-        ),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    return ref.watch(sleepTodayProvider(babyId)).when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (sessions) {
+        final completed = sessions.where((s) => s.endedAt != null).toList();
+        final String detail;
+        if (completed.isEmpty) {
+          detail = l10n.todayNoSleepYet;
+        } else {
+          final totalMin = completed.fold<int>(
+            0,
+            (sum, s) => sum + (s.durationMin ?? 0),
+          );
+          final h = totalMin ~/ 60;
+          final m = totalMin % 60;
+          final duration = h > 0 ? '$h h $m m' : '$m m';
+          detail = '${completed.length} ${completed.length == 1 ? 'session' : 'sessions'} · $duration';
+        }
+
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${l10n.todaySummaryPrefix}$detail',
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        );
+      },
     );
   }
 }

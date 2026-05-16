@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'bytea_codec.dart';
@@ -154,22 +155,37 @@ class SupabaseSyncServer implements SyncServer {
             value: familyId,
           ),
           callback: (payload) {
-            final row = payload.newRecord;
-            if (row.isEmpty) return;
-            controller.add(RemoteEncryptedRow(
-              tableName: row['table_name'] as String,
-              recordId: row['record_id'] as String,
-              version: row['version'] as int,
-              keyVersion: row['key_version'] as int,
-              familyId: row['family_id'] as String,
-              ciphertext: decodeBytea(row['ciphertext']),
-              aadHash: decodeBytea(row['aad_hash']),
-              writtenByDevice: row['written_by_device'] as String,
-              updatedAt: DateTime.parse(row['updated_at'] as String),
-              deletedAt: row['deleted_at'] == null
-                  ? null
-                  : DateTime.parse(row['deleted_at'] as String),
-            ));
+            // Realtime websocket may deliver bytea in a different format than
+            // PostgREST GET (e.g. base64 without padding, plain hex, JSON
+            // array). decodeBytea throws on unknown formats — catch here so
+            // a malformed realtime row doesn't crash the whole websocket
+            // pipeline; fall back to the next pullOnce which uses REST.
+            try {
+              final row = payload.newRecord;
+              if (row.isEmpty) return;
+              controller.add(RemoteEncryptedRow(
+                tableName: row['table_name'] as String,
+                recordId: row['record_id'] as String,
+                version: row['version'] as int,
+                keyVersion: row['key_version'] as int,
+                familyId: row['family_id'] as String,
+                ciphertext: decodeBytea(row['ciphertext']),
+                aadHash: decodeBytea(row['aad_hash']),
+                writtenByDevice: row['written_by_device'] as String,
+                updatedAt: DateTime.parse(row['updated_at'] as String),
+                deletedAt: row['deleted_at'] == null
+                    ? null
+                    : DateTime.parse(row['deleted_at'] as String),
+              ));
+            } catch (e) {
+              if (kDebugMode) {
+                final row = payload.newRecord;
+                debugPrint('[rt-decode-fail] table=${row['table_name']} '
+                    'id=${row['record_id']} ciphertextType=${row['ciphertext']?.runtimeType} '
+                    'ciphertextSample=${row['ciphertext']?.toString().substring(0, (row['ciphertext']?.toString().length ?? 0).clamp(0, 80))} '
+                    'err=$e');
+              }
+            }
           },
         )
         .subscribe();

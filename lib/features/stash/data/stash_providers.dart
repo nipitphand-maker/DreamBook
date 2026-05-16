@@ -26,11 +26,22 @@ final stashExpiringProvider =
       ),
 );
 
-/// Oldest available bottle for [babyId] (index 0 since FIFO), or null if empty.
+/// Bottle with the earliest `pumpedAt` for [babyId], or null if empty.
+///
+/// Note: the underlying [stashAvailableProvider] is now ordered by
+/// `expires_at ASC` (soonest-expiring first) so we cannot take
+/// `bottles.first` — instead we reduce over the list to find the
+/// oldest-pumped bottle. Used by the Home stash summary card to show
+/// "oldest Xd."
 final stashOldestProvider =
     Provider.family<AsyncValue<StashBottle?>, String>(
   (ref, babyId) => ref.watch(stashAvailableProvider(babyId)).whenData(
-        (bottles) => bottles.isEmpty ? null : bottles.first,
+        (bottles) {
+          if (bottles.isEmpty) return null;
+          return bottles.reduce(
+            (a, b) => a.pumpedAt.isBefore(b.pumpedAt) ? a : b,
+          );
+        },
       ),
 );
 

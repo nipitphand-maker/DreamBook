@@ -1,6 +1,8 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/day_start_hour_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
+import 'package:dreambook/core/utils/day_boundary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -36,17 +38,27 @@ class FeedRepository {
 
   Future<Database> get _db => _ref.read(appDatabaseProvider.future);
 
-  /// All non-deleted feeds for [babyId] that started on or after midnight UTC
-  /// of [now] (defaults to `DateTime.now()`). Ordered by `started_at DESC` —
-  /// freshest feed first, the way the Home "Today" row reads it.
-  Future<List<Feed>> todayFor(String babyId, {DateTime? now}) async {
+  /// All non-deleted feeds for [babyId] that fall within the logical day
+  /// containing [now] (defaults to `DateTime.now()`), as defined by
+  /// [dayStartHour]. Sessions started before [dayStartHour] are attributed to
+  /// the previous calendar day. Ordered by `started_at DESC` — freshest first.
+  ///
+  /// [dayStartHour] defaults to 0 (midnight) for backward compatibility.
+  Future<List<Feed>> todayFor(
+    String babyId, {
+    DateTime? now,
+    int dayStartHour = 0,
+  }) async {
     final db = await _db;
-    final n = (now ?? DateTime.now()).toUtc();
-    final startOfDay = DateTime.utc(n.year, n.month, n.day).toIso8601String();
+    final n = now ?? DateTime.now();
+    final (start, end) = logicalDayBounds(n, dayStartHour);
+    final startStr = start.toUtc().toIso8601String();
+    final endStr = end.toUtc().toIso8601String();
     final rows = await db.query(
       'feed',
-      where: 'baby_id = ? AND deleted_at IS NULL AND started_at >= ?',
-      whereArgs: [babyId, startOfDay],
+      where:
+          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
+      whereArgs: [babyId, startStr, endStr],
       orderBy: 'started_at DESC',
     );
     return rows.map(Feed.fromRow).toList(growable: false);
@@ -123,7 +135,7 @@ class FeedRepository {
       final rows = await txn.update(
         'feed',
         next.toRow(),
-        where: 'id = ? AND version = ?',
+        where: 'id = ? AND version = ? AND deleted_at IS NULL',
         whereArgs: [next.id, updated.version],
       );
       if (rows == 0) {
@@ -213,7 +225,9 @@ class FeedTodayNotifier extends AsyncNotifier<List<Feed>> {
 
   @override
   Future<List<Feed>> build() {
-    final repo = ref.read(feedRepositoryProvider);
-    return repo.todayFor(babyId);
+    final dayStartHour = ref.watch(dayStartHourProvider);
+    return ref
+        .read(feedRepositoryProvider)
+        .todayFor(babyId, dayStartHour: dayStartHour);
   }
 }

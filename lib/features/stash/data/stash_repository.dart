@@ -1,5 +1,6 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/stash_expiry_settings_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
@@ -21,7 +22,10 @@ class StashRepository {
   Future<Database> get _db => _ref.read(appDatabaseProvider.future);
 
   /// All non-deleted, non-consumed, non-discarded bottles for [babyId],
-  /// ordered `pumped_at ASC` (FIFO — oldest milk first).
+  /// ordered `expires_at ASC` (soonest-expiring milk first — that's what
+  /// the caregiver needs to consume next). Storage type affects expiry
+  /// differently (freezer 180d, fridge much less, room temp tiny), so
+  /// sorting by pump date does NOT reliably reflect "use this next."
   Future<List<StashBottle>> availableFor(String babyId) async {
     final db = await _db;
     final rows = await db.query(
@@ -29,7 +33,10 @@ class StashRepository {
       where:
           'deleted_at IS NULL AND consumed_at IS NULL AND discarded_at IS NULL AND baby_id = ?',
       whereArgs: [babyId],
-      orderBy: 'pumped_at ASC',
+      // Soonest-expiring first; within the same day, larger bottles first
+      // — using a full feed-sized bottle ahead of small "snack" portions
+      // means fewer thaw cycles for the same milliliters consumed.
+      orderBy: 'expires_at ASC, oz DESC',
     );
     return rows.map(StashBottle.fromRow).toList(growable: false);
   }
@@ -66,12 +73,13 @@ class StashRepository {
     final now = DateTime.now().toUtc();
     final pumpedAtUtc = pumpedAt.toUtc();
 
+    final expirySettings = _ref.read(stashExpirySettingsProvider);
     final bottle = StashBottle(
       id: _uuid.v4(),
       babyId: babyId,
       oz: oz,
       pumpedAt: pumpedAtUtc,
-      expiresAt: pumpedAtUtc.add(const Duration(days: 180)),
+      expiresAt: pumpedAtUtc.add(expirySettings.shelfLifeFor(storage)),
       storage: storage,
       source: BottleSource.collector,
       createdAt: now,
@@ -98,6 +106,46 @@ class StashRepository {
     return bottle;
   }
 
+  /// Optimistic-concurrency update: writes [updated] only when the row's
+  /// current `version` matches `updated.version`. Bumps version by 1 and
+  /// stamps `updated_at = now-utc`.
+  ///
+  /// Used by the history list's row-tap edit flow (adjust oz / pumpedAt /
+  /// storage). Throws [StateError] on version mismatch.
+  Future<StashBottle> update(StashBottle updated) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc();
+    final nextVersion = updated.version + 1;
+    final next = updated.copyWith(version: nextVersion, updatedAt: now);
+
+    await db.transaction((txn) async {
+      final rows = await txn.update(
+        'stash_bottle',
+        next.toRow(),
+        where: 'id = ? AND version = ?',
+        whereArgs: [next.id, updated.version],
+      );
+      if (rows == 0) {
+        throw StateError('StashBottle ${next.id} version mismatch');
+      }
+      await txn.insert(
+        'sync_state',
+        {
+          'record_id': next.id,
+          'table_name': 'stash_bottle',
+          'version': nextVersion,
+          'updated_at': now.toIso8601String(),
+          'dirty': 1,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+
+    _ref.invalidate(stashAvailableProvider(next.babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
+    return next;
+  }
+
   /// Mark a bottle as consumed: sets [consumedAt] = now, [consumedFeedId],
   /// bumps [version], updates `sync_state`.
   /// Invalidates [stashAvailableProvider] for [babyId].
@@ -117,11 +165,13 @@ class StashRepository {
             consumed_feed_id = ?,
             updated_at       = ?,
             version          = version + 1
-        WHERE id = ?
+        WHERE id = ? AND deleted_at IS NULL AND consumed_at IS NULL
         ''',
         [now, feedId, now, id],
       );
-      if (affected == 0) return;
+      if (affected == 0) {
+        throw StateError('Bottle $id already consumed, discarded, or deleted');
+      }
 
       final newVersion = Sqflite.firstIntValue(
             await txn.rawQuery(
@@ -162,11 +212,13 @@ class StashRepository {
         SET discarded_at = ?,
             updated_at   = ?,
             version      = version + 1
-        WHERE id = ?
+        WHERE id = ? AND deleted_at IS NULL AND discarded_at IS NULL
         ''',
         [now, now, id],
       );
-      if (affected == 0) return;
+      if (affected == 0) {
+        throw StateError('Bottle $id already discarded, consumed, or deleted');
+      }
 
       final newVersion = Sqflite.firstIntValue(
             await txn.rawQuery(
@@ -242,7 +294,7 @@ class StashRepository {
 final stashRepositoryProvider =
     Provider<StashRepository>(StashRepository.new);
 
-/// All available stash bottles for [babyId], FIFO ordered (oldest first).
+/// All available stash bottles for [babyId], ordered soonest-expiring first.
 /// Invalidated by every [StashRepository] write.
 final stashAvailableProvider = AsyncNotifierProvider.family<
     StashAvailableNotifier, List<StashBottle>, String>(

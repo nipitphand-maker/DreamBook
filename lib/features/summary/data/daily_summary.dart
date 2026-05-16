@@ -1,5 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/services/unit_preferences.dart';
+
+const double _mlPerOz = 29.5735;
+
+String _fmtVol(double oz, VolumeUnit unit) => unit == VolumeUnit.oz
+    ? '${oz.toStringAsFixed(1)} oz'
+    : '${(oz * _mlPerOz).round()} ml';
+
 /// Aggregated today-stats for one baby.
 ///
 /// Pure data class — no Riverpod, no DB. Constructed by [dailySummaryProvider]
@@ -10,6 +18,7 @@ class DailySummary {
     required this.feedOz,
     required this.feedCount,
     required this.pumpCount,
+    required this.pumpOz,
     required this.diaperCount,
     required this.sleepMinutes,
     required this.stashOz,
@@ -19,6 +28,7 @@ class DailySummary {
   final double feedOz;
   final int feedCount;
   final int pumpCount;
+  final double pumpOz;
   final int diaperCount;
   final int sleepMinutes;
   final double stashOz;
@@ -31,9 +41,12 @@ class DailySummary {
     return h > 0 ? '${h}h ${m}m' : '${m}m';
   }
 
-  String get feedFormatted =>
-      feedCount == 0 ? '—' : '${feedOz.toStringAsFixed(1)} oz ($feedCount feeds)';
+  String feedFormatted(VolumeUnit unit) {
+    if (feedCount == 0) return '—';
+    final countLabel = feedCount == 1 ? '1 feed' : '$feedCount feeds';
+    return '${_fmtVol(feedOz, unit)} ($countLabel)';
+  }
 
-  String get stashFormatted =>
-      stashOz <= 0 ? '—' : '${stashOz.toStringAsFixed(1)} oz';
+  String stashFormatted(VolumeUnit unit) =>
+      stashOz <= 0 ? '—' : _fmtVol(stashOz, unit);
 }

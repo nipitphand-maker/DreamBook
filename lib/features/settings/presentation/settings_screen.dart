@@ -1,5 +1,6 @@
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/providers/crash_reporting_provider.dart';
+import 'package:dreambook/core/providers/day_start_hour_provider.dart';
 import 'package:dreambook/core/providers/premium_provider.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
@@ -38,6 +39,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.read(sharedPreferencesProvider).getDouble(_kPortionOz) ?? 4.0;
   }
 
+  /// Formats an hour (0–23) as a human-readable AM/PM string.
+  String _formatHour(int hour) {
+    if (hour == 0) return '12:00 AM';
+    if (hour < 12) return '$hour:00 AM';
+    if (hour == 12) return '12:00 PM';
+    return '${hour - 12}:00 PM';
+  }
+
+  Future<void> _showDayStartDialog() async {
+    const options = [0, 3, 5, 6, 7, 8];
+    final currentHour = ref.read(dayStartHourProvider);
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(context.l10n.settingsDayStart),
+        children: options
+            .map(
+              (h) => ListTile(
+                title: Text(_formatHour(h)),
+                trailing: h == currentHour
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(ctx).colorScheme.primary,
+                      )
+                    : null,
+                onTap: () => Navigator.of(ctx).pop(h),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await ref.read(sharedPreferencesProvider).setInt(kDayStartHour, selected);
+    // sharedPreferencesProvider is a plain Provider whose value (the
+    // SharedPreferences instance) never changes identity, so Riverpod will not
+    // automatically recompute dayStartHourProvider when the underlying pref
+    // value changes. We invalidate dayStartHourProvider explicitly so that all
+    // *TodayNotifier.build() calls re-run with the new hour.
+    ref.invalidate(dayStartHourProvider);
+  }
+
   Future<void> _launchPrivacy() async {
     final uri = Uri.parse(_privacyPolicyUrl);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -71,6 +113,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final textScale = ref.watch(textScaleProvider);
     final textScaleNotifier = ref.read(textScaleProvider.notifier);
     final babyId = ref.watch(currentBabyIdProvider);
+    final dayStartHour = ref.watch(dayStartHourProvider);
 
     final portionDisplay = prefs.volume == VolumeUnit.oz
         ? '${_portionOz.toStringAsFixed(1)} oz'
@@ -149,6 +192,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ButtonSegment(value: WeekStart.monday, label: Text('Mon')),
             ],
             onSelectionChanged: (s) => notifier.setWeekStart(s.first),
+          ),
+          ListTile(
+            leading: const Icon(Icons.schedule_outlined),
+            title: Text(l10n.settingsDayStart),
+            subtitle: Text(l10n.settingsDayStartSubtitle),
+            trailing: Text(
+              _formatHour(dayStartHour),
+              style: AppTypography.numeric(size: 14),
+            ),
+            onTap: _showDayStartDialog,
           ),
           _UnitTile<UserThemeChoice>(
             label: l10n.settingsThemeLabel,
@@ -273,6 +326,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => context.push(AppRoutes.visitReport),
           ),
           _SectionHeader(title: l10n.settingsSectionSecurity),
+          ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: Text(context.l10n.recoveryUxCloudBackupTitle),
+            subtitle: Text(context.l10n.settingsCloudBackupSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.cloudBackup),
+          ),
+          ListTile(
+            leading: const Icon(Icons.devices),
+            title: Text(context.l10n.settingsManageDevicesTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.manageDevices),
+          ),
+          _SectionHeader(title: l10n.recoveryUxAdvancedSectionTitle),
           Consumer(
             builder: (context, ref, _) {
               final prefs = ref.watch(sharedPreferencesProvider);
@@ -283,7 +350,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   backed ? Icons.lock : Icons.lock_open,
                   color: backed ? scheme.primary : scheme.error,
                 ),
-                title: Text(context.l10n.settingsRecoveryPhraseTitle),
+                title: Text(context.l10n.recoveryUxAdvancedRecoveryPhraseTitle),
                 subtitle: Text(
                   backed
                       ? context.l10n.settingsRecoveryPhraseBackedUp
@@ -294,19 +361,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => context.push(AppRoutes.bip39Setup),
               );
             },
-          ),
-          ListTile(
-            leading: const Icon(Icons.devices),
-            title: Text(context.l10n.settingsManageDevicesTitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.manageDevices),
-          ),
-          ListTile(
-            leading: const Icon(Icons.cloud_outlined),
-            title: Text(context.l10n.settingsCloudBackupTitle),
-            subtitle: Text(context.l10n.settingsCloudBackupSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.cloudBackup),
           ),
           ListTile(
             leading: const Icon(Icons.group_outlined),

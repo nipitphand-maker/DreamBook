@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/widgets/logged_at_chip.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/diaper/data/diaper_repository.dart';
+import 'package:dreambook/features/diaper/presentation/diaper_history_section.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,34 +36,14 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
     super.dispose();
   }
 
-  Future<void> _pickLoggedAt() async {
-    final now = DateTime.now();
-    final initial = _loggedAt ?? now;
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: now.subtract(const Duration(days: 30)),
-      lastDate: now,
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    if (time == null) return;
-    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    if (!picked.isAfter(now)) {
-      setState(() => _loggedAt = picked);
-    }
+  Future<void> _pickToday() async {
+    final picked = await pickTodayTime(context);
+    if (picked != null && mounted) setState(() => _loggedAt = picked);
   }
 
-  String _fmtLoggedAt() {
-    final t = _loggedAt;
-    if (t == null) return context.l10n.loggedAtNow;
-    final d = DateTime.now().difference(t);
-    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
-    if (d.inHours < 24) return '${d.inHours}h ${d.inMinutes % 60}m ago';
-    return '${t.day}/${t.month}  ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  Future<void> _pickPast() async {
+    final picked = await pickPastDateTime(context, _loggedAt);
+    if (picked != null && mounted) setState(() => _loggedAt = picked);
   }
 
   Future<void> _save() async {
@@ -98,8 +80,10 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
   @override
   Widget build(BuildContext context) {
     final canSave = _selectedType != null;
+    final babyId = ref.watch(currentBabyIdProvider);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text(context.l10n.diaperAppBarTitle)),
       body: SafeArea(
         child: Padding(
@@ -108,12 +92,13 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: AppSpacing.sm),
-              // Type selector — 2×2 grid of large tap targets
-              Expanded(
-                child: GridView.count(
+              // Type selector — 2×2 grid of tap targets, height adapts to screen
+              GridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: AppSpacing.sm,
                   crossAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: 1.6,
+                  shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
                     _TypeButton(
@@ -149,13 +134,13 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
                           setState(() => _selectedType = DiaperType.dry),
                     ),
                   ],
-                ),
               ),
               const SizedBox(height: AppSpacing.md),
               // Time picker — tap to log as past
-              _LoggedAtRow(
-                label: _fmtLoggedAt(),
-                onTap: _pickLoggedAt,
+              LoggedAtChip(
+                value: _loggedAt,
+                onTapToday: _pickToday,
+                onTapPast: _pickPast,
                 onClear: _loggedAt != null
                     ? () => setState(() => _loggedAt = null)
                     : null,
@@ -177,6 +162,20 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
                 child: Text(context.l10n.actionSave),
               ),
               const SizedBox(height: AppSpacing.lg),
+              // Today's history — fills remaining space, scrolls if needed.
+              if (babyId != null)
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Divider(),
+                        _DiaperTodaySummary(babyId: babyId),
+                        DiaperHistorySection(babyId: babyId),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -185,45 +184,43 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
   }
 }
 
-/// Tappable row showing when the event was logged.
-/// Tap → date picker → time picker. "×" resets to now.
-class _LoggedAtRow extends StatelessWidget {
-  const _LoggedAtRow({
-    required this.label,
-    required this.onTap,
-    this.onClear,
-  });
+// ---------------------------------------------------------------------------
+// Today summary bar
+// ---------------------------------------------------------------------------
 
-  final String label;
-  final VoidCallback onTap;
-  final VoidCallback? onClear;
+class _DiaperTodaySummary extends ConsumerWidget {
+  const _DiaperTodaySummary({required this.babyId});
+  final String babyId;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.schedule, size: 18, color: AppColors.inkSecondary),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          '${context.l10n.loggedAtLabel}: ',
-          style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
-        ),
-        GestureDetector(
-          onTap: onTap,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    return ref.watch(diaperTodayProvider(babyId)).when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (diapers) {
+        final String detail;
+        if (diapers.isEmpty) {
+          detail = l10n.todayNoDiapersYet;
+        } else {
+          detail = l10n.diaperCountToday(diapers.length);
+        }
+
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Text(
-            label,
-            style: AppTypography.bodyMedium(color: AppColors.lavender700)
-                .copyWith(decoration: TextDecoration.underline),
+            '${l10n.todaySummaryPrefix}$detail',
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
-        ),
-        if (onClear != null) ...[
-          const SizedBox(width: AppSpacing.xs),
-          GestureDetector(
-            onTap: onClear,
-            child: const Icon(Icons.close, size: 16, color: AppColors.inkSecondary),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 }
@@ -262,17 +259,18 @@ class _TypeButton extends StatelessWidget {
                 )
               : null,
           constraints:
-              const BoxConstraints(minHeight: AppSpacing.quickLogButton),
+              const BoxConstraints(minHeight: AppSpacing.minTouchTarget),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 32, color: AppColors.inkPrimary),
+                Icon(icon, size: 26, color: AppColors.inkPrimary),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   label,
-                  style: AppTypography.titleLarge(color: AppColors.inkPrimary),
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodyLarge(color: AppColors.inkPrimary),
                 ),
               ],
             ),

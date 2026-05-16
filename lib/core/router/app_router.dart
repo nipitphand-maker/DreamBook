@@ -14,8 +14,6 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/manage_devices_screen.dart';
 import '../../features/settings/presentation/cloud_backup_screen.dart';
 import '../../features/onboarding/presentation/cloud_restore_screen.dart';
-import '../../features/caregivers/presentation/caregivers_screen.dart';
-import '../../features/families/presentation/families_screen.dart';
 import '../../features/share/presentation/claim_invite_screen.dart';
 import '../../features/share/presentation/share_invite_screen.dart';
 import '../../features/sleep/presentation/sleep_timer_screen.dart';
@@ -65,6 +63,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (!onboarded &&
           state.matchedLocation != AppRoutes.welcome &&
           state.matchedLocation != AppRoutes.shareClaim &&
+          state.matchedLocation != AppRoutes.shareInvite &&
           state.matchedLocation != AppRoutes.bip39Setup &&
           state.matchedLocation != AppRoutes.bip39Verify &&
           state.matchedLocation != AppRoutes.bip39Restore &&
@@ -110,9 +109,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       // Full-screen routes — no bottom nav shown.
+      //
+      // Caregivers route folded into the merged Manage Devices screen.
+      // The constant is kept so existing call sites in home_screen.dart
+      // (and any deep links) keep working — the redirect lands them on
+      // the single canonical surface.
       GoRoute(
         path: AppRoutes.caregivers,
-        builder: (_, __) => const CaregiversScreen(),
+        redirect: (_, __) => AppRoutes.manageDevices,
       ),
       GoRoute(
         path: AppRoutes.shareInvite,
@@ -161,7 +165,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.bip39Verify,
-        builder: (context, state) => Bip39VerifyScreen(phrase: state.extra as String),
+        redirect: (context, state) =>
+            state.extra is String ? null : AppRoutes.bip39Setup,
+        builder: (context, state) =>
+            Bip39VerifyScreen(phrase: state.extra as String),
       ),
       GoRoute(
         path: AppRoutes.bip39Restore,
@@ -175,7 +182,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.cloudBackup,
         builder: (_, __) => const CloudBackupScreen(),
       ),
-      GoRoute(path: AppRoutes.families, builder: (_, __) => const FamiliesScreen()),
+      // Families route folded into Manage Devices for MVP. The settings tile
+      // and the home banner both link to AppRoutes.families — keep the
+      // constant + route, but redirect so users land on the single surface.
+      GoRoute(
+        path: AppRoutes.families,
+        redirect: (_, __) => AppRoutes.manageDevices,
+      ),
       GoRoute(
         path: AppRoutes.cloudRestore,
         builder: (_, __) => const CloudRestoreScreen(),

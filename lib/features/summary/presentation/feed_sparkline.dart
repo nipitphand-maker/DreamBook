@@ -16,15 +16,45 @@ class FeedSparkline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (feeds.isEmpty) return SizedBox(height: height);
-    return SizedBox(
-      height: height,
-      child: CustomPaint(
-        painter: _SparklinePainter(
-          feeds: feeds,
-          color: AppColors.lavender700,
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Caption
+        Text(
+          'Feed times · 24h',
+          style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
         ),
-        child: const SizedBox.expand(),
-      ),
+        const SizedBox(height: 2),
+        // Sparkline
+        SizedBox(
+          height: height,
+          child: CustomPaint(
+            painter: _SparklinePainter(
+              feeds: feeds,
+              color: AppColors.lavender700,
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        // X-axis labels
+        Row(
+          children: [
+            Text('12am',
+                style:
+                    TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
+            const Spacer(),
+            Text('12pm',
+                style:
+                    TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
+            const Spacer(),
+            Text('now',
+                style:
+                    TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -40,6 +70,15 @@ class _SparklinePainter extends CustomPainter {
     final maxOz = feeds
         .map((f) => f.oz ?? 2.0)
         .fold<double>(2.0, (a, b) => a > b ? a : b);
+
+    // Draw reference lines at 6h, 12h, 18h
+    final refPaint = Paint()
+      ..color = color.withValues(alpha: 0.15)
+      ..strokeWidth = 1;
+    for (final h in [6, 12, 18]) {
+      final rx = (h / 24.0) * size.width;
+      canvas.drawLine(Offset(rx, 0), Offset(rx, size.height), refPaint);
+    }
 
     final paint = Paint()
       ..color = color

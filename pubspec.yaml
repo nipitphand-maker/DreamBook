@@ -57,6 +57,9 @@ dependencies:
   # Cross-app bridge (Plan F) — launch DreamBaby from DreamBook
   url_launcher: ^6.3.1
 
+  # In-app review (Play Store / App Store native rating prompt)
+  in_app_review: ^2.0.9
+
   # Background sync (Plan C-2 BG) — WorkManager periodic + connectivity watch
   workmanager: ^0.9.0
   connectivity_plus: ^6.1.1

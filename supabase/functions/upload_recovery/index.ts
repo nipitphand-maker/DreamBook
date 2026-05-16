@@ -64,22 +64,24 @@ serve(async (req) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { data: deviceRow, error: deviceErr } = await userClient
+  const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+  // Use service role to lookup device so an editor cannot spoof the role field.
+  const { data: deviceRow, error: deviceErr } = await svc
     .from("family_devices")
-    .select("device_fp, family_id")
+    .select("device_fp, family_id, role")
     .eq("auth_user_id", userData.user.id)
+    .eq("role", "admin")
     .is("revoked_at", null)
     .limit(1)
     .single();
 
   if (deviceErr || !deviceRow) {
-    return new Response("Device not found in any family", { status: 403 });
+    return new Response("Forbidden: admin role required", { status: 403 });
   }
   const familyId: string = deviceRow.family_id;
   const deviceFpRaw = deviceRow.device_fp as string;
   const deviceFpHex = deviceFpRaw.startsWith("\\x") ? deviceFpRaw.slice(2) : deviceFpRaw;
-
-  const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
   // Upsert the recovery envelope (one row per family).
   const wrappedKey = bytesFromBase64(body.wrapped_key_b64);
@@ -100,13 +102,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: envErr.message }), { status: 500 });
   }
 
-  // Replace lookup entry: delete old for this family then insert new.
-  await svc.from("recovery_lookup").delete().eq("family_id", familyId);
+  // Atomically upsert the lookup entry (unique constraint on family_id added in 0030).
   const lookupHash = bytesFromBase64(body.lookup_hash_b64);
-  const { error: lookupErr } = await svc.from("recovery_lookup").insert({
-    lookup_hash: toByteaHex(lookupHash),
-    family_id: familyId,
-  });
+  const { error: lookupErr } = await svc.from("recovery_lookup").upsert(
+    { lookup_hash: toByteaHex(lookupHash), family_id: familyId },
+    { onConflict: "family_id" },
+  );
 
   if (lookupErr) {
     return new Response(JSON.stringify({ error: lookupErr.message }), { status: 500 });
@@ -114,7 +115,7 @@ serve(async (req) => {
 
   await writeAuditEvent(
     familyId,
-    "recovery_phrase_registered",
+    "recovery_code_registered",
     deviceFpHex,
     { key_version: body.key_version },
   ).catch(() => {});

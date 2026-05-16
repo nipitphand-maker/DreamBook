@@ -1,6 +1,7 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
+import 'package:dreambook/core/sync/sync_constants.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
@@ -64,12 +65,12 @@ class BabyRepository {
     );
 
     // Stamp the active family_id from prefs so this row is visible to
-    // `list()` (which filters by `family_id = prefs['family.id']`). Skip the
+    // `list()` (which filters by `family_id = prefs[kFamilyIdPrefsKey]`). Skip the
     // stamp when prefs is empty — keeps schema-v2 tests (no family_id column)
     // green and falls back to the DDL default (`''`) for offline installs
     // that never bootstrapped a remote family.
     final familyId =
-        _ref.read(sharedPreferencesProvider).getString('family.id') ?? '';
+        _ref.read(sharedPreferencesProvider).getString(kFamilyIdPrefsKey) ?? '';
     final row = {...baby.toRow()};
     if (familyId.isNotEmpty) {
       row['family_id'] = familyId;
@@ -120,7 +121,7 @@ class BabyRepository {
   Future<Baby?> getActive() async {
     final db = await _db;
     final familyId =
-        _ref.read(sharedPreferencesProvider).getString('family.id') ?? '';
+        _ref.read(sharedPreferencesProvider).getString(kFamilyIdPrefsKey) ?? '';
     final (where, whereArgs) = familyId.isEmpty
         ? ('deleted_at IS NULL', <Object?>[])
         : ('deleted_at IS NULL AND family_id = ?', [familyId]);
@@ -139,7 +140,7 @@ class BabyRepository {
   Future<List<Baby>> list() async {
     final db = await _db;
     final familyId =
-        _ref.read(sharedPreferencesProvider).getString('family.id') ?? '';
+        _ref.read(sharedPreferencesProvider).getString(kFamilyIdPrefsKey) ?? '';
     final (where, whereArgs) = familyId.isEmpty
         ? ('deleted_at IS NULL', <Object?>[])
         : ('deleted_at IS NULL AND family_id = ?', [familyId]);
@@ -189,7 +190,7 @@ class BabyRepository {
     final unitStr = preferredUnit == PreferredUnit.oz ? 'oz' : 'ml';
 
     await db.transaction((txn) async {
-      await txn.rawUpdate(
+      final affected = await txn.rawUpdate(
         '''
         UPDATE baby
         SET name           = ?,
@@ -211,6 +212,9 @@ class BabyRepository {
           id,
         ],
       );
+      if (affected == 0) {
+        throw StateError('Baby $id not found or already deleted');
+      }
       final rows = await txn.query('baby', columns: ['version'], where: 'id = ?', whereArgs: [id], limit: 1);
       final newVersion = rows.isEmpty ? 1 : rows.first['version'] as int;
       await txn.insert(

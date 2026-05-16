@@ -8,6 +8,11 @@ import '../../../core/models/models.dart';
 import '../../../core/providers/premium_provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../diaper/data/diaper_repository.dart';
+import '../../feed/data/feed_repository.dart';
+import '../../pump/data/pump_repository.dart';
+import '../../sleep/data/sleep_repository.dart';
+import '../../stash/data/stash_providers.dart';
 import '../data/baby_repository.dart';
 import '../data/current_baby_provider.dart';
 import 'add_baby_screen.dart';
@@ -58,7 +63,16 @@ class _BabySwitcherScreenState extends ConsumerState<BabySwitcherScreen> {
   }
 
   Future<void> _onTileTapped(String babyId) async {
+    final oldBabyId = ref.read(currentBabyIdProvider);
     await ref.read(currentBabyIdProvider.notifier).select(babyId);
+    if (oldBabyId != null && oldBabyId != babyId) {
+      ref.invalidate(feedTodayProvider(oldBabyId));
+      ref.invalidate(pumpTodayProvider(oldBabyId));
+      ref.invalidate(diaperTodayProvider(oldBabyId));
+      ref.invalidate(sleepTodayProvider(oldBabyId));
+      ref.invalidate(sleepActiveProvider(oldBabyId));
+      ref.invalidate(stashAvailableProvider(oldBabyId));
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
   }

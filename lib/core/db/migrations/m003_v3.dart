@@ -32,13 +32,13 @@ Future<void> m003V3(Database db) async {
   // --- DDL: run outside any transaction (SQLite auto-commits DDL anyway) ---
 
   for (final t in syncable) {
-    await db.execute(
-        "ALTER TABLE $t ADD COLUMN family_id TEXT NOT NULL DEFAULT ''");
-    await db.execute(
-        'ALTER TABLE $t ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1');
+    await _addColumnIfMissing(
+        db, t, 'family_id', "TEXT NOT NULL DEFAULT ''");
+    await _addColumnIfMissing(
+        db, t, 'key_version', 'INTEGER NOT NULL DEFAULT 1');
   }
 
-  await db.execute('ALTER TABLE caregiver ADD COLUMN device_pub_key BLOB');
+  await _addColumnIfMissing(db, 'caregiver', 'device_pub_key', 'BLOB');
 
   await db.execute('''
     CREATE TABLE IF NOT EXISTS family_metadata (
@@ -72,4 +72,17 @@ Future<void> m003V3(Database db) async {
       }
     }
   });
+}
+
+Future<void> _addColumnIfMissing(
+  Database db,
+  String table,
+  String column,
+  String definition,
+) async {
+  final info = await db.rawQuery('PRAGMA table_info($table)');
+  final exists = info.any((row) => row['name'] == column);
+  if (!exists) {
+    await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+  }
 }

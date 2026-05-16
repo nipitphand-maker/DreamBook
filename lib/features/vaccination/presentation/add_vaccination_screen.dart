@@ -70,7 +70,7 @@ class _AddVaccinationScreenState
       firstDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
       lastDate: DateTime.now(),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() => _givenOn = picked);
     }
   }
@@ -108,6 +108,7 @@ class _AddVaccinationScreenState
     final dateLabel = DateFormat.yMMMd().format(_givenOn);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text(l10n.vaccinationAddVaccine)),
       body: SafeArea(
         child: Form(

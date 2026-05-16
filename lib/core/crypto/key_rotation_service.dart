@@ -111,15 +111,16 @@ class KeyRotationService {
       );
     }
 
-    // 1. Atomic server-side revoke + key-version bump.
+    // 1. Record intent locally FIRST so a crash after revokeCaregiver is
+    //    recoverable: resumeIfNeeded on next launch will finish the rotation.
+    await beginRotation(familyId: familyId);
+
+    // 2. Atomic server-side revoke + key-version bump.
     final result = await s.revokeCaregiver(
       callerDeviceFp: callerDeviceFp,
       targetDeviceFp: targetDeviceFp,
     );
     final newVersion = result.newKeyVersion;
-
-    // 2. Record intent locally (crash-safe).
-    await beginRotation(familyId: familyId);
 
     // 3. Generate new K_family locally.
     await familyKeys.rotate(familyId: familyId);

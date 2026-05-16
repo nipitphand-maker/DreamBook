@@ -14,13 +14,13 @@ import '../../../core/crypto/invite_code_service.dart';
 import '../../../core/db/database_provider.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
+import '../../../core/sync/sync_constants.dart';
 import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
 import '../../../core/families/family_entry.dart';
 import '../../../core/families/family_provider.dart';
 
-const _kFamilyIdKey = 'family.id';
 // Server enforces 1-hour TTL in create_invite_fn SQL — must match.
 const Duration _kInviteTtl = Duration(hours: 1);
 
@@ -97,7 +97,7 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
   /// generates a fresh K_family locally.
   Future<String> _ensureFamily() async {
     final prefs = ref.read(sharedPreferencesProvider);
-    final existing = prefs.getString(_kFamilyIdKey);
+    final existing = prefs.getString(kFamilyIdPrefsKey);
     final supa = Supabase.instance.client;
 
     if (existing != null && existing.isNotEmpty) {
@@ -142,10 +142,10 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
       throw Exception('bootstrap_family returned unexpected payload');
     }
     final familyId = data['family_id'] as String;
-    await prefs.setString(_kFamilyIdKey, familyId);
+    await prefs.setString(kFamilyIdPrefsKey, familyId);
     await ref.read(familyListProvider.notifier).register(FamilyEntry(
       id: familyId,
-      label: 'My Family',
+      label: mounted ? context.l10n.familyLabelMyFamily : 'My Family',
       createdAt: DateTime.now().toUtc(),
     ));
     // First key for a fresh family is always version 1.
@@ -235,7 +235,7 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
     if (_status == _ScreenStatus.generating) return;
 
     final prefs = ref.read(sharedPreferencesProvider);
-    final familyId = prefs.getString(_kFamilyIdKey);
+    final familyId = prefs.getString(kFamilyIdPrefsKey);
     if (familyId == null) {
       await _bootstrapAndGenerate();
       return;
@@ -264,7 +264,7 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
   Future<void> _onShare() async {
     final code = _code;
     if (code == null) return;
-    await Share.share('Join my DreamBook family! Use code: $code');
+    await Share.share(context.l10n.shareInviteMessage(code));
   }
 
   @override

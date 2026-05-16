@@ -5,8 +5,11 @@ import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/widgets/logged_at_chip.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/pump/data/pump_repository.dart';
+import 'package:dreambook/features/pump/presentation/pump_history_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +23,9 @@ import 'package:go_router/go_router.dart';
 const _kTimerStartedAt = 'pump.timerStartedAt'; // ISO-8601 string
 const _kTimerPausedAt = 'pump.timerPausedAt'; // ISO-8601 string
 const _kPausedDurSec = 'pump.timerPausedDurSec'; // int
+const _kTimerStopped = 'pump.timerStopped'; // bool — true when user tapped Stop
 const _kSaveToStash = 'pump.saveToStash'; // bool
+const _kStashStorage = 'pump.stashStorage'; // StorageType.name
 const _kSide = 'pump.side'; // 'both'|'left'|'right'
 const _kPortionOz = 'settings.pump.portionOz'; // double, default 4.0
 
@@ -48,6 +53,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   // --- UI state ---
   _Side _side = _Side.both;
   bool _saveToStash = true;
+  StorageType _stashStorage = StorageType.freezer;
   final _notesCtrl = TextEditingController();
 
   // --- Timer state ---
@@ -87,6 +93,10 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
     // Restore stash preference
     _saveToStash = prefs.getBool(_kSaveToStash) ?? true;
+    _stashStorage = StorageType.values.firstWhere(
+      (e) => e.name == (prefs.getString(_kStashStorage) ?? 'freezer'),
+      orElse: () => StorageType.freezer,
+    );
 
     // Restore portion oz preference
     _portionOz = prefs.getDouble(_kPortionOz) ?? 4.0;
@@ -97,18 +107,25 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
     if (startedAtStr != null) {
       _timerStartedAt = DateTime.parse(startedAtStr);
       _timerStartedEver = true;
-      _timerRunning = true;
       _pausedTotalSec = prefs.getInt(_kPausedDurSec) ?? 0;
 
-      // Check if it was paused when the app was killed
+      final wasStopped = prefs.getBool(_kTimerStopped) ?? false;
       final pausedAtStr = prefs.getString(_kTimerPausedAt);
-      if (pausedAtStr != null) {
+
+      if (wasStopped) {
+        // User tapped Stop — restore as stopped (elapsed locked, no ticker).
+        _timerRunning = false;
+        _elapsed = DateTime.now().difference(_timerStartedAt!) -
+            Duration(seconds: _pausedTotalSec);
+      } else if (pausedAtStr != null) {
+        // App was killed mid-pause — restore paused state.
         _timerPausedAt = DateTime.parse(pausedAtStr);
         _timerRunning = false;
-        // Calculate elapsed up to when it was paused
         _elapsed = _timerPausedAt!.difference(_timerStartedAt!) -
             Duration(seconds: _pausedTotalSec);
       } else {
+        // Timer was running when app was killed — resume.
+        _timerRunning = true;
         _elapsed = DateTime.now().difference(_timerStartedAt!) -
             Duration(seconds: _pausedTotalSec);
         _startTicker();
@@ -179,7 +196,8 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
       _elapsed = _currentElapsed;
       _timerRunning = false;
     });
-    // Keep _kTimerStartedAt in prefs so Save can read it; clear paused marker
+    // Mark stopped so a kill+restore shows stopped state, not running.
+    await prefs.setBool(_kTimerStopped, true);
     await prefs.remove(_kTimerPausedAt);
   }
 
@@ -201,6 +219,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
         _timerRunning = true;
       });
     }
+    await prefs.remove(_kTimerStopped);
     await prefs.remove(_kTimerPausedAt);
     _startTicker();
   }
@@ -214,6 +233,8 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
     int? manualDurationSeconds,
     double? manualLeftOz,
     double? manualRightOz,
+    bool? manualSaveToStash,
+    StorageType? manualStorage,
   }) async {
     final babyId = ref.read(currentBabyIdProvider);
     if (babyId == null) {
@@ -235,6 +256,33 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
     _ticker?.cancel();
 
+    // Determine bottles to stash
+    List<PendingBottle> bottlesToSave;
+    if (manualSaveToStash == true) {
+      // Manual entry: compute bottles from total oz
+      final storage = manualStorage ?? StorageType.freezer;
+      final total = (manualLeftOz ?? 0) + (manualRightOz ?? 0);
+      final portions = <double>[];
+      double remaining = total;
+      int guard = 0;
+      while (remaining > 0.01 && guard++ < 200) {
+        final portion = remaining >= _portionOz
+            ? _portionOz
+            : double.parse(remaining.toStringAsFixed(1));
+        if (portion <= 0) break;
+        portions.add(portion);
+        remaining -= portion;
+      }
+      bottlesToSave = portions.map((oz) => PendingBottle(oz: oz, storage: storage)).toList();
+    } else if (manualSaveToStash == false) {
+      bottlesToSave = const [];
+    } else {
+      // Live session
+      bottlesToSave = _saveToStash
+          ? _bottles.map((oz) => PendingBottle(oz: oz, storage: _stashStorage)).toList()
+          : const [];
+    }
+
     await repo.insert(
       babyId: babyId,
       startedAt: startedAt,
@@ -243,15 +291,14 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
       rightOz: rightOz,
       durationMin: durationSec ~/ 60,
       note: note,
-      bottles: _saveToStash
-          ? _bottles.map((oz) => PendingBottle(oz: oz)).toList()
-          : const [],
+      bottles: bottlesToSave,
     );
 
     // Clear all persisted pump timer keys
     await prefs.remove(_kTimerStartedAt);
     await prefs.remove(_kTimerPausedAt);
     await prefs.remove(_kPausedDurSec);
+    await prefs.remove(_kTimerStopped);
 
     unawaited(HapticFeedback.lightImpact());
     if (!mounted) return;
@@ -274,6 +321,11 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   Future<void> _persistSaveToStash(bool v) async {
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setBool(_kSaveToStash, v);
+  }
+
+  Future<void> _persistStashStorage(StorageType v) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setString(_kStashStorage, v.name);
   }
 
   Future<void> _persistPortionOz(double v) async {
@@ -315,13 +367,15 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
       isScrollControlled: true,
       builder: (ctx) => _ManualEntrySheet(
         unit: unit,
-        onSave: (startedAt, durationMinutes, leftOz, rightOz) {
+        onSave: (startedAt, durationMinutes, leftOz, rightOz, saveToStash, storage) {
           Navigator.of(ctx).pop();
           _save(
             manualStartedAt: startedAt,
             manualDurationSeconds: durationMinutes * 60,
             manualLeftOz: leftOz,
             manualRightOz: rightOz,
+            manualSaveToStash: saveToStash,
+            manualStorage: storage,
           );
         },
       ),
@@ -345,9 +399,11 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
   double get _totalOz => _leftOz + _rightOz;
 
-  String _fmtTotal(VolumeUnit unit) {
-    if (unit == VolumeUnit.oz) return 'Total: ${_totalOz.toStringAsFixed(1)} oz';
-    return 'Total: ${(_totalOz * _mlPerOz).round()} ml';
+  String _fmtTotal(BuildContext context, VolumeUnit unit) {
+    if (unit == VolumeUnit.oz) {
+      return context.l10n.pumpTotalOz(_totalOz.toStringAsFixed(1));
+    }
+    return context.l10n.pumpTotalMl('${(_totalOz * _mlPerOz).round()}');
   }
 
   // ---------------------------------------------------------------------------
@@ -358,8 +414,10 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final unit = ref.watch(unitPreferencesProvider).volume;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text(l10n.pumpScreenTitle)),
       body: SafeArea(
         child: Column(
@@ -379,7 +437,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                       child: Text(
                         _fmtElapsed(_elapsed),
                         style:
-                            AppTypography.statHero(color: AppColors.inkPrimary),
+                            AppTypography.statHero(color: scheme.onSurface),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -387,7 +445,12 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                     _SideToggle(
                       side: _side,
                       onChanged: (s) {
-                        setState(() => _side = s);
+                        setState(() {
+                          _side = s;
+                          if (s == _Side.left) _rightOz = 0;
+                          if (s == _Side.right) _leftOz = 0;
+                          _bottles = _computeBottles();
+                        });
                         _persistSide(s);
                       },
                     ),
@@ -410,9 +473,9 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                     const SizedBox(height: AppSpacing.xs),
                     Center(
                       child: Text(
-                        _fmtTotal(unit),
+                        _fmtTotal(context, unit),
                         style: AppTypography.bodyMedium(
-                            color: AppColors.inkSecondary),
+                            color: scheme.onSurface.withValues(alpha: 0.6)),
                       ),
                     ),
                     // --- Warning chip ---
@@ -425,9 +488,9 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                     TextField(
                       controller: _notesCtrl,
                       maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes (optional)',
-                        hintText: 'Notes (optional)',
+                      decoration: InputDecoration(
+                        labelText: l10n.pumpNotesOptional,
+                        hintText: l10n.pumpNotesOptional,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -445,6 +508,29 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                       title: Text(l10n.pumpSaveToStash),
                       contentPadding: EdgeInsets.zero,
                     ),
+                    if (_saveToStash) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          l10n.pumpStashStorage,
+                          style: AppTypography.labelLarge(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                        ),
+                      ),
+                      SegmentedButton<StorageType>(
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(value: StorageType.freezer, label: Text(l10n.stashStorageFreezer)),
+                          ButtonSegment(value: StorageType.fridge, label: Text(l10n.stashStorageFridge)),
+                          ButtonSegment(value: StorageType.room, label: Text(l10n.stashStorageRoom)),
+                        ],
+                        selected: {_stashStorage},
+                        onSelectionChanged: (s) {
+                          setState(() => _stashStorage = s.first);
+                          _persistStashStorage(s.first);
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
                     // --- Bottle preview ---
                     if (_saveToStash && (_leftOz + _rightOz) > 0) ...[
                       _BottlePreviewSection(
@@ -475,6 +561,22 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
                     TextButton(
                       onPressed: () => _showManualEntry(unit),
                       child: Text(context.l10n.pumpAddPast),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    // --- Today's history ---
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final babyId = ref.watch(currentBabyIdProvider);
+                        if (babyId == null) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Divider(),
+                            _PumpTodaySummary(babyId: babyId),
+                            PumpHistorySection(babyId: babyId),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
@@ -567,13 +669,103 @@ class _OzSteppers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    // Both sides: show left and right columns next to each other
+    if (side == _Side.both) {
+      return IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: _OzColumn(
+                label: l10n.pumpSideLeft,
+                value: leftOz,
+                unit: unit,
+                onChanged: onLeftChanged,
+              ),
+            ),
+            const VerticalDivider(width: 1, indent: 8, endIndent: 8),
+            Expanded(
+              child: _OzColumn(
+                label: l10n.pumpSideRight,
+                value: rightOz,
+                unit: unit,
+                onChanged: onRightChanged,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    // Single side: centered column layout
+    return Center(
+      child: _OzColumn(
+        label: side == _Side.left ? l10n.pumpSideLeft : l10n.pumpSideRight,
+        value: side == _Side.left ? leftOz : rightOz,
+        unit: unit,
+        onChanged: side == _Side.left ? onLeftChanged : onRightChanged,
+      ),
+    );
+  }
+}
+
+/// Compact vertical layout used when both sides are shown side-by-side.
+class _OzColumn extends StatelessWidget {
+  const _OzColumn({
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final VolumeUnit unit;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final step = _stepFor(unit);
+    final max = _maxFor(unit);
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (side == _Side.both || side == _Side.left)
-          _OzRow(label: 'Left', value: leftOz, unit: unit, onChanged: onLeftChanged),
-        if (side == _Side.both) const SizedBox(height: AppSpacing.sm),
-        if (side == _Side.both || side == _Side.right)
-          _OzRow(label: 'Right', value: rightOz, unit: unit, onChanged: onRightChanged),
+        Text(
+          label,
+          style: AppTypography.labelLarge(color: scheme.onSurface.withValues(alpha: 0.6)),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          _fmtVol(value, unit),
+          style: AppTypography.numeric(size: 20, weight: FontWeight.w600),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.filled(
+              onPressed: value <= 0.0
+                  ? null
+                  : () => onChanged(double.parse(
+                      (value - step).clamp(0.0, max).toStringAsFixed(5))),
+              icon: const Icon(Icons.remove, size: 18),
+              iconSize: 18,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            IconButton.filled(
+              onPressed: value >= max
+                  ? null
+                  : () => onChanged(double.parse(
+                      (value + step).clamp(0.0, max).toStringAsFixed(5))),
+              icon: const Icon(Icons.add, size: 18),
+              iconSize: 18,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -594,6 +786,7 @@ class _OzRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final step = _stepFor(unit);
     final max = _maxFor(unit);
     return Row(
@@ -603,7 +796,7 @@ class _OzRow extends StatelessWidget {
           width: 80,
           child: Text(
             label,
-            style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+            style: AppTypography.bodyMedium(color: scheme.onSurface.withValues(alpha: 0.6)),
             textAlign: TextAlign.right,
           ),
         ),
@@ -644,13 +837,13 @@ class _WarningChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Chip(
-      backgroundColor: Color(0x40CC8020), // lightWarning at ~25% opacity
+    return Chip(
+      backgroundColor: const Color(0x40CC8020), // lightWarning at ~25% opacity
       label: Text(
-        'Unusually high volume — double-check?',
-        style: TextStyle(color: AppColors.honey700),
+        context.l10n.pumpWarningHighVolume,
+        style: const TextStyle(color: AppColors.honey700),
       ),
-      avatar: Icon(Icons.warning_amber_rounded, color: AppColors.honey700),
+      avatar: const Icon(Icons.warning_amber_rounded, color: AppColors.honey700),
     );
   }
 }
@@ -753,6 +946,8 @@ class _BottlePreviewSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -760,9 +955,9 @@ class _BottlePreviewSection extends StatelessWidget {
         Row(
           children: [
             Text(
-              'Bottle portions',
+              l10n.pumpBottlePortions,
               style:
-                  AppTypography.labelLarge(color: AppColors.inkSecondary),
+                  AppTypography.labelLarge(color: scheme.onSurface.withValues(alpha: 0.6)),
             ),
             const Spacer(),
             // Per-bottle stepper
@@ -770,8 +965,8 @@ class _BottlePreviewSection extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Per bottle:',
-                  style: AppTypography.labelLarge(color: AppColors.inkSecondary),
+                  l10n.pumpPerBottle,
+                  style: AppTypography.labelLarge(color: scheme.onSurface.withValues(alpha: 0.6)),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 IconButton(
@@ -855,6 +1050,51 @@ class _BottleChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Today summary bar
+// ---------------------------------------------------------------------------
+
+class _PumpTodaySummary extends ConsumerWidget {
+  const _PumpTodaySummary({required this.babyId});
+  final String babyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    return ref.watch(pumpTodayProvider(babyId)).when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (sessions) {
+        final String detail;
+        if (sessions.isEmpty) {
+          detail = l10n.todayNoPumpsYet;
+        } else {
+          final totalOz = sessions.fold<double>(
+            0.0,
+            (sum, s) => sum + s.leftOz + s.rightOz,
+          );
+          detail = '${sessions.length} ${sessions.length == 1 ? 'session' : 'sessions'} · ${totalOz.toStringAsFixed(1)} oz total';
+        }
+
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${l10n.todaySummaryPrefix}$detail',
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Manual entry bottom sheet
 // ---------------------------------------------------------------------------
 
@@ -867,6 +1107,8 @@ class _ManualEntrySheet extends StatefulWidget {
     int durationMinutes,
     double leftOz,
     double rightOz,
+    bool saveToStash,
+    StorageType storage,
   ) onSave;
 
   @override
@@ -874,54 +1116,33 @@ class _ManualEntrySheet extends StatefulWidget {
 }
 
 class _ManualEntrySheetState extends State<_ManualEntrySheet> {
-  late DateTime _startedAt;
+  DateTime? _startedAt;
   int _durationMinutes = 0;
   double _leftOz = 0;
   double _rightOz = 0;
+  bool _saveToStash = false;
+  StorageType _storage = StorageType.freezer;
 
   @override
   void initState() {
     super.initState();
-    // Default: now - 1 hour, rounded down to nearest 15 min
-    final now = DateTime.now();
-    final oneHourAgo = now.subtract(const Duration(hours: 1));
-    final minutes = (oneHourAgo.minute ~/ 15) * 15;
-    _startedAt = DateTime(
-      oneHourAgo.year,
-      oneHourAgo.month,
-      oneHourAgo.day,
-      oneHourAgo.hour,
-      minutes,
-    );
+    // Leave _startedAt null — show 2 buttons initially.
   }
 
-  String _fmtDateTime(DateTime dt) {
-    final date = '${dt.day}/${dt.month}/${dt.year}';
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$date  $h:$m';
+  Future<void> _pickToday() async {
+    final picked = await pickTodayTime(context);
+    if (picked != null && mounted) setState(() => _startedAt = picked);
   }
 
-  Future<void> _pickStartedAt() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _startedAt,
-      firstDate: now.subtract(const Duration(days: 30)),
-      lastDate: now,
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_startedAt),
-    );
-    if (time == null) return;
-    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    if (!picked.isAfter(now)) setState(() => _startedAt = picked);
+  Future<void> _pickPast() async {
+    final picked = await pickPastDateTime(context, _startedAt);
+    if (picked != null && mounted) setState(() => _startedAt = picked);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.md,
@@ -934,36 +1155,31 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Add past pump',
-            style: AppTypography.titleLarge(color: AppColors.inkPrimary),
+            l10n.pumpAddPastTitle,
+            style: AppTypography.titleLarge(color: scheme.onSurface),
           ),
           const SizedBox(height: AppSpacing.md),
-          // Started at — tappable date/time picker
-          Row(
-            children: [
-              const Icon(Icons.schedule, size: 18, color: AppColors.inkSecondary),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                'Started at: ',
-                style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
-              ),
-              GestureDetector(
-                onTap: _pickStartedAt,
-                child: Text(
-                  _fmtDateTime(_startedAt),
-                  style: AppTypography.bodyMedium(color: AppColors.lavender700)
-                      .copyWith(decoration: TextDecoration.underline),
-                ),
-              ),
-            ],
+          // Started at — 2-button + chip time picker
+          Text(
+            l10n.pumpStartedAtLabel,
+            style: AppTypography.bodyMedium(color: scheme.onSurface.withValues(alpha: 0.6)),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          LoggedAtChip(
+            value: _startedAt,
+            onTapToday: _pickToday,
+            onTapPast: _pickPast,
+            onClear: _startedAt != null
+                ? () => setState(() => _startedAt = null)
+                : null,
           ),
           const SizedBox(height: AppSpacing.sm),
           // Duration
           Row(
             children: [
               Text(
-                'Duration (min):',
-                style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
+                l10n.pumpDurationLabel,
+                style: AppTypography.bodyMedium(color: scheme.onSurface.withValues(alpha: 0.6)),
               ),
               const SizedBox(width: AppSpacing.sm),
               IconButton(
@@ -985,23 +1201,58 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
           const SizedBox(height: AppSpacing.sm),
           // Volume steppers
           _OzRow(
-            label: 'Left',
+            label: l10n.pumpSideLeft,
             value: _leftOz,
             unit: widget.unit,
             onChanged: (v) => setState(() => _leftOz = v),
           ),
           const SizedBox(height: AppSpacing.xs),
           _OzRow(
-            label: 'Right',
+            label: l10n.pumpSideRight,
             value: _rightOz,
             unit: widget.unit,
             onChanged: (v) => setState(() => _rightOz = v),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          CheckboxListTile(
+            value: _saveToStash,
+            onChanged: (v) => setState(() => _saveToStash = v ?? false),
+            title: Text(l10n.pumpSaveToStash),
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_saveToStash) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                l10n.pumpStashStorage,
+                style: AppTypography.labelLarge(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+              ),
+            ),
+            SegmentedButton<StorageType>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: StorageType.freezer, label: Text(l10n.stashStorageFreezer)),
+                ButtonSegment(value: StorageType.fridge, label: Text(l10n.stashStorageFridge)),
+                ButtonSegment(value: StorageType.room, label: Text(l10n.stashStorageRoom)),
+              ],
+              selected: {_storage},
+              onSelectionChanged: (s) => setState(() => _storage = s.first),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
           const SizedBox(height: AppSpacing.lg),
           FilledButton(
-            onPressed: () =>
-                widget.onSave(_startedAt, _durationMinutes, _leftOz, _rightOz),
-            child: const Text('Save'),
+            onPressed: _startedAt == null
+                ? null
+                : () => widget.onSave(
+                      _startedAt!,
+                      _durationMinutes,
+                      _leftOz,
+                      _rightOz,
+                      _saveToStash,
+                      _storage,
+                    ),
+            child: Text(l10n.actionSave),
           ),
         ],
       ),

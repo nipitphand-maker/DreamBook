@@ -6,8 +6,10 @@ import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
+import 'package:dreambook/core/widgets/logged_at_chip.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
 import 'package:dreambook/features/feed/data/feed_repository.dart';
+import 'package:dreambook/features/feed/presentation/feed_history_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,32 +162,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     }
   }
 
-  Future<void> _pickLoggedAt() async {
-    final now = DateTime.now();
-    final initial = _loggedAt ?? now;
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: now.subtract(const Duration(days: 30)),
-      lastDate: now,
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    if (time == null) return;
-    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    if (!picked.isAfter(now)) setState(() => _loggedAt = picked);
+  Future<void> _pickToday() async {
+    final picked = await pickTodayTime(context);
+    if (picked != null && mounted) setState(() => _loggedAt = picked);
   }
 
-  String _fmtLoggedAt() {
-    final t = _loggedAt;
-    if (t == null) return context.l10n.loggedAtNow;
-    final d = DateTime.now().difference(t);
-    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
-    if (d.inHours < 24) return '${d.inHours}h ${d.inMinutes % 60}m ago';
-    return '${t.day}/${t.month}  ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  Future<void> _pickPast() async {
+    final picked = await pickPastDateTime(context, _loggedAt);
+    if (picked != null && mounted) setState(() => _loggedAt = picked);
   }
 
   String _fmtElapsed() {
@@ -198,6 +182,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final unit = ref.watch(unitPreferencesProvider).volume;
+
+    final babyId = ref.watch(currentBabyIdProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.feedScreenTitle)),
@@ -226,50 +212,121 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               Expanded(
-                child: _tab == _Tab.breast
-                    ? _BreastForm(
-                        side: _side,
-                        onSideChanged: (s) => setState(() => _side = s),
-                        timerRunning: _timerRunning,
-                        elapsed: _fmtElapsed(),
-                        onToggleTimer: _toggleTimer,
-                      )
-                    : _BottleForm(
-                        oz: _oz,
-                        unit: unit,
-                        onOzChanged: (v) => setState(() => _oz = v),
-                        source: _source,
-                        onSourceChanged: (s) => setState(() => _source = s),
-                        fromStash: _fromStash,
-                        onFromStashChanged: (v) =>
-                            setState(() => _fromStash = v),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _tab == _Tab.breast
+                          ? _BreastForm(
+                              side: _side,
+                              onSideChanged: (s) => setState(() => _side = s),
+                              timerRunning: _timerRunning,
+                              elapsed: _fmtElapsed(),
+                              onToggleTimer: _toggleTimer,
+                            )
+                          : _BottleForm(
+                              oz: _oz,
+                              unit: unit,
+                              onOzChanged: (v) => setState(() => _oz = v),
+                              source: _source,
+                              onSourceChanged: (s) => setState(() => _source = s),
+                              fromStash: _fromStash,
+                              onFromStashChanged: (v) =>
+                                  setState(() => _fromStash = v),
+                            ),
+                      const SizedBox(height: AppSpacing.md),
+                      LoggedAtChip(
+                        value: _loggedAt,
+                        onTapToday: _pickToday,
+                        onTapPast: _pickPast,
+                        onClear: _loggedAt != null
+                            ? () => setState(() => _loggedAt = null)
+                            : null,
                       ),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextField(
+                        controller: _notesCtrl,
+                        maxLength: _kNotesMaxLen,
+                        maxLines: 2,
+                        decoration: InputDecoration(labelText: l10n.feedNotes),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FilledButton(
+                        onPressed: _save,
+                        child: Text(l10n.actionSave),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (babyId != null) ...[
+                        const Divider(),
+                        _FeedTodaySummary(babyId: babyId),
+                        FeedHistorySection(babyId: babyId),
+                      ],
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              _LoggedAtRow(
-                label: _fmtLoggedAt(),
-                onTap: _pickLoggedAt,
-                onClear: _loggedAt != null
-                    ? () => setState(() => _loggedAt = null)
-                    : null,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                controller: _notesCtrl,
-                maxLength: _kNotesMaxLen,
-                maxLines: 2,
-                decoration: InputDecoration(labelText: l10n.feedNotes),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton(
-                onPressed: _save,
-                child: Text(l10n.actionSave),
-              ),
-              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Today summary bar
+// ---------------------------------------------------------------------------
+
+class _FeedTodaySummary extends ConsumerWidget {
+  const _FeedTodaySummary({required this.babyId});
+  final String babyId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    return ref.watch(feedTodayProvider(babyId)).when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (feeds) {
+        final breastCount = feeds.where((f) => f.type == FeedType.breast).length;
+        final bottleFeeds = feeds.where((f) => f.type == FeedType.bottle).toList();
+        final bottleCount = bottleFeeds.length;
+        final bottleOz = bottleFeeds
+            .where((f) => f.oz != null)
+            .fold<double>(0.0, (sum, f) => sum + f.oz!);
+
+        final String detail;
+        if (feeds.isEmpty) {
+          detail = l10n.todayNoFeedsYet;
+        } else {
+          final parts = <String>[];
+          if (breastCount > 0) {
+            final breastLabel = breastCount == 1 ? '1 breast feed' : '$breastCount breast feeds';
+            parts.add(breastLabel);
+          }
+          if (bottleCount > 0) {
+            final ozStr = bottleOz > 0 ? '${bottleOz.toStringAsFixed(1)} oz' : '—';
+            parts.add('$ozStr bottle');
+          }
+          detail = parts.isEmpty ? l10n.todayNoFeedsYet : parts.join(' · ');
+        }
+
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${l10n.todaySummaryPrefix}$detail',
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        );
+      },
     );
   }
 }
@@ -408,45 +465,3 @@ class _BottleForm extends StatelessWidget {
   }
 }
 
-/// Tappable row showing when the event was logged.
-/// Tap → date picker → time picker. "×" resets to now.
-class _LoggedAtRow extends StatelessWidget {
-  const _LoggedAtRow({
-    required this.label,
-    required this.onTap,
-    this.onClear,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final VoidCallback? onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.schedule, size: 18, color: AppColors.inkSecondary),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          '${context.l10n.loggedAtLabel}: ',
-          style: AppTypography.bodyMedium(color: AppColors.inkSecondary),
-        ),
-        GestureDetector(
-          onTap: onTap,
-          child: Text(
-            label,
-            style: AppTypography.bodyMedium(color: AppColors.lavender700)
-                .copyWith(decoration: TextDecoration.underline),
-          ),
-        ),
-        if (onClear != null) ...[
-          const SizedBox(width: AppSpacing.xs),
-          GestureDetector(
-            onTap: onClear,
-            child: const Icon(Icons.close, size: 16, color: AppColors.inkSecondary),
-          ),
-        ],
-      ],
-    );
-  }
-}

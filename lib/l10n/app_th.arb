@@ -21,6 +21,11 @@
   "tabStash": "คลังนม",
   "tabSettings": "ตั้งค่า",
 
+  "navTabHome": "หน้าหลัก",
+  "navTabSummary": "สรุป",
+  "navTabStash": "คลังนม",
+  "navTabSettings": "ตั้งค่า",
+
   "today": "วันนี้",
   "yesterday": "เมื่อวาน",
   "dateRangeLast7Days": "7 วันที่ผ่านมา",
@@ -57,6 +62,49 @@
   "homeBabyAgeMonths": "{count, plural, =1{{babyName} อายุ 1 เดือนแล้ว} other{{babyName} อายุ {count} เดือนแล้ว}}",
   "@homeBabyAgeMonths": { "placeholders": { "count": { "type": "int" }, "babyName": { "type": "String" } } },
 
+  "homeLoggedByYouFilter": "ที่คุณบันทึก",
+  "homeTimeJustNow": "เมื่อสักครู่",
+  "homeTimeMinutesAgo": "{minutes} นาทีที่แล้ว",
+  "@homeTimeMinutesAgo": { "placeholders": { "minutes": { "type": "int" } } },
+  "homeTimeHoursAgo": "{hours} ชม. ที่แล้ว",
+  "@homeTimeHoursAgo": { "placeholders": { "hours": { "type": "int" } } },
+  "homeTimeDaysAgo": "{days} วันที่แล้ว",
+  "@homeTimeDaysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "homeChipFeedBreast": "ให้นม · นมแม่ · {time}",
+  "@homeChipFeedBreast": { "placeholders": { "time": { "type": "String" } } },
+  "homeChipFeedVol": "ให้นม · {volume} · {time}",
+  "@homeChipFeedVol": { "placeholders": { "volume": { "type": "String" }, "time": { "type": "String" } } },
+  "homeChipPumpTimeOnly": "ปั๊มนม · {time}",
+  "@homeChipPumpTimeOnly": { "placeholders": { "time": { "type": "String" } } },
+  "homeChipPumpWithVol": "ปั๊มนม · {time} · {volume}",
+  "@homeChipPumpWithVol": { "placeholders": { "time": { "type": "String" }, "volume": { "type": "String" } } },
+  "homeStashSubtitle": "มี {volume} ในคลัง",
+  "@homeStashSubtitle": { "placeholders": { "volume": { "type": "String" } } },
+  "homeStashSubtitleOldest": "มี {volume} ในคลัง · เก่าสุด {days} วัน",
+  "@homeStashSubtitleOldest": { "placeholders": { "volume": { "type": "String" }, "days": { "type": "int" } } },
+
+  "homeRecentActivity": "กิจกรรมล่าสุด",
+  "homeViewAll": "ทั้งหมด",
+
+  "homeTimelineSectionTitle": "กิจกรรมวันนี้",
+  "homeTimelineEmpty": "ยังไม่มีกิจกรรมวันนี้ — แตะปุ่มด้านบนเพื่อเริ่ม",
+  "homeTimelineFeedBreast": "ให้นม · นมแม่",
+  "homeTimelineFeedBottle": "ให้นม · {volume}",
+  "@homeTimelineFeedBottle": { "placeholders": { "volume": { "type": "String" } } },
+  "homeTimelineFeedBottleNoVol": "ให้นม · ขวดนม",
+  "homeTimelinePumpWithVol": "ปั๊มนม · {volume}",
+  "@homeTimelinePumpWithVol": { "placeholders": { "volume": { "type": "String" } } },
+  "homeTimelinePumpNoVol": "ปั๊มนม",
+  "homeTimelineDiaperPee": "เปลี่ยนผ้าอ้อม · ฉี่",
+  "homeTimelineDiaperPoop": "เปลี่ยนผ้าอ้อม · อึ",
+  "homeTimelineDiaperMixed": "เปลี่ยนผ้าอ้อม · ฉี่ + อึ",
+  "homeTimelineDiaperDry": "เปลี่ยนผ้าอ้อม · แห้ง",
+  "homeTimelineSleepActive": "นอน · กำลังหลับอยู่",
+  "homeTimelineSleepDuration": "นอน · {duration}",
+  "@homeTimelineSleepDuration": { "placeholders": { "duration": { "type": "String" } } },
+  "homeTimelineStashAdd": "เก็บนม · +{volume}",
+  "@homeTimelineStashAdd": { "placeholders": { "volume": { "type": "String" } } },
+
   "feedScreenTitle": "บันทึกการให้นม",
   "feedTypeBreast": "นมแม่",
   "feedTypeBottle": "ขวดนม",
@@ -74,14 +122,15 @@
   "pumpStop": "หยุด",
   "pumpPause": "หยุดพัก",
   "pumpResume": "ต่อ",
-  "pumpBothSides": "ทั้งสองข้าง",
-  "pumpLeftOnly": "ข้างซ้ายอย่างเดียว",
-  "pumpRightOnly": "ข้างขวาอย่างเดียว",
+  "pumpBothSides": "ทั้งสอง",
+  "pumpLeftOnly": "ซ้าย",
+  "pumpRightOnly": "ขวา",
   "pumpAddPast": "+ เพิ่มบันทึกย้อนหลัง",
   "pumpAddBottle": "+ เพิ่มนมขวด",
   "pumpLeftOz": "ซ้าย (มล.)",
   "pumpRightOz": "ขวา (มล.)",
   "pumpSaveToStash": "เก็บเข้าสต๊อกนม",
+  "pumpStashStorage": "เก็บใน",
 
   "stashTitle": "คลังนมแช่แข็ง",
   "stashUseBottle": "ใช้ขวดนี้",
@@ -103,6 +152,8 @@
   "loggedAtNow": "ตอนนี้",
   "loggedAtLabel": "บันทึกเมื่อ",
   "loggedAtChange": "เปลี่ยนเวลา",
+  "loggedAtToday": "ย้อนหลังวันนี้",
+  "loggedAtPastDate": "วันอื่น",
 
   "diaperTitle": "บันทึกผ้าอ้อม",
   "diaperAppBarTitle": "ผ้าอ้อม",
@@ -113,6 +164,12 @@
   "diaperPoop": "อึ",
   "diaperMixed": "ทั้งสองอย่าง",
   "diaperDry": "แห้ง",
+  "diaperCountToday": "{count, plural, one{1 ผ้าอ้อม} other{{count} ผ้าอ้อม}}",
+  "@diaperCountToday": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
 
   "sleepTitle": "บันทึกการนอน",
   "sleepStart": "เริ่ม",
@@ -188,6 +245,7 @@
   "welcomeBabyNameLabel": "ชื่อลูก",
   "welcomeBabyNameHint": "เช่น มะลิ",
   "welcomeStartCta": "บันทึกการให้นมเลย",
+  "welcomeBootstrapOfflineError": "ตั้งค่าการซิงค์ไม่สำเร็จ — ทำงานแบบออฟไลน์ต่อไป",
 
   "babiesTitle": "ลูกของฉัน",
   "babiesAddBaby": "เพิ่มลูก",
@@ -325,38 +383,36 @@
   "summaryNoteSection": "บันทึก",
   "summaryNoteHint": "จดอะไรไว้สำหรับวันนี้…",
 
-  "recoverySetupHeadline": "บันทึก Recovery Phrase",
-  "recoverySetupSubcopy": "เขียน 12 คำเหล่านี้ลงกระดาษและเก็บไว้ในที่ปลอดภัย ถ้าโทรศัพท์หาย คำเหล่านี้คือทางเดียวที่จะกู้ข้อมูลได้",
-  "recoverySetupWrittenCta": "เขียนแล้ว",
+  "recoverySetupHeadline": "บันทึกรหัสกู้คืน",
+  "recoverySetupSubcopy": "คัดลอกหรือจดรหัสนี้เก็บไว้ในที่ปลอดภัย เป็นทางเดียวที่จะกู้ข้อมูลได้ถ้าโทรศัพท์หาย",
+  "recoverySetupWrittenCta": "บันทึกแล้ว",
   "recoverySetupRemindLater": "เตือนทีหลัง",
-  "recoverySetupWarning": "อย่าถ่ายภาพหน้าจอ เขียนลงกระดาษเท่านั้น",
-  "recoveryVerifyHeadline": "ยืนยัน Recovery Phrase",
-  "recoveryVerifySubcopy": "กรอกคำด้านล่างเพื่อยืนยันว่าเขียนไว้แล้ว",
-  "recoveryVerifyWord": "คำที่ {number}",
-  "@recoveryVerifyWord": {
-    "placeholders": {
-      "number": { "type": "int" }
-    }
-  },
+  "recoverySetupWarning": "ถ้ารหัสและโทรศัพท์หายพร้อมกัน ข้อมูลจะกู้คืนไม่ได้",
+  "recoverySetupCopyCode": "คัดลอกรหัส",
+  "recoverySetupCopied": "คัดลอกแล้ว!",
+  "recoveryVerifyHeadline": "ยืนยันรหัสของคุณ",
+  "recoveryVerifySubcopy": "ป้อนรหัสกู้คืนเพื่อยืนยันว่าคุณบันทึกไว้แล้ว",
+  "recoveryVerifyCodeLabel": "รหัสกู้คืน",
   "recoveryVerifyConfirmCta": "ยืนยัน",
-  "recoveryVerifyWrongTryAgain": "คำไม่ถูก — ลองอีกครั้ง",
-  "recoveryVerifyWrongRegenerate": "ผิดสองครั้ง — กำลังสร้างคำใหม่",
-  "recoveryVerifySuccess": "บันทึก Recovery Phrase แล้ว",
-  "recoveryRestoreHeadline": "กู้ข้อมูลจาก Recovery Phrase",
-  "recoveryRestoreSubcopy": "กรอก Recovery Phrase 12 คำเพื่อกู้ข้อมูลในเครื่องนี้",
-  "recoveryRestoreLabel": "Recovery Phrase",
-  "recoveryRestoreHint": "คำที่1 คำที่2 คำที่3 ...",
+  "recoveryVerifyWrongTryAgain": "รหัสไม่ตรงกัน — ลองอีกครั้ง",
+  "recoveryVerifyWrongRegenerate": "ผิดสองครั้ง — สร้างรหัสใหม่แล้ว บันทึกรหัสใหม่ด้วย",
+  "recoveryVerifySuccess": "บันทึกรหัสกู้คืนแล้ว",
+  "recoveryRestoreHeadline": "กู้ข้อมูลจากรหัสกู้คืน",
+  "recoveryRestoreSubcopy": "ป้อนรหัสกู้คืนเพื่อกู้ข้อมูลในเครื่องนี้",
+  "recoveryRestoreLabel": "รหัสกู้คืน",
+  "recoveryRestoreHint": "XXXX-XXXX-XXXX-XXXX-XXXX",
   "recoveryRestoreCta": "กู้ข้อมูล",
-  "recoveryRestoreInvalidChecksum": "คำไม่ถูกต้อง ตรวจสอบ Recovery Phrase อีกครั้ง",
-  "recoveryRestoreNotFound": "ไม่พบ Recovery Phrase นี้",
+  "recoveryRestoreInvalidChecksum": "รหัสไม่ถูกต้อง กรุณาตรวจสอบและลองอีกครั้ง",
+  "recoveryRestoreNotFound": "ไม่พบรหัสกู้คืนนี้",
   "recoveryRestoreRateLimit": "ลองมากเกินไป รอ 1 ชั่วโมงแล้วลองใหม่",
   "recoveryRestoreError": "กู้ข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต",
   "recoveryRestoreSuccess": "ยินดีต้อนรับกลับมา!",
-  "welcomeRestoreCta": "กู้ข้อมูลจาก Recovery Phrase",
-  "settingsRecoveryPhraseTitle": "Recovery Phrase",
+  "welcomeRestoreCta": "กู้ข้อมูลจากรหัสกู้คืน",
+  "settingsRecoveryPhraseTitle": "รหัสกู้คืน",
   "settingsRecoveryPhraseBackedUp": "บันทึกแล้ว",
   "settingsRecoveryPhraseNotBackedUp": "ยังไม่ได้ตั้งค่า — แตะเพื่อป้องกันข้อมูล",
-  "settingsManageDevicesTitle": "จัดการอุปกรณ์",
+  "settingsManageDevicesTitle": "จัดการครอบครัว",
+  "settingsManageDevicesSubtitle": "สมาชิก ผู้ดูแล และอุปกรณ์ที่เชื่อมต่อ",
   "manageDevicesHeadline": "อุปกรณ์",
   "manageDevicesEmpty": "ไม่มีอุปกรณ์อื่น",
   "manageDevicesRevokeButton": "ลบออก",
@@ -382,7 +438,8 @@
     }
   },
   "cloudBackupNow": "สำรองตอนนี้",
-  "cloudBackupHint": "สร้างสแนปชอตเข้ารหัสข้อมูลครอบครัว ต้องใช้รหัสผ่านเพื่อกู้คืน",
+  "cloudBackupHint": "สร้างสแนปชอตเข้ารหัสที่ป้องกันด้วยรหัสกู้คืนของคุณ",
+  "cloudBackupNoRecoveryCode": "ไม่พบรหัสกู้คืน กรุณาตั้งค่ารหัสกู้คืนใน ตั้งค่า → ขั้นสูง ก่อน",
   "cloudBackupNoFamily": "ยังไม่ได้ตั้งค่าครอบครัว กรุณาตั้งค่าการแชร์ก่อน",
   "cloudBackupRateLimit": "พยายามสำรองบ่อยเกินไป กรุณารอแล้วลองใหม่",
   "cloudBackupError": "สำรองข้อมูลไม่สำเร็จ ตรวจสอบสัญญาณอินเทอร์เน็ต",
@@ -391,7 +448,7 @@
   "cloudBackupPassphraseHint": "อย่างน้อย 8 ตัวอักษร",
   "cloudBackupPremiumBody": "การสำรองข้อมูลบนคลาวด์เป็นฟีเจอร์ Premium อัปเกรดเพื่อปกป้องข้อมูลครอบครัว",
   "cloudRestoreTitle": "กู้ข้อมูลจากคลาวด์",
-  "cloudRestoreSubtitle": "ใส่ Family ID และรหัสผ่านเพื่อกู้ข้อมูลในเครื่องนี้",
+  "cloudRestoreSubtitle": "ป้อนรหัสกู้คืนเพื่อกู้ข้อมูลสำรองของคุณ",
   "cloudRestoreFamilyIdLabel": "Family ID",
   "cloudRestoreFamilyIdHint": "เช่น XXXX-XXXX",
   "cloudRestorePassphraseLabel": "รหัสผ่าน",
@@ -427,6 +484,181 @@
     }
   },
 
+  "caregiversMergeTitle": "ครอบครัวและอุปกรณ์",
+  "caregiversMergeFamilyName": "{name}",
+  "@caregiversMergeFamilyName": {
+    "description": "ชื่อครอบครัวที่แสดงในแถบด้านบนของหน้าครอบครัวและอุปกรณ์ที่รวมกัน",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "caregiversMergeMemberCount": "{count, plural, =1{สมาชิก 1 คน} other{สมาชิก {count} คน}}",
+  "@caregiversMergeMemberCount": {
+    "description": "จำนวนสมาชิกในแถบด้านบนของหน้าจอที่รวมกัน เท่ากับจำนวนอุปกรณ์ที่ใช้งานอยู่ในครอบครัวนี้",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+
   "settingsCrashReporting": "รายงานข้อผิดพลาด",
-  "settingsCrashReportingSubtitle": "ช่วยปรับปรุง DreamBook โดยส่งรายงานข้อผิดพลาดแบบไม่ระบุตัวตน"
+  "settingsCrashReportingSubtitle": "ช่วยปรับปรุง DreamBook โดยส่งรายงานข้อผิดพลาดแบบไม่ระบุตัวตน",
+
+  "recoveryUxWelcomeCloudRestoreCta": "กู้ข้อมูลจากคลาวด์",
+  "recoveryUxCloudBackupTitle": "สำรองข้อมูลบนคลาวด์",
+  "recoveryUxCloudBackupSubtitle": "แนะนำ — สำรองข้อมูลแบบเข้ารหัส กู้คืนได้เมื่อเปลี่ยนเครื่อง",
+  "recoveryUxAdvancedSectionTitle": "ขั้นสูง",
+  "recoveryUxAdvancedRecoveryPhraseTitle": "รหัสกู้คืน (ขั้นสูง)",
+  "recoveryUxAdvancedRecoveryPhraseSubtitle": "ตัวเลือกเสริมสำหรับผู้ใช้ขั้นสูง ผู้ปกครองส่วนใหญ่แนะนำให้ใช้ Cloud Backup",
+
+  "bip39InfoDialogTitle": "รหัสกู้คืน",
+  "bip39InfoDialogBody": "รหัสกู้คืนคือ 20 ตัวอักษรที่ใช้กู้ข้อมูลทั้งหมดหากสูญเสียการเข้าถึงอุปกรณ์ รหัสจะถูกสร้างขึ้นระหว่างการตั้งค่า Cloud Backup — แตะ \"Cloud Backup\" ด้านบนเพื่อสร้างหรือดูรหัสของคุณ",
+
+  "stashAddBottle": "เพิ่มขวดนม",
+  "stashSearchHint": "ค้นหาขวดนม…",
+  "stashSearchEmpty": "ไม่พบขวดนมที่ตรงกับ \"{query}\"",
+  "@stashSearchEmpty": { "placeholders": { "query": { "type": "String" } } },
+  "stashEmptyTitle": "ยังไม่มีนมในสต๊อก",
+  "stashEmptySubtitle": "ขวดนมจากการปั๊มจะมาอยู่ตรงนี้",
+  "stashStorageFreezer": "ช่องแช่แข็ง",
+  "stashStorageFridge": "ตู้เย็น",
+  "stashStorageRoom": "อุณหภูมิห้อง",
+  "stashStorageRoomShort": "ห้อง",
+  "stashBottleDetails": "รายละเอียดขวดนม",
+  "stashMarkAsUsed": "บันทึกว่าใช้แล้ว",
+  "stashRelativeToday": "วันนี้",
+  "stashRelativeYesterday": "เมื่อวาน",
+  "stashRelativeDaysAgo": "{days} วันที่แล้ว",
+  "@stashRelativeDaysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "stashPumpedExpires": "ปั๊มเมื่อ {pumped} · หมดอายุ {expires}",
+  "@stashPumpedExpires": { "placeholders": { "pumped": { "type": "String" }, "expires": { "type": "String" } } },
+  "stashPumpedAtLabel": "ปั๊มเมื่อ: {date}",
+  "@stashPumpedAtLabel": { "placeholders": { "date": { "type": "String" } } },
+  "stashExpiresAtLabel": "หมดอายุ: {date}",
+  "@stashExpiresAtLabel": { "placeholders": { "date": { "type": "String" } } },
+  "stashDiscardConfirm": "ต้องการทิ้งขวดขนาด {volume} นี้ใช่ไหม?",
+  "@stashDiscardConfirm": { "placeholders": { "volume": { "type": "String" } } },
+  "stashMarkUsedDescription": "บันทึกว่าได้ใช้ขวดขนาด {volume} แล้ว",
+  "@stashMarkUsedDescription": { "placeholders": { "volume": { "type": "String" } } },
+  "stashAmountLabel": "ปริมาณ ({unit}):",
+  "@stashAmountLabel": { "placeholders": { "unit": { "type": "String" } } },
+  "stashPumpedOnLabel": "ปั๊มเมื่อ:",
+
+  "pumpNotesOptional": "บันทึกเพิ่มเติม (ไม่จำเป็น)",
+  "pumpBottlePortions": "แบ่งใส่ขวด",
+  "pumpPerBottle": "ขวดละ:",
+  "pumpAddPastTitle": "เพิ่มบันทึกการปั๊มย้อนหลัง",
+  "pumpStartedAtLabel": "เริ่มเมื่อ: ",
+  "pumpDurationLabel": "ระยะเวลา (นาที):",
+  "pumpSideLeft": "ซ้าย",
+  "pumpSideRight": "ขวา",
+  "pumpTotalOz": "รวม: {oz} ออนซ์",
+  "@pumpTotalOz": { "placeholders": { "oz": { "type": "String" } } },
+  "pumpTotalMl": "รวม: {ml} มล.",
+  "@pumpTotalMl": { "placeholders": { "ml": { "type": "String" } } },
+  "pumpWarningHighVolume": "ปริมาณเยอะผิดปกติ — ลองเช็คอีกครั้งนะคะ",
+
+  "familyLabelMyFamily": "ครอบครัวของฉัน",
+  "familyLabelJoinedFamily": "ครอบครัวที่เข้าร่วม",
+  "shareInviteMessage": "มาร่วมครอบครัว DreamBook ของฉัน! ใช้รหัส: {code}",
+  "@shareInviteMessage": { "placeholders": { "code": { "type": "String" } } },
+
+  "sleepActiveTitle": "กำลังนอน… 💤",
+  "sleepTapStartHint": "แตะ เริ่ม เพื่อเริ่มจับเวลา",
+  "sleepBabyIsSleeping": "ลูกกำลังนอน",
+  "sleepStartedAtTime": "เริ่มนอนเมื่อ {time}",
+  "@sleepStartedAtTime": { "placeholders": { "time": { "type": "String" } } },
+  "sleepSleptForHM": "นอนไป {hours} ชม. {minutes} นาที",
+  "@sleepSleptForHM": { "placeholders": { "hours": { "type": "int" }, "minutes": { "type": "int" } } },
+  "sleepSleptForM": "นอนไป {minutes} นาที",
+  "@sleepSleptForM": { "placeholders": { "minutes": { "type": "int" } } },
+
+  "historyRecentToday": "บันทึกวันนี้",
+  "historyEmpty": "ยังไม่มีบันทึกของวันนี้",
+  "historyActionsMenu": "เพิ่มเติม",
+  "historyActionEdit": "แก้ไข",
+  "historyActionDelete": "ลบ",
+  "historyActionConfirmDeleteFeed": "ลบบันทึกการกินนี้ไหม?",
+  "historyActionConfirmDeleteFeedBody": "บันทึกการกินนี้จะหายไป กู้คืนไม่ได้นะคะ",
+  "historyActionConfirmDeletePump": "ลบบันทึกการปั๊มนี้ไหม?",
+  "historyActionConfirmDeletePumpBody": "บันทึกการปั๊มนี้จะหายไป ขวดนมที่อยู่ในสต๊อกแล้วยังคงอยู่นะคะ",
+  "historyActionConfirmDeleteDiaper": "ลบบันทึกผ้าอ้อมนี้ไหม?",
+  "historyActionConfirmDeleteDiaperBody": "บันทึกผ้าอ้อมนี้จะหายไป กู้คืนไม่ได้นะคะ",
+  "historyActionConfirmDeleteSleep": "ลบบันทึกการนอนนี้ไหม?",
+  "historyActionConfirmDeleteSleepBody": "บันทึกการนอนนี้จะหายไป กู้คืนไม่ได้นะคะ",
+  "historyActionConfirmDeleteStash": "ลบขวดนี้จากสต๊อกไหม?",
+  "historyActionConfirmDeleteStashBody": "ขวดนี้จะหายไปจากสต๊อก ถ้าทิ้งจริงๆ เลือก ทิ้ง แทนนะคะ",
+  "historyEditFeedTitle": "แก้ไขการกิน",
+  "historyEditPumpTitle": "แก้ไขการปั๊ม",
+  "historyEditDiaperTitle": "แก้ไขผ้าอ้อม",
+  "historyEditSleepTitle": "แก้ไขการนอน",
+  "historyEditStashTitle": "แก้ไขขวดในสต๊อก",
+  "historyEditSaved": "บันทึกแล้ว",
+  "historyEditConflict": "มีคนแก้ไขก่อนหน้านี้ เปิดใหม่เพื่อดูข้อมูลล่าสุดนะคะ",
+  "historyFieldStartedAt": "เริ่มเมื่อ",
+  "historyFieldEndedAt": "สิ้นสุดเมื่อ",
+  "historyFieldOz": "ออนซ์",
+  "historyFieldLeftOz": "ซ้าย (ออนซ์)",
+  "historyFieldRightOz": "ขวา (ออนซ์)",
+  "historyFieldNote": "บันทึก",
+  "historyFieldType": "ประเภท",
+
+  "summaryCalendarTitle": "ดูประวัติย้อนหลัง",
+  "summaryCalendarPrevDay": "วันก่อนหน้า",
+  "summaryCalendarNextDay": "วันถัดไป",
+  "summaryCalendarNoData": "ยังไม่มีบันทึกสำหรับวันนี้",
+
+  "stashSummaryTotal": "{oz} รวม · {count, plural, one{1 ขวด} other{{count} ขวด}}",
+  "@stashSummaryTotal": {
+    "placeholders": {
+      "oz": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "settingsStashFreezerExpiry": "ช่องแช่แข็ง",
+  "settingsStashFreezerExpiryUnit": "{months, plural, one{1 เดือน} other{{months} เดือน}}",
+  "@settingsStashFreezerExpiryUnit": {
+    "placeholders": {
+      "months": { "type": "int" }
+    }
+  },
+  "settingsStashFridgeExpiry": "ตู้เย็น",
+  "settingsStashFridgeExpiryUnit": "{days, plural, one{1 วัน} other{{days} วัน}}",
+  "@settingsStashFridgeExpiryUnit": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+
+  "todaySummaryPrefix": "วันนี้: ",
+  "todayNoFeedsYet": "ยังไม่มีข้อมูลการให้นม",
+  "todayNoPumpsYet": "ยังไม่มีข้อมูลการปั๊ม",
+  "todayNoDiapersYet": "ยังไม่มีข้อมูลผ้าอ้อม",
+  "todayNoSleepYet": "ยังไม่มีข้อมูลการนอน",
+
+  "settingsStashSectionSubtitle": "กำหนดเวลาที่ขวดนมจะเปลี่ยนสีเหลืองหรือแดงในหน้า Stash",
+  "settingsStashFreezerExpirySubtitle": "นมแช่แข็ง — ตั้งตามประเภทช่องแช่แข็ง (ปกติ 3 เดือน, จนถึง 12 เดือน)",
+  "settingsStashFridgeExpirySubtitle": "นมในตู้เย็น — นมปั๊มสดอยู่ได้ 4–8 วัน",
+
+  "deviceNicknameHint": "ชื่อเล่นอุปกรณ์ (ไม่บังคับ)",
+  "deviceNicknameEdit": "ตั้งชื่ออุปกรณ์",
+  "deviceNicknameSave": "บันทึก",
+
+  "settingsDayStart": "วันเริ่มต้นที่",
+  "settingsDayStartSubtitle": "กิจกรรมก่อนเวลานี้นับเป็นวันก่อนหน้า",
+
+  "summaryPeriodToday": "วัน",
+  "summaryPeriodWeek": "สัปดาห์",
+  "summaryPeriodMonth": "เดือน",
+  "summaryPeriodCustom": "กำหนดเอง",
+  "summaryRangeTotal": "รวม {n} วัน",
+  "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
+  "summaryCustomRange": "{from} – {to}",
+  "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
+  "summaryCurrentStash": "คลังนมปัจจุบัน"
 }

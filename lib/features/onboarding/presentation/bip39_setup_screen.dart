@@ -1,15 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/crypto/bip39_service.dart';
+import '../../../core/crypto/recovery_code_service.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/design_tokens.dart';
-
-const _secureChannel = MethodChannel('dreambook/window_flags');
 
 class Bip39SetupScreen extends ConsumerStatefulWidget {
   const Bip39SetupScreen({super.key});
@@ -19,28 +18,39 @@ class Bip39SetupScreen extends ConsumerStatefulWidget {
 }
 
 class _Bip39SetupScreenState extends ConsumerState<Bip39SetupScreen> {
-  final _bip39 = Bip39Service();
-  late String _phrase;
+  static const _channel = MethodChannel('dreambook/window_flags');
+
+  final _svc = RecoveryCodeService();
+  late final String _code;
+  bool _copied = false;
 
   @override
   void initState() {
     super.initState();
-    _phrase = _bip39.generatePhrase();
-    _setSecureFlag(true);
+    _code = _svc.generateCode();
+    if (!kIsWeb) {
+      _channel.invokeMethod<void>('setSecure', true).catchError((_) {});
+    }
   }
 
   @override
   void dispose() {
-    _setSecureFlag(false);
+    if (!kIsWeb) {
+      _channel.invokeMethod<void>('setSecure', false).catchError((_) {});
+    }
     super.dispose();
   }
 
-  void _setSecureFlag(bool secure) {
-    _secureChannel.invokeMethod<void>('setSecure', secure).catchError((_) {});
+  Future<void> _copyCode() async {
+    await Clipboard.setData(ClipboardData(text: _svc.formatCode(_code)));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
   }
 
   void _proceed() {
-    context.push(AppRoutes.bip39Verify, extra: _phrase);
+    context.push(AppRoutes.bip39Verify, extra: _code);
   }
 
   void _remindLater() {
@@ -53,7 +63,7 @@ class _Bip39SetupScreenState extends ConsumerState<Bip39SetupScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
-    final words = _bip39.toWords(_phrase);
+    final formatted = _svc.formatCode(_code);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,7 +78,9 @@ class _Bip39SetupScreenState extends ConsumerState<Bip39SetupScreen> {
             children: [
               Text(
                 l10n.recoverySetupSubcopy,
-                style: AppTypography.bodyMedium(color: scheme.onSurface.withValues(alpha: 0.7)),
+                style: AppTypography.bodyMedium(
+                  color: scheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Container(
@@ -83,36 +95,43 @@ class _Bip39SetupScreenState extends ConsumerState<Bip39SetupScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 2.8,
-                    crossAxisSpacing: AppSpacing.xs,
-                    mainAxisSpacing: AppSpacing.xs,
-                  ),
-                  itemCount: 12,
-                  itemBuilder: (context, i) {
-                    return Container(
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xxs,
+              // Recovery code display
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.xl,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      formatted,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontFamily: 'monospace',
+                            letterSpacing: 2,
+                            color: scheme.onSurface,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    FilledButton.tonalIcon(
+                      onPressed: _copyCode,
+                      icon: Icon(
+                        _copied ? Icons.check : Icons.copy_outlined,
+                        size: 18,
                       ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(8),
+                      label: Text(
+                        _copied ? l10n.recoverySetupCopied : l10n.recoverySetupCopyCode,
                       ),
-                      child: Text(
-                        '${i + 1}. ${words[i]}',
-                        style: AppTypography.bodyMedium(color: scheme.onSurface),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const Spacer(),
               FilledButton(
                 onPressed: _proceed,
                 child: Text(l10n.recoverySetupWrittenCta),

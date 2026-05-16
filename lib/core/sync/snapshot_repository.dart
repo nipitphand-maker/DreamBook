@@ -12,6 +12,7 @@ import '../crypto/snapshot_service.dart';
 import '../providers/shared_preferences_provider.dart';
 import '../router/app_router.dart' show kOnboardingDoneKey;
 import 'supabase_sync_server.dart';
+import 'sync_constants.dart';
 
 class SnapshotPassphraseError implements Exception {
   const SnapshotPassphraseError();
@@ -107,14 +108,16 @@ class SnapshotRepository {
   ///
   /// Does NOT trigger syncNow() — caller is responsible for invalidating
   /// [syncLifecycleControllerProvider] and calling syncNow().
-  Future<void> restore({
-    required String familyId,
-    required String passphrase,
+  ///
+  /// Returns the family_id returned by the EF.
+  Future<String> restore({
+    required String lookupHashB64,
+    required String normalizedCode,
     required Uint8List devicePubKey,
     int? version,
   }) async {
     final body = <String, dynamic>{
-      'family_id': familyId,
+      'lookup_hash_b64': lookupHashB64,
       'device_pub_key_b64': base64.encode(devicePubKey),
     };
     if (version != null) body['version'] = version;
@@ -129,6 +132,7 @@ class SnapshotRepository {
     }
 
     final data = response.data as Map<String, dynamic>;
+    final familyId = data['family_id'] as String;
     final wrappedKey = base64.decode(data['wrapped_key_b64'] as String);
     final salt = base64.decode(data['salt_b64'] as String);
     final keyVersion = data['key_version'] as int;
@@ -144,7 +148,7 @@ class SnapshotRepository {
     RestoredSnapshot restored;
     try {
       restored = await _snapshotService.restore(
-        passphrase: passphrase,
+        passphrase: normalizedCode,
         encryptedPayload: encryptedPayload,
         wrappedKey: Uint8List.fromList(wrappedKey),
         salt: Uint8List.fromList(salt),
@@ -162,7 +166,7 @@ class SnapshotRepository {
       keyVersion: keyVersion,
     );
 
-    await _prefs.setString('family.id', familyId);
+    await _prefs.setString(kFamilyIdPrefsKey, familyId);
     await _prefs.setBool(kOnboardingDoneKey, true);
 
     // Re-push rows to Supabase (idempotent upsert — covers server-data-loss).
@@ -184,6 +188,8 @@ class SnapshotRepository {
             : DateTime.parse(row['deleted_at'] as String),
       );
     }
+
+    return familyId;
   }
 
 

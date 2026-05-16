@@ -1,6 +1,8 @@
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/day_start_hour_provider.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
+import 'package:dreambook/core/utils/day_boundary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -19,17 +21,27 @@ class DiaperRepository {
 
   Future<Database> get _db => _ref.read(appDatabaseProvider.future);
 
-  /// All non-deleted diapers for [babyId] that occurred on or after
-  /// midnight UTC of [now] (defaults to `DateTime.now()`). Ordered by
-  /// `occurred_at DESC` — freshest entry first.
-  Future<List<Diaper>> todayFor(String babyId, {DateTime? now}) async {
+  /// All non-deleted diapers for [babyId] that fall within the logical day
+  /// containing [now] (defaults to `DateTime.now()`), as defined by
+  /// [dayStartHour]. Events before [dayStartHour] are attributed to the
+  /// previous calendar day. Ordered by `occurred_at DESC` — freshest first.
+  ///
+  /// [dayStartHour] defaults to 0 (midnight) for backward compatibility.
+  Future<List<Diaper>> todayFor(
+    String babyId, {
+    DateTime? now,
+    int dayStartHour = 0,
+  }) async {
     final db = await _db;
-    final n = (now ?? DateTime.now()).toUtc();
-    final startOfDay = DateTime.utc(n.year, n.month, n.day).toIso8601String();
+    final n = now ?? DateTime.now();
+    final (start, end) = logicalDayBounds(n, dayStartHour);
+    final startStr = start.toUtc().toIso8601String();
+    final endStr = end.toUtc().toIso8601String();
     final rows = await db.query(
       'diaper',
-      where: 'baby_id = ? AND deleted_at IS NULL AND occurred_at >= ?',
-      whereArgs: [babyId, startOfDay],
+      where:
+          'baby_id = ? AND deleted_at IS NULL AND occurred_at >= ? AND occurred_at < ?',
+      whereArgs: [babyId, startStr, endStr],
       orderBy: 'occurred_at DESC',
     );
     return rows.map(Diaper.fromRow).toList(growable: false);
@@ -128,6 +140,62 @@ class DiaperRepository {
     _ref.invalidate(diaperTodayProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
   }
+
+  /// Update mutable fields on an existing Diaper entry. Bumps version, writes
+  /// sync_state dirty. Throws [StateError] if [diaper.id] does not exist.
+  ///
+  /// Invalidates [diaperTodayProvider] for [diaper.babyId] on success.
+  Future<void> update(Diaper diaper) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    await db.transaction((txn) async {
+      final affected = await txn.rawUpdate(
+        '''
+        UPDATE diaper
+        SET type        = ?,
+            occurred_at = ?,
+            note        = ?,
+            updated_at  = ?,
+            version     = version + 1
+        WHERE id = ? AND deleted_at IS NULL
+        ''',
+        [
+          diaper.type.name,
+          diaper.occurredAt.toUtc().toIso8601String(),
+          diaper.note,
+          now,
+          diaper.id,
+        ],
+      );
+      if (affected == 0) {
+        throw StateError('Diaper ${diaper.id} not found or already deleted');
+      }
+
+      final newVersion = Sqflite.firstIntValue(
+            await txn.rawQuery(
+              'SELECT version FROM diaper WHERE id = ?',
+              [diaper.id],
+            ),
+          ) ??
+          1;
+
+      await txn.insert(
+        'sync_state',
+        {
+          'record_id': diaper.id,
+          'table_name': 'diaper',
+          'version': newVersion,
+          'updated_at': now,
+          'dirty': 1,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+
+    _ref.invalidate(diaperTodayProvider(diaper.babyId));
+    _ref.read(syncLifecycleControllerProvider).schedulePush();
+  }
 }
 
 final diaperRepositoryProvider =
@@ -146,8 +214,12 @@ class DiaperTodayNotifier extends AsyncNotifier<List<Diaper>> {
   final String babyId;
 
   @override
-  Future<List<Diaper>> build() =>
-      ref.read(diaperRepositoryProvider).todayFor(babyId);
+  Future<List<Diaper>> build() {
+    final dayStartHour = ref.watch(dayStartHourProvider);
+    return ref
+        .read(diaperRepositoryProvider)
+        .todayFor(babyId, dayStartHour: dayStartHour);
+  }
 }
 
 /// Count of diapers logged today for [babyId].

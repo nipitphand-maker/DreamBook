@@ -1,0 +1,19 @@
+name: compact_encrypted_rows
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_FUNCTIONS_URL: ${{ secrets.SUPABASE_FUNCTIONS_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Invoke compact_encrypted_rows Edge Function
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            "$SUPABASE_FUNCTIONS_URL/compact_encrypted_rows"

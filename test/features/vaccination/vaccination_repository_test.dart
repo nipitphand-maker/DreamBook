@@ -3,9 +3,12 @@ import 'package:dreambook/core/db/migrations/m001_initial.dart';
 import 'package:dreambook/core/db/migrations/m002_v2.dart';
 import 'package:dreambook/core/db/migrations/m003_v3.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
+import 'package:dreambook/core/providers/device_id_provider.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/features/vaccination/data/vaccination_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -16,6 +19,8 @@ void main() {
   late VaccinationRepository repo;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
@@ -29,6 +34,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWith((_) async => db),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        deviceIdProvider.overrideWithValue('test-device-fp'),
       ],
     );
     repo = container.read(vaccinationRepositoryProvider);

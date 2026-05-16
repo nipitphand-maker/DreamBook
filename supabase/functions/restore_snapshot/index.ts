@@ -1,6 +1,6 @@
 // supabase/functions/restore_snapshot/index.ts
 // restore_snapshot — retrieves an encrypted snapshot for a family.
-// Body: { family_id: string, device_pub_key_b64: string, version?: number }
+// Body: { lookup_hash_b64: string, device_pub_key_b64: string, version?: number }
 // Auth: Bearer JWT (anonymous auth — new device).
 // Returns: { wrapped_key_b64, salt_b64, key_version, version, payload_b64, payload_hash_b64, family_id }
 
@@ -52,12 +52,12 @@ serve(async (req) => {
   if (!authHeader.startsWith("Bearer ")) return new Response("Unauthorized", { status: 401 });
 
   const body = await req.json().catch(() => null) as {
-    family_id: string;
+    lookup_hash_b64: string;
     device_pub_key_b64: string;
     version?: number;
   } | null;
 
-  if (!body?.family_id || !body.device_pub_key_b64) {
+  if (!body?.lookup_hash_b64 || !body.device_pub_key_b64) {
     return new Response(JSON.stringify({ error: "missing fields" }), { status: 400 });
   }
 
@@ -76,11 +76,44 @@ serve(async (req) => {
 
   const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+  // Pre-resolution rate limit: count recent failures by auth_user_id BEFORE
+  // resolving lookup_hash so the 404 path cannot be used to brute-force hashes.
+  const windowStart = new Date(Date.now() - RATE_WINDOW_HOURS * 3600 * 1000).toISOString();
+  const { count: preCount } = await svc
+    .from("recovery_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("auth_user_id", userData.user.id)
+    .eq("success", false)
+    .gte("attempted_at", windowStart);
+
+  if ((preCount ?? 0) >= RATE_LIMIT) {
+    return new Response("Too Many Requests", { status: 429 });
+  }
+
+  // Resolve family_id from lookup_hash (privacy-preserving indirection).
+  const lookupHashBytes = bytesFromBase64(body.lookup_hash_b64);
+  const { data: lookupRow, error: lookupErr } = await svc
+    .from("recovery_lookup")
+    .select("family_id")
+    .eq("lookup_hash", toByteaHex(lookupHashBytes))
+    .single();
+
+  if (lookupErr || !lookupRow) {
+    // Record pre-resolution miss so the pre-check stays accurate.
+    await svc.from("recovery_attempts")
+      .insert({ family_id: null, auth_user_id: userData.user.id, success: false })
+      .catch(() => {});
+    await writeAuditEvent(null, "snapshot_restored", deviceFpHex,
+      { reason: "lookup_not_found" }).catch(() => {});
+    return new Response("Not Found", { status: 404 });
+  }
+  const familyId = lookupRow.family_id as string;
+
   // Find the snapshot.
   let snapshotQuery = svc
     .from("encrypted_snapshots")
     .select("version, storage_path, wrapped_key, salt, key_version, payload_hash, size_bytes")
-    .eq("family_id", body.family_id)
+    .eq("family_id", familyId)
     .order("version", { ascending: false })
     .limit(1);
 
@@ -88,7 +121,7 @@ serve(async (req) => {
     snapshotQuery = svc
       .from("encrypted_snapshots")
       .select("version, storage_path, wrapped_key, salt, key_version, payload_hash, size_bytes")
-      .eq("family_id", body.family_id)
+      .eq("family_id", familyId)
       .eq("version", body.version)
       .limit(1);
   }
@@ -98,32 +131,17 @@ serve(async (req) => {
   if (snapErr || !snapshotRow) {
     // Count this probe toward the rate limit — prevents not-found path from bypassing it.
     await svc.from("recovery_attempts")
-      .insert({ family_id: body.family_id, success: false })
+      .insert({ family_id: familyId, auth_user_id: userData.user.id, success: false })
       .catch(() => {});
-    await writeAuditEvent(body.family_id, "snapshot_restored", deviceFpHex,
+    await writeAuditEvent(familyId, "snapshot_restored", deviceFpHex,
       { reason: "not_found" }).catch(() => {});
     return new Response("Not Found", { status: 404 });
-  }
-
-  // Rate limit: 5 failed attempts per hour.
-  const windowStart = new Date(Date.now() - RATE_WINDOW_HOURS * 3600 * 1000).toISOString();
-  const { count } = await svc
-    .from("recovery_attempts")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", body.family_id)
-    .eq("success", false)
-    .gte("attempted_at", windowStart);
-
-  if ((count ?? 0) >= RATE_LIMIT) {
-    await writeAuditEvent(body.family_id, "snapshot_restored", deviceFpHex,
-      { reason: "rate_limited" }).catch(() => {});
-    return new Response("Too Many Requests", { status: 429 });
   }
 
   // Record attempt (initially failed; updated to success on completion).
   const { data: attemptRow } = await svc
     .from("recovery_attempts")
-    .insert({ family_id: body.family_id, success: false })
+    .insert({ family_id: familyId, auth_user_id: userData.user.id, success: false })
     .select("id")
     .single();
   const attemptId: string | null = attemptRow?.id ?? null;
@@ -134,7 +152,7 @@ serve(async (req) => {
     .download(snapshotRow.storage_path);
 
   if (downloadErr || !blobData) {
-    await writeAuditEvent(body.family_id, "snapshot_restored", deviceFpHex,
+    await writeAuditEvent(familyId, "snapshot_restored", deviceFpHex,
       { reason: "storage_error" }).catch(() => {});
     return new Response("Snapshot blob unavailable", { status: 503 });
   }
@@ -145,21 +163,21 @@ serve(async (req) => {
   const { data: familyRow } = await svc
     .from("families")
     .select("current_key_version")
-    .eq("id", body.family_id)
+    .eq("id", familyId)
     .single();
   const keyVersionAtJoin = familyRow?.current_key_version ?? snapshotRow.key_version;
 
   await svc.from("family_devices").upsert(
     {
       device_fp: toByteaHex(deviceFp),
-      family_id: body.family_id,
+      family_id: familyId,
       device_pub_key: toByteaHex(devicePubKey),
       role: "editor",
       joined_at: new Date().toISOString(),
       key_version_at_join: keyVersionAtJoin,
       auth_user_id: userData.user.id,
     },
-    { onConflict: "device_fp", ignoreDuplicates: false },
+    { onConflict: "device_fp,family_id", ignoreDuplicates: false },
   );
 
   // Mark attempt successful.
@@ -170,10 +188,10 @@ serve(async (req) => {
   // Update last_accessed_at.
   await svc.from("encrypted_snapshots")
     .update({ last_accessed_at: new Date().toISOString() })
-    .eq("family_id", body.family_id)
+    .eq("family_id", familyId)
     .eq("version", snapshotRow.version);
 
-  await writeAuditEvent(body.family_id, "snapshot_restored", deviceFpHex,
+  await writeAuditEvent(familyId, "snapshot_restored", deviceFpHex,
     { version: snapshotRow.version, size_bytes: snapshotRow.size_bytes }).catch(() => {});
 
   const wrappedKeyHex = typeof snapshotRow.wrapped_key === "string"
@@ -194,7 +212,7 @@ serve(async (req) => {
       version: snapshotRow.version,
       payload_b64: base64FromBytes(blobBytes),
       payload_hash_b64: base64FromHex(payloadHashHex),
-      family_id: body.family_id,
+      family_id: familyId,
     }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );

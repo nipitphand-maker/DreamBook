@@ -70,6 +70,19 @@ serve(async (req) => {
 
   const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+  // Pre-resolution rate limit by auth_user_id — prevents 404-path brute-force.
+  const windowStart = new Date(Date.now() - RATE_WINDOW_HOURS * 3600 * 1000).toISOString();
+  const { count: preCount } = await svc
+    .from("recovery_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("auth_user_id", userData.user.id)
+    .eq("success", false)
+    .gte("attempted_at", windowStart);
+
+  if ((preCount ?? 0) >= RATE_LIMIT) {
+    return new Response("Too Many Requests", { status: 429 });
+  }
+
   // Look up family_id via recovery_lookup.
   const lookupHash = bytesFromBase64(body.lookup_hash_b64);
   const { data: lookupRow, error: lookupErr } = await svc
@@ -79,29 +92,18 @@ serve(async (req) => {
     .single();
 
   if (lookupErr || !lookupRow) {
+    await svc.from("recovery_attempts")
+      .insert({ family_id: null, auth_user_id: userData.user.id, success: false })
+      .catch(() => {});
     await writeAuditEvent(null, "recovery_attempted", deviceFpHex, { reason: "not_found" }).catch(() => {});
     return new Response("Not Found", { status: 404 });
   }
   const familyId: string = lookupRow.family_id;
 
-  // Rate limit: count failed attempts in the last RATE_WINDOW_HOURS.
-  const windowStart = new Date(Date.now() - RATE_WINDOW_HOURS * 3600 * 1000).toISOString();
-  const { count } = await svc
-    .from("recovery_attempts")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", familyId)
-    .eq("success", false)
-    .gte("attempted_at", windowStart);
-
-  if ((count ?? 0) >= RATE_LIMIT) {
-    await writeAuditEvent(familyId, "recovery_attempted", deviceFpHex, { reason: "rate_limited" }).catch(() => {});
-    return new Response("Too Many Requests", { status: 429 });
-  }
-
   // Record this attempt (initially failed; updated to success on completion).
   const { data: attemptRow } = await svc
     .from("recovery_attempts")
-    .insert({ family_id: familyId, success: false })
+    .insert({ family_id: familyId, auth_user_id: userData.user.id, success: false })
     .select("id")
     .single();
   const attemptId: string | null = attemptRow?.id ?? null;
@@ -129,7 +131,7 @@ serve(async (req) => {
       key_version_at_join: envelope.key_version,
       auth_user_id: userData.user.id,
     },
-    { onConflict: "device_fp", ignoreDuplicates: false },
+    { onConflict: "device_fp,family_id", ignoreDuplicates: false },
   );
 
   // Mark attempt as successful.

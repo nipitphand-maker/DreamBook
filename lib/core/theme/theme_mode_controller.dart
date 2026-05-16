@@ -76,7 +76,7 @@ class ThemeModeController extends AsyncNotifier<ThemeModeState> {
         'light' => UserThemeChoice.light,
         'dark' => UserThemeChoice.dark,
         'nightTint' => UserThemeChoice.nightTint,
-        _ => UserThemeChoice.system,
+        _ => UserThemeChoice.light,
       };
 }
 

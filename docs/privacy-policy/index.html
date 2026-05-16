@@ -135,7 +135,7 @@
       <li>Baby logs: feeding sessions (breast and bottle), diaper changes, sleep sessions, pumping sessions, and vaccination records</li>
       <li>Baby profile: name and date of birth (entered by you)</li>
       <li>A device identifier (randomly generated, not linked to you or your Apple/Google account)</li>
-      <li>An optional BIP-39 recovery phrase (generated on-device, never transmitted to any server)</li>
+      <li>An optional recovery code (generated on-device, never transmitted to any server)</li>
       <li>App preferences and settings</li>
     </ul>
     <p>We do not collect names, email addresses, phone numbers, location data, photos, or any other information beyond what you explicitly enter into the baby log.</p>
@@ -149,19 +149,19 @@
     <ul>
       <li>All data is encrypted on your device using <strong>AES-GCM</strong> before it is uploaded.</li>
       <li>Our cloud infrastructure (Supabase, hosted in Singapore, ap-southeast-1) receives only ciphertext. Supabase cannot read your baby's data.</li>
-      <li>The encryption key is derived from your passphrase or recovery phrase, which is stored only on your device and is never sent to any server.</li>
+      <li>The encryption key is derived from your recovery code, which is stored only on your device and is never sent to any server.</li>
       <li>Sharing is done via an 8-character invite code with a 1-hour expiry. No persistent link between caregivers is stored on the server.</li>
     </ul>
     <p>If you do not use cloud sync, no data ever leaves your device.</p>
 
-    <h2>6. BIP-39 Recovery Phrase</h2>
-    <p>When you set up cloud sync, the app generates a standard BIP-39 recovery phrase (12 words). This phrase:</p>
+    <h2>6. Recovery Code</h2>
+    <p>When you set up cloud sync, the app generates a 20-character recovery code. This code:</p>
     <ul>
       <li>Is generated entirely on your device using a cryptographically secure random number generator</li>
       <li>Is never transmitted to our servers or any third party</li>
       <li>Is the only way to recover your encrypted cloud data if you lose your device</li>
     </ul>
-    <p>You are responsible for backing up and safeguarding your recovery phrase. If you lose it and lose your device, your cloud data cannot be recovered.</p>
+    <p>You are responsible for saving your recovery code. If you lose it and lose your device, your cloud data cannot be recovered — not even by us.</p>
 
     <h2>7. Analytics and Crash Reporting</h2>
     <p>DreamBook does <strong>not</strong> include any advertising SDK or behavioral analytics SDK.</p>

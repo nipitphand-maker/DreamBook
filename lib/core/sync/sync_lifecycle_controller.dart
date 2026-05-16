@@ -14,6 +14,7 @@ import '../../features/diaper/data/diaper_repository.dart';
 import '../../features/feed/data/feed_repository.dart';
 import '../../features/pump/data/pump_repository.dart';
 import '../../features/sleep/data/sleep_repository.dart';
+import '../../features/stash/data/stash_repository.dart';
 import 'realtime_subscriber.dart';
 import 'supabase_client_service.dart';
 import 'supabase_sync_server.dart';
@@ -115,11 +116,6 @@ class SyncLifecycleController extends WidgetsBindingObserver {
     }
   }
 }
-
-/// SharedPreferences key under which the active family id is stored after
-/// caregiver onboarding (Plan C). When absent, the device hasn't joined a
-/// family yet and sync is a no-op.
-const String kFamilyIdPrefsKey = 'family.id';
 
 /// Controller variant used before caregiver onboarding has produced a
 /// `family.id`. [syncNow] returns immediately and the
@@ -262,13 +258,16 @@ final syncLifecycleControllerProvider =
     worker: worker,
     onAfterPull: () {
       // Surface peer-pushed rows in Today/Recent providers without waiting
-      // for a hot-reload. Cheap: 4 family providers per pull cycle.
+      // for a hot-reload. Cheap: a handful of family providers per pull
+      // cycle. Stash is included so a peer's new bottle appears in the
+      // freezer card and total without needing the user to navigate away.
       final babyId = ref.read(currentBabyIdProvider);
       if (babyId == null) return;
       ref.invalidate(feedTodayProvider(babyId));
       ref.invalidate(diaperTodayProvider(babyId));
       ref.invalidate(sleepTodayProvider(babyId));
       ref.invalidate(pumpTodayProvider(babyId));
+      ref.invalidate(stashAvailableProvider(babyId));
     },
   );
 });

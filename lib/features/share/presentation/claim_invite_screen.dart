@@ -13,14 +13,13 @@ import '../../../core/crypto/invite_code_service.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/sync/sync_constants.dart';
 import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
 import '../../baby/data/current_baby_provider.dart';
 import '../../../core/families/family_entry.dart';
 import '../../../core/families/family_provider.dart';
-
-const _kFamilyIdKey = 'family.id';
 
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
@@ -112,10 +111,10 @@ class _ClaimInviteScreenState extends ConsumerState<ClaimInviteScreen> {
       );
 
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString(_kFamilyIdKey, familyId);
+      await prefs.setString(kFamilyIdPrefsKey, familyId);
       await ref.read(familyListProvider.notifier).register(FamilyEntry(
         id: familyId,
-        label: 'Joined Family',
+        label: mounted ? context.l10n.familyLabelJoinedFamily : 'Joined Family',
         createdAt: DateTime.now().toUtc(),
       ));
       // Mark onboarding done so the router stops redirecting to /welcome.

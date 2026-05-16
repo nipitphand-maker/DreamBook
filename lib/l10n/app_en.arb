@@ -21,6 +21,11 @@
   "tabStash": "Stash",
   "tabSettings": "Settings",
 
+  "navTabHome": "Home",
+  "navTabSummary": "Summary",
+  "navTabStash": "Stash",
+  "navTabSettings": "Settings",
+
   "today": "Today",
   "yesterday": "Yesterday",
   "dateRangeLast7Days": "Last 7 days",
@@ -57,6 +62,49 @@
   "homeBabyAgeMonths": "{count, plural, =1{{babyName} is 1 month old} other{{babyName} is {count} months old}}",
   "@homeBabyAgeMonths": { "placeholders": { "count": { "type": "int" }, "babyName": { "type": "String" } } },
 
+  "homeLoggedByYouFilter": "Logged by you",
+  "homeTimeJustNow": "just now",
+  "homeTimeMinutesAgo": "{minutes}m ago",
+  "@homeTimeMinutesAgo": { "placeholders": { "minutes": { "type": "int" } } },
+  "homeTimeHoursAgo": "{hours}h ago",
+  "@homeTimeHoursAgo": { "placeholders": { "hours": { "type": "int" } } },
+  "homeTimeDaysAgo": "{days}d ago",
+  "@homeTimeDaysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "homeChipFeedBreast": "Feed · breast · {time}",
+  "@homeChipFeedBreast": { "placeholders": { "time": { "type": "String" } } },
+  "homeChipFeedVol": "Feed · {volume} · {time}",
+  "@homeChipFeedVol": { "placeholders": { "volume": { "type": "String" }, "time": { "type": "String" } } },
+  "homeChipPumpTimeOnly": "Pump · {time}",
+  "@homeChipPumpTimeOnly": { "placeholders": { "time": { "type": "String" } } },
+  "homeChipPumpWithVol": "Pump · {time} · {volume}",
+  "@homeChipPumpWithVol": { "placeholders": { "time": { "type": "String" }, "volume": { "type": "String" } } },
+  "homeStashSubtitle": "{volume} in stash",
+  "@homeStashSubtitle": { "placeholders": { "volume": { "type": "String" } } },
+  "homeStashSubtitleOldest": "{volume} in stash · oldest {days}d",
+  "@homeStashSubtitleOldest": { "placeholders": { "volume": { "type": "String" }, "days": { "type": "int" } } },
+
+  "homeRecentActivity": "Recent activity",
+  "homeViewAll": "All",
+
+  "homeTimelineSectionTitle": "Today's activity",
+  "homeTimelineEmpty": "No activity yet today — tap a button above to start",
+  "homeTimelineFeedBreast": "Feed · breast",
+  "homeTimelineFeedBottle": "Feed · {volume}",
+  "@homeTimelineFeedBottle": { "placeholders": { "volume": { "type": "String" } } },
+  "homeTimelineFeedBottleNoVol": "Feed · bottle",
+  "homeTimelinePumpWithVol": "Pump · {volume}",
+  "@homeTimelinePumpWithVol": { "placeholders": { "volume": { "type": "String" } } },
+  "homeTimelinePumpNoVol": "Pump",
+  "homeTimelineDiaperPee": "Diaper · wet",
+  "homeTimelineDiaperPoop": "Diaper · dirty",
+  "homeTimelineDiaperMixed": "Diaper · wet + dirty",
+  "homeTimelineDiaperDry": "Diaper · dry",
+  "homeTimelineSleepActive": "Sleep · in progress",
+  "homeTimelineSleepDuration": "Sleep · {duration}",
+  "@homeTimelineSleepDuration": { "placeholders": { "duration": { "type": "String" } } },
+  "homeTimelineStashAdd": "Stashed · +{volume}",
+  "@homeTimelineStashAdd": { "placeholders": { "volume": { "type": "String" } } },
+
   "feedScreenTitle": "Log a feed",
   "feedTypeBreast": "Breast",
   "feedTypeBottle": "Bottle",
@@ -81,7 +129,8 @@
   "pumpAddBottle": "+ Add bottle",
   "pumpLeftOz": "Left (oz)",
   "pumpRightOz": "Right (oz)",
-  "pumpSaveToStash": "Save to freezer stash",
+  "pumpSaveToStash": "Save to stash",
+  "pumpStashStorage": "Store in",
 
   "stashTitle": "Freezer stash",
   "stashUseBottle": "Use this bottle",
@@ -103,6 +152,8 @@
   "loggedAtNow": "Now",
   "loggedAtLabel": "Logged at",
   "loggedAtChange": "Change time",
+  "loggedAtToday": "Earlier today",
+  "loggedAtPastDate": "Past date",
 
   "diaperTitle": "Log a diaper",
   "diaperAppBarTitle": "Diaper",
@@ -113,6 +164,12 @@
   "diaperPoop": "Poop",
   "diaperMixed": "Both",
   "diaperDry": "Dry",
+  "diaperCountToday": "{count, plural, one{1 diaper} other{{count} diapers}}",
+  "@diaperCountToday": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
 
   "sleepTitle": "Log sleep",
   "sleepStart": "Start",
@@ -188,6 +245,10 @@
   "welcomeBabyNameLabel": "Baby's name",
   "welcomeBabyNameHint": "e.g. Mali",
   "welcomeStartCta": "Log a feed now",
+  "welcomeBootstrapOfflineError": "Sync setup failed — continuing offline.",
+  "@welcomeBootstrapOfflineError": {
+    "description": "Shown when family bootstrap fails on welcome screen; app continues offline"
+  },
 
   "babiesTitle": "My Babies",
   "babiesAddBaby": "Add a baby",
@@ -325,38 +386,36 @@
   "summaryNoteSection": "Notes",
   "summaryNoteHint": "Jot something down for this day…",
 
-  "recoverySetupHeadline": "Save your recovery phrase",
-  "recoverySetupSubcopy": "Write these 12 words on paper and store them safely. If you lose your phone, this phrase is the only way to recover your data.",
-  "recoverySetupWrittenCta": "I've written them down",
+  "recoverySetupHeadline": "Save your recovery code",
+  "recoverySetupSubcopy": "Copy or write down this code and store it safely. It's the only way to recover your data if you lose your phone.",
+  "recoverySetupWrittenCta": "I've saved my code",
   "recoverySetupRemindLater": "Remind me later",
-  "recoverySetupWarning": "Do not screenshot this screen. Store this on paper, not in your phone.",
-  "recoveryVerifyHeadline": "Confirm your phrase",
-  "recoveryVerifySubcopy": "Enter the words below to confirm you wrote them down.",
-  "recoveryVerifyWord": "Word {number}",
-  "@recoveryVerifyWord": {
-    "placeholders": {
-      "number": { "type": "int" }
-    }
-  },
+  "recoverySetupWarning": "If you lose this code and your device, your data cannot be recovered.",
+  "recoverySetupCopyCode": "Copy code",
+  "recoverySetupCopied": "Copied!",
+  "recoveryVerifyHeadline": "Confirm your code",
+  "recoveryVerifySubcopy": "Enter your recovery code to confirm you've saved it.",
+  "recoveryVerifyCodeLabel": "Recovery code",
   "recoveryVerifyConfirmCta": "Confirm",
-  "recoveryVerifyWrongTryAgain": "Wrong words — please try again.",
-  "recoveryVerifyWrongRegenerate": "Two wrong attempts — generating a new phrase.",
-  "recoveryVerifySuccess": "Recovery phrase saved.",
-  "recoveryRestoreHeadline": "Restore from recovery phrase",
-  "recoveryRestoreSubcopy": "Enter your 12-word recovery phrase to recover your data on this device.",
-  "recoveryRestoreLabel": "Recovery phrase",
-  "recoveryRestoreHint": "word1 word2 word3 ...",
+  "recoveryVerifyWrongTryAgain": "Code doesn't match — please try again.",
+  "recoveryVerifyWrongRegenerate": "Two wrong attempts — a new code has been generated. Save the new one.",
+  "recoveryVerifySuccess": "Recovery code saved.",
+  "recoveryRestoreHeadline": "Restore from recovery code",
+  "recoveryRestoreSubcopy": "Enter your recovery code to restore your data on this device.",
+  "recoveryRestoreLabel": "Recovery code",
+  "recoveryRestoreHint": "XXXX-XXXX-XXXX-XXXX-XXXX",
   "recoveryRestoreCta": "Restore",
-  "recoveryRestoreInvalidChecksum": "One or more words are incorrect. Check your phrase and try again.",
-  "recoveryRestoreNotFound": "Recovery phrase not recognised.",
+  "recoveryRestoreInvalidChecksum": "Invalid code. Please check and try again.",
+  "recoveryRestoreNotFound": "Recovery code not recognised.",
   "recoveryRestoreRateLimit": "Too many attempts. Wait an hour and try again.",
   "recoveryRestoreError": "Restore failed. Check your connection and try again.",
   "recoveryRestoreSuccess": "Welcome back!",
-  "welcomeRestoreCta": "Restore from recovery phrase",
-  "settingsRecoveryPhraseTitle": "Recovery phrase",
+  "welcomeRestoreCta": "Restore from recovery code",
+  "settingsRecoveryPhraseTitle": "Recovery code",
   "settingsRecoveryPhraseBackedUp": "Backed up",
   "settingsRecoveryPhraseNotBackedUp": "Not set up — tap to protect your data",
-  "settingsManageDevicesTitle": "Manage devices",
+  "settingsManageDevicesTitle": "Family management",
+  "settingsManageDevicesSubtitle": "Members, caregivers and linked devices",
   "manageDevicesHeadline": "Devices",
   "manageDevicesEmpty": "No other devices.",
   "manageDevicesRevokeButton": "Remove",
@@ -382,7 +441,8 @@
     }
   },
   "cloudBackupNow": "Back up now",
-  "cloudBackupHint": "Creates an encrypted snapshot of your family data. You will need your passphrase to restore it.",
+  "cloudBackupHint": "Creates an encrypted snapshot protected by your recovery code.",
+  "cloudBackupNoRecoveryCode": "No recovery code found. Please set up your recovery code in Settings → Advanced first.",
   "cloudBackupNoFamily": "No family set up yet. Set up sharing first.",
   "cloudBackupRateLimit": "Too many backup attempts. Please wait and try again.",
   "cloudBackupError": "Backup failed. Check your connection and try again.",
@@ -391,7 +451,7 @@
   "cloudBackupPassphraseHint": "At least 8 characters",
   "cloudBackupPremiumBody": "Cloud backup is a Premium feature. Upgrade to protect your family data.",
   "cloudRestoreTitle": "Restore from cloud backup",
-  "cloudRestoreSubtitle": "Enter your Family ID and passphrase to restore your data on this device.",
+  "cloudRestoreSubtitle": "Enter your recovery code to restore your encrypted backup.",
   "cloudRestoreFamilyIdLabel": "Family ID",
   "cloudRestoreFamilyIdHint": "e.g. XXXX-XXXX",
   "cloudRestorePassphraseLabel": "Passphrase",
@@ -427,6 +487,181 @@
     }
   },
 
+  "caregiversMergeTitle": "Family & devices",
+  "caregiversMergeFamilyName": "{name}",
+  "@caregiversMergeFamilyName": {
+    "description": "Family name shown in the header banner of the merged Caregivers/Devices screen.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "caregiversMergeMemberCount": "{count, plural, =1{1 member} other{{count} members}}",
+  "@caregiversMergeMemberCount": {
+    "description": "Member count subtitle in the header banner of the merged screen. Equals the number of active devices in the active family.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+
   "settingsCrashReporting": "Crash Reporting",
-  "settingsCrashReportingSubtitle": "Help improve DreamBook by sharing anonymous crash reports"
+  "settingsCrashReportingSubtitle": "Help improve DreamBook by sharing anonymous crash reports",
+
+  "recoveryUxWelcomeCloudRestoreCta": "Restore from cloud backup",
+  "recoveryUxCloudBackupTitle": "Cloud Backup",
+  "recoveryUxCloudBackupSubtitle": "Recommended — encrypted snapshot you can restore on a new phone",
+  "recoveryUxAdvancedSectionTitle": "Advanced",
+  "recoveryUxAdvancedRecoveryPhraseTitle": "Recovery code (advanced)",
+  "recoveryUxAdvancedRecoveryPhraseSubtitle": "Optional recovery code for power users. Most parents should use Cloud Backup.",
+
+  "bip39InfoDialogTitle": "Recovery code",
+  "bip39InfoDialogBody": "Your recovery code is a 20-character code that can fully restore your data if you lose your device. It's generated during Cloud Backup setup — tap \"Cloud Backup\" above to create or view it.",
+
+  "stashAddBottle": "Add bottle",
+  "stashSearchHint": "Search bottles…",
+  "stashSearchEmpty": "No bottles match \"{query}\"",
+  "@stashSearchEmpty": { "placeholders": { "query": { "type": "String" } } },
+  "stashEmptyTitle": "No milk in stash",
+  "stashEmptySubtitle": "Bottles from pump sessions appear here",
+  "stashStorageFreezer": "Freezer",
+  "stashStorageFridge": "Fridge",
+  "stashStorageRoom": "Room temp",
+  "stashStorageRoomShort": "Room",
+  "stashBottleDetails": "Bottle details",
+  "stashMarkAsUsed": "Mark as used",
+  "stashRelativeToday": "today",
+  "stashRelativeYesterday": "yesterday",
+  "stashRelativeDaysAgo": "{days}d ago",
+  "@stashRelativeDaysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "stashPumpedExpires": "Pumped {pumped} · Expires {expires}",
+  "@stashPumpedExpires": { "placeholders": { "pumped": { "type": "String" }, "expires": { "type": "String" } } },
+  "stashPumpedAtLabel": "Pumped: {date}",
+  "@stashPumpedAtLabel": { "placeholders": { "date": { "type": "String" } } },
+  "stashExpiresAtLabel": "Expires: {date}",
+  "@stashExpiresAtLabel": { "placeholders": { "date": { "type": "String" } } },
+  "stashDiscardConfirm": "Are you sure you want to discard this {volume} bottle?",
+  "@stashDiscardConfirm": { "placeholders": { "volume": { "type": "String" } } },
+  "stashMarkUsedDescription": "Record that you used this bottle of {volume}",
+  "@stashMarkUsedDescription": { "placeholders": { "volume": { "type": "String" } } },
+  "stashAmountLabel": "Amount ({unit}):",
+  "@stashAmountLabel": { "placeholders": { "unit": { "type": "String" } } },
+  "stashPumpedOnLabel": "Pumped on:",
+
+  "pumpNotesOptional": "Notes (optional)",
+  "pumpBottlePortions": "Bottle portions",
+  "pumpPerBottle": "Per bottle:",
+  "pumpAddPastTitle": "Add past pump",
+  "pumpStartedAtLabel": "Started at: ",
+  "pumpDurationLabel": "Duration (min):",
+  "pumpSideLeft": "Left",
+  "pumpSideRight": "Right",
+  "pumpTotalOz": "Total: {oz} oz",
+  "@pumpTotalOz": { "placeholders": { "oz": { "type": "String" } } },
+  "pumpTotalMl": "Total: {ml} ml",
+  "@pumpTotalMl": { "placeholders": { "ml": { "type": "String" } } },
+  "pumpWarningHighVolume": "Unusually high volume — double-check?",
+
+  "familyLabelMyFamily": "My Family",
+  "familyLabelJoinedFamily": "Joined Family",
+  "shareInviteMessage": "Join my DreamBook family! Use code: {code}",
+  "@shareInviteMessage": { "placeholders": { "code": { "type": "String" } } },
+
+  "sleepActiveTitle": "Sleeping… 💤",
+  "sleepTapStartHint": "Tap Start to begin tracking",
+  "sleepBabyIsSleeping": "Baby is sleeping",
+  "sleepStartedAtTime": "Started at {time}",
+  "@sleepStartedAtTime": { "placeholders": { "time": { "type": "String" } } },
+  "sleepSleptForHM": "Slept for {hours}h {minutes}m",
+  "@sleepSleptForHM": { "placeholders": { "hours": { "type": "int" }, "minutes": { "type": "int" } } },
+  "sleepSleptForM": "Slept for {minutes}m",
+  "@sleepSleptForM": { "placeholders": { "minutes": { "type": "int" } } },
+
+  "historyRecentToday": "Today's history",
+  "historyEmpty": "Nothing logged yet today",
+  "historyActionsMenu": "More",
+  "historyActionEdit": "Edit",
+  "historyActionDelete": "Delete",
+  "historyActionConfirmDeleteFeed": "Delete this feed?",
+  "historyActionConfirmDeleteFeedBody": "This feed entry will be removed. You can't undo this.",
+  "historyActionConfirmDeletePump": "Delete this pump session?",
+  "historyActionConfirmDeletePumpBody": "This pump session will be removed. Bottles already in your stash stay where they are.",
+  "historyActionConfirmDeleteDiaper": "Delete this diaper?",
+  "historyActionConfirmDeleteDiaperBody": "This diaper entry will be removed. You can't undo this.",
+  "historyActionConfirmDeleteSleep": "Delete this sleep?",
+  "historyActionConfirmDeleteSleepBody": "This sleep session will be removed. You can't undo this.",
+  "historyActionConfirmDeleteStash": "Delete this stash bottle?",
+  "historyActionConfirmDeleteStashBody": "This bottle will be removed from your stash. Use Discard instead if you threw it away.",
+  "historyEditFeedTitle": "Edit feed",
+  "historyEditPumpTitle": "Edit pump session",
+  "historyEditDiaperTitle": "Edit diaper",
+  "historyEditSleepTitle": "Edit sleep",
+  "historyEditStashTitle": "Edit stash bottle",
+  "historyEditSaved": "Saved",
+  "historyEditConflict": "Someone else just changed this. Reopen to see the latest.",
+  "historyFieldStartedAt": "Started at",
+  "historyFieldEndedAt": "Ended at",
+  "historyFieldOz": "Ounces",
+  "historyFieldLeftOz": "Left (oz)",
+  "historyFieldRightOz": "Right (oz)",
+  "historyFieldNote": "Note",
+  "historyFieldType": "Type",
+
+  "summaryCalendarTitle": "Browse history",
+  "summaryCalendarPrevDay": "Previous day",
+  "summaryCalendarNextDay": "Next day",
+  "summaryCalendarNoData": "No data for this day",
+
+  "stashSummaryTotal": "{oz} total · {count, plural, one{1 bottle} other{{count} bottles}}",
+  "@stashSummaryTotal": {
+    "placeholders": {
+      "oz": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "settingsStashFreezerExpiry": "Freezer storage",
+  "settingsStashFreezerExpiryUnit": "{months, plural, one{1 month} other{{months} months}}",
+  "@settingsStashFreezerExpiryUnit": {
+    "placeholders": {
+      "months": { "type": "int" }
+    }
+  },
+  "settingsStashFridgeExpiry": "Fridge storage",
+  "settingsStashFridgeExpiryUnit": "{days, plural, one{1 day} other{{days} days}}",
+  "@settingsStashFridgeExpiryUnit": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+
+  "todaySummaryPrefix": "Today: ",
+  "todayNoFeedsYet": "no feeds yet",
+  "todayNoPumpsYet": "no pumps yet",
+  "todayNoDiapersYet": "no diapers yet",
+  "todayNoSleepYet": "no sleep logged",
+
+  "settingsStashSectionSubtitle": "Controls when bottles turn amber or red in the Stash screen.",
+  "settingsStashFreezerExpirySubtitle": "Frozen milk — set to match your freezer type (regular 3 mo, deep freeze up to 12 mo)",
+  "settingsStashFridgeExpirySubtitle": "Refrigerated milk — freshly pumped milk stays safe 4–8 days",
+
+  "deviceNicknameHint": "Device nickname (optional)",
+  "deviceNicknameEdit": "Rename device",
+  "deviceNicknameSave": "Save",
+
+  "settingsDayStart": "Day starts at",
+  "settingsDayStartSubtitle": "Sessions before this time count toward the previous day",
+
+  "summaryPeriodToday": "Day",
+  "summaryPeriodWeek": "Week",
+  "summaryPeriodMonth": "Month",
+  "summaryPeriodCustom": "Custom",
+  "summaryRangeTotal": "{n}-day total",
+  "@summaryRangeTotal": { "placeholders": { "n": { "type": "int" } } },
+  "summaryCustomRange": "{from} – {to}",
+  "@summaryCustomRange": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } } },
+  "summaryCurrentStash": "Current stash"
 }

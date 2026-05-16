@@ -26,7 +26,12 @@ class ScaffoldWithNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final path = GoRouterState.of(context).uri.path;
-    final labels = [l10n.tabHome, l10n.tabSummary, l10n.tabStash, l10n.tabSettings];
+    final labels = [
+      l10n.navTabHome,
+      l10n.navTabSummary,
+      l10n.navTabStash,
+      l10n.navTabSettings,
+    ];
 
     return Scaffold(
       body: child,

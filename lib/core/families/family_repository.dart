@@ -1,9 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../sync/sync_constants.dart';
 import 'family_entry.dart';
 
 const _kFamiliesListKey = 'families.list';
-const _kFamilyIdKey = 'family.id';
 
 class FamilyRepository {
   FamilyRepository(this._prefs);
@@ -16,7 +16,7 @@ class FamilyRepository {
     final raw = _prefs.getString(_kFamiliesListKey);
     if (raw != null) return FamilyEntry.listFromJson(raw);
     // Migration path: legacy format stored only the active id.
-    final legacyId = _prefs.getString(_kFamilyIdKey) ?? '';
+    final legacyId = _prefs.getString(kFamilyIdPrefsKey) ?? '';
     if (legacyId.isEmpty) return [];
     return [
       FamilyEntry(
@@ -28,7 +28,7 @@ class FamilyRepository {
   }
 
   /// The currently active family id (same as `family.id` prefs key).
-  String? activeId() => _prefs.getString(_kFamilyIdKey);
+  String? activeId() => _prefs.getString(kFamilyIdPrefsKey);
 
   /// Appends [entry] to the list (no-op if id already present) and sets it
   /// as the active family.
@@ -38,13 +38,13 @@ class FamilyRepository {
       final updated = [...current, entry];
       await _prefs.setString(_kFamiliesListKey, FamilyEntry.listToJson(updated));
     }
-    await _prefs.setString(_kFamilyIdKey, entry.id);
+    await _prefs.setString(kFamilyIdPrefsKey, entry.id);
   }
 
   /// Switches the active family to [familyId]. [familyId] must already be in
   /// the list — callers are responsible for validating.
   Future<void> switchTo(String familyId) async {
-    await _prefs.setString(_kFamilyIdKey, familyId);
+    await _prefs.setString(kFamilyIdPrefsKey, familyId);
   }
 
   /// Removes [familyId] from the list. If it was the active family, switches
@@ -54,7 +54,7 @@ class FamilyRepository {
     final updated = list().where((e) => e.id != familyId).toList();
     await _prefs.setString(_kFamiliesListKey, FamilyEntry.listToJson(updated));
     if (activeId() == familyId) {
-      await _prefs.setString(_kFamilyIdKey, updated.isEmpty ? '' : updated.first.id);
+      await _prefs.setString(kFamilyIdPrefsKey, updated.isEmpty ? '' : updated.first.id);
     }
   }
 

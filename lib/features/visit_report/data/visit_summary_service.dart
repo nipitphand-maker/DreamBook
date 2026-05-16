@@ -28,19 +28,31 @@ class VisitSummaryService {
       orElse: () => throw StateError('Baby not found'),
     );
 
-    final now = DateTime.now().toUtc();
-    final rangeEnd = DateTime.utc(now.year, now.month, now.day, 23, 59, 59);
-    final rangeStart = DateTime.utc(now.year, now.month, now.day)
-        .subtract(Duration(days: rangeDays - 1));
+    // Build per-day buckets using LOCAL midnight boundaries so the PDF report
+    // assigns events to the correct calendar day for non-UTC timezones (e.g.
+    // Thai users at UTC+7). Each day boundary is converted to UTC only when
+    // comparing against the UTC ISO strings stored in the DB.
+    final nowLocal = DateTime.now();
+    final todayLocal = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final rangeStartLocal = todayLocal.subtract(Duration(days: rangeDays - 1));
+    final rangeEndLocal = todayLocal.add(const Duration(days: 1));
+
+    // UTC strings for the DB WHERE clause
+    final rangeStartUtc = rangeStartLocal.toUtc().toIso8601String();
+    final rangeEndUtc = rangeEndLocal.toUtc().toIso8601String();
+
+    // Keep local DateTime references for returning in the result envelope
+    final rangeStart = rangeStartLocal;
+    final rangeEnd = DateTime(nowLocal.year, nowLocal.month, nowLocal.day, 23, 59, 59);
 
     final feedRows = await db.query(
       'feed',
       where:
-          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at <= ?',
+          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
       whereArgs: [
         babyId,
-        rangeStart.toIso8601String(),
-        rangeEnd.toIso8601String(),
+        rangeStartUtc,
+        rangeEndUtc,
       ],
     );
     final feeds = feedRows.map(Feed.fromRow).toList();
@@ -48,11 +60,11 @@ class VisitSummaryService {
     final diaperRows = await db.query(
       'diaper',
       where:
-          'baby_id = ? AND deleted_at IS NULL AND occurred_at >= ? AND occurred_at <= ?',
+          'baby_id = ? AND deleted_at IS NULL AND occurred_at >= ? AND occurred_at < ?',
       whereArgs: [
         babyId,
-        rangeStart.toIso8601String(),
-        rangeEnd.toIso8601String(),
+        rangeStartUtc,
+        rangeEndUtc,
       ],
     );
     final diapers = diaperRows.map(Diaper.fromRow).toList();
@@ -60,11 +72,11 @@ class VisitSummaryService {
     final sleepRows = await db.query(
       'sleep',
       where:
-          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at <= ?',
+          'baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
       whereArgs: [
         babyId,
-        rangeStart.toIso8601String(),
-        rangeEnd.toIso8601String(),
+        rangeStartUtc,
+        rangeEndUtc,
       ],
     );
     final sleeps = sleepRows.map(Sleep.fromRow).toList();
@@ -74,7 +86,9 @@ class VisitSummaryService {
 
     final days = <DaySummary>[];
     for (var i = 0; i < rangeDays; i++) {
-      final dayStart = rangeStart.add(Duration(days: i));
+      // Use local midnight windows so events are bucketed by the user's calendar
+      // day, not by UTC day.
+      final dayStart = rangeStartLocal.add(Duration(days: i));
       final dayEnd = dayStart.add(const Duration(days: 1));
 
       final dayFeeds = feeds

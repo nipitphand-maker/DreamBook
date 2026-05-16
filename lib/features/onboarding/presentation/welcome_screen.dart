@@ -12,6 +12,7 @@ import '../../../core/crypto/family_key_service.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/sync/sync_constants.dart';
 import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
@@ -19,7 +20,6 @@ import '../../baby/data/current_baby_provider.dart';
 import '../../../core/families/family_entry.dart';
 import '../../../core/families/family_provider.dart';
 
-const _kFamilyIdKey = 'family.id';
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
 class WelcomeScreen extends ConsumerStatefulWidget {
@@ -41,6 +41,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   Future<void> _start() async {
     if (_loading) return;
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (prefs.getBool(kOnboardingDoneKey) ?? false) {
+      if (mounted) context.go(AppRoutes.home);
+      return;
+    }
     setState(() => _loading = true);
     try {
       final raw = _nameCtrl.text.trim();
@@ -50,8 +55,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       // Bootstrap MUST run before the baby insert so the baby row gets stamped
       // with the real family_id from prefs. Inserting first leaves family_id
       // as '' (DDL default), which makes BabyRepository.list()'s family.id
-      // filter return [] forever.
-      final bootstrapped = await _bootstrapFamily(prefs, babyName: name);
+      // filter return [] forever. We no longer branch on the bootstrap
+      // outcome — Recovery-UX 2026-05-16 removed the mandatory BIP39 setup
+      // step, so both the online and offline paths now land on the same
+      // post-onboarding destination. Failures still surface as a SnackBar
+      // from inside _bootstrapFamily so the user knows sync is degraded.
+      await _bootstrapFamily(prefs, babyName: name);
 
       final babyRepo = ref.read(babyRepositoryProvider);
       final today = DateTime.now().toUtc();
@@ -59,12 +68,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       await ref.read(currentBabyIdProvider.notifier).select(baby.id);
 
       if (!mounted) return;
-      if (bootstrapped) {
-        context.go(AppRoutes.bip39Setup);
-        return;
-      }
-
-      // Offline path: mark onboarding done and go home.
+      // Recovery-UX 2026-05-16: BIP39 setup demoted out of onboarding.
+      // Cloud Backup (Settings → top-level) is now the default recovery
+      // story for parents. Users can still opt into a recovery phrase
+      // from Settings → Advanced, but we no longer block onboarding on
+      // a 12-word seed phrase that this audience doesn't understand.
       await prefs.setBool(kOnboardingDoneKey, true);
       final pendingDeepLink = prefs.getString('router.pendingDeepLink');
       if (pendingDeepLink != null && pendingDeepLink.isNotEmpty) {
@@ -91,7 +99,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     SharedPreferences prefs, {
     required String babyName,
   }) async {
-    if ((prefs.getString(_kFamilyIdKey) ?? '').isNotEmpty) return false;
+    if ((prefs.getString(kFamilyIdPrefsKey) ?? '').isNotEmpty) return false;
     try {
       final supa = Supabase.instance.client;
       if (supa.auth.currentSession == null) {
@@ -113,7 +121,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       }
 
       final familyId = data['family_id'] as String;
-      await prefs.setString(_kFamilyIdKey, familyId);
+      await prefs.setString(kFamilyIdPrefsKey, familyId);
       await ref.read(familyListProvider.notifier).register(FamilyEntry(
         id: familyId,
         label: "$babyName's Family",
@@ -132,7 +140,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sync setup failed — continuing offline. ($e)'),
+            content: Text(context.l10n.welcomeBootstrapOfflineError),
             duration: const Duration(seconds: 6),
           ),
         );
@@ -191,13 +199,17 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 onPressed: () => context.push(AppRoutes.shareClaim),
                 child: Text(l10n.joinHaveCode),
               ),
+              // Recovery-UX 2026-05-16: Cloud Backup is the default
+              // recovery path for parents. The BIP39 phrase restore
+              // option lives in Settings → Advanced now — it's only
+              // reachable by users who explicitly opted into a phrase.
+              TextButton(
+                onPressed: () => context.push(AppRoutes.cloudRestore),
+                child: Text(l10n.recoveryUxWelcomeCloudRestoreCta),
+              ),
               TextButton(
                 onPressed: () => context.push(AppRoutes.bip39Restore),
                 child: Text(l10n.welcomeRestoreCta),
-              ),
-              TextButton(
-                onPressed: () => context.push(AppRoutes.cloudRestore),
-                child: Text(l10n.welcomeCloudRestoreCta),
               ),
               const SizedBox(height: AppSpacing.md),
             ],

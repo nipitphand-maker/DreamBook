@@ -105,8 +105,13 @@ void main() {
     expect(available.first.id, normal.id);
   });
 
-  // Test 3: availableFor orders by pumped_at ASC (oldest first)
-  test('availableFor orders by pumped_at ASC (oldest first)', () async {
+  // Test 3: availableFor orders by expires_at ASC (soonest-expiring first)
+  //
+  // All bottles share the same storage type (freezer = 180d shelf life),
+  // so the expiry order matches the pump-date order — but the assertion
+  // is now about `expires_at`, which is what the UI actually consumes.
+  test('availableFor orders by expires_at ASC (soonest-expiring first)',
+      () async {
     final newer = await repo.insertManual(
       babyId: 'b1',
       oz: 4.0,
@@ -125,9 +130,73 @@ void main() {
 
     final available = await repo.availableFor('b1');
     expect(available.length, 3);
+    // Soonest expiry first: older was pumped first → expires first.
     expect(available[0].id, older.id);
     expect(available[1].id, middle.id);
     expect(available[2].id, newer.id);
+    // Explicit invariant on the sort key itself.
+    expect(
+      available[0].expiresAt.isBefore(available[1].expiresAt),
+      isTrue,
+    );
+    expect(
+      available[1].expiresAt.isBefore(available[2].expiresAt),
+      isTrue,
+    );
+  });
+
+  // Test 3b: availableFor sorts by expires_at even when pumped_at order
+  // differs (e.g. mix of freezer + fridge bottles where the older freezer
+  // bottle outlasts the newer fridge bottle). Insert raw rows so the
+  // expiry can be set independently of `pumpedAt + 180d`.
+  test('availableFor sorts by expires_at independent of pumped_at order',
+      () async {
+    // Bottle A: pumped earliest, expires LAST (fresh freezer).
+    await db.insert('stash_bottle', {
+      'id': 'a',
+      'baby_id': 'b1',
+      'oz': 4.0,
+      'pumped_at': '2026-05-01T00:00:00.000Z',
+      'expires_at': '2026-11-01T00:00:00.000Z',
+      'storage': 'freezer',
+      'source': 'collector',
+      'created_at': '2026-05-01T00:00:00.000Z',
+      'updated_at': '2026-05-01T00:00:00.000Z',
+      'version': 1,
+    });
+    // Bottle B: pumped LAST, expires SOONEST (fridge, short shelf life).
+    await db.insert('stash_bottle', {
+      'id': 'b',
+      'baby_id': 'b1',
+      'oz': 3.0,
+      'pumped_at': '2026-05-15T00:00:00.000Z',
+      'expires_at': '2026-05-19T00:00:00.000Z',
+      'storage': 'fridge',
+      'source': 'collector',
+      'created_at': '2026-05-15T00:00:00.000Z',
+      'updated_at': '2026-05-15T00:00:00.000Z',
+      'version': 1,
+    });
+    // Bottle C: pumped middle, expires middle.
+    await db.insert('stash_bottle', {
+      'id': 'c',
+      'baby_id': 'b1',
+      'oz': 2.0,
+      'pumped_at': '2026-05-10T00:00:00.000Z',
+      'expires_at': '2026-06-01T00:00:00.000Z',
+      'storage': 'freezer',
+      'source': 'collector',
+      'created_at': '2026-05-10T00:00:00.000Z',
+      'updated_at': '2026-05-10T00:00:00.000Z',
+      'version': 1,
+    });
+
+    final available = await repo.availableFor('b1');
+    expect(available.length, 3);
+    // Expected order by expires_at ASC: B (May 19) → C (Jun 1) → A (Nov 1).
+    expect(available[0].id, 'b');
+    expect(available[1].id, 'c');
+    expect(available[2].id, 'a');
   });
 
   // Test 4: insertManual creates a bottle with correct fields

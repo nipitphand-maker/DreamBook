@@ -3,12 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/crypto/device_identity_service.dart';
+import '../../../core/crypto/family_key_service.dart';
+import '../../../core/crypto/key_rotation_service.dart';
+import '../../../core/db/database_provider.dart';
 import '../../../core/l10n/l10n_ext.dart';
+import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/sync/bytea_codec.dart';
+import '../../../core/sync/sync_constants.dart';
 import '../../../core/theme/design_tokens.dart';
 
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
@@ -20,12 +26,14 @@ class _DeviceRow {
     required this.role,
     required this.joinedAt,
     required this.isThisDevice,
+    required this.nickname,
   });
   final String deviceFpDisplay;
   final String deviceFpFull;
   final String role;
   final DateTime joinedAt;
   final bool isThisDevice;
+  String nickname;
 }
 
 class ManageDevicesScreen extends ConsumerStatefulWidget {
@@ -40,6 +48,10 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
   String? _errorText;
   bool _loading = true;
   String? _myFpHex;
+
+  SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
+
+  static String _nicknameKey(String deviceFp) => 'device.nickname.$deviceFp';
 
   @override
   void initState() {
@@ -61,17 +73,20 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
           .filter('revoked_at', 'is', null)
           .order('joined_at', ascending: true);
 
+      final prefs = _prefs;
       final devices = (rows as List).map((r) {
         final m = r as Map<String, dynamic>;
         final fpBytes = decodeBytea(m['device_fp']);
         final fpHex = fpBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
         final fpDisplay = fpHex.length > 8 ? '${fpHex.substring(0, 8)}…' : fpHex;
+        final nickname = prefs.getString(_nicknameKey(fpHex)) ?? '';
         return _DeviceRow(
           deviceFpDisplay: fpDisplay,
           deviceFpFull: fpHex,
           role: m['role'] as String? ?? 'editor',
           joinedAt: DateTime.parse(m['joined_at'] as String),
           isThisDevice: fpHex == _myFpHex,
+          nickname: nickname,
         );
       }).toList();
 
@@ -79,6 +94,44 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
     } catch (e) {
       if (mounted) setState(() { _errorText = e.toString(); _loading = false; });
     }
+  }
+
+  Future<void> _renameDevice(_DeviceRow device) async {
+    final l10n = context.l10n;
+    final controller = TextEditingController(text: device.nickname);
+    final saved = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deviceNicknameEdit),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: l10n.deviceNicknameHint),
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.manageDevicesRevokeCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l10n.deviceNicknameSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (saved == null || !mounted) return;
+    final key = _nicknameKey(device.deviceFpFull);
+    if (saved.isEmpty) {
+      await _prefs.remove(key);
+    } else {
+      await _prefs.setString(key, saved);
+    }
+    setState(() {
+      device.nickname = saved;
+    });
   }
 
   Future<void> _revoke(_DeviceRow device) async {
@@ -101,11 +154,27 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
     );
     if (confirmed != true || !mounted) return;
     try {
+      final familyId = _prefs.getString(kFamilyIdPrefsKey);
+      if (familyId == null) throw StateError('family.id not in prefs');
+
+      final db = await ref.read(appDatabaseProvider.future);
+      final krs = KeyRotationService(
+        db: db,
+        familyKeys: FamilyKeyService(_secureStorage),
+      );
+
+      // Record rotation intent BEFORE server call (crash-safe).
+      await krs.beginRotation(familyId: familyId);
+
       final supa = Supabase.instance.client;
       await supa.functions.invoke(
         'revoke_caregiver',
         body: {'target_device_fp': device.deviceFpFull},
       );
+
+      // Rotate local K_family so the revoked device can't decrypt future data.
+      await krs.completeRotation(familyId: familyId);
+
       await _load();
     } catch (e) {
       if (mounted) {
@@ -135,26 +204,42 @@ class _ManageDevicesScreenState extends ConsumerState<ManageDevicesScreen> {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final d = _devices![i];
+                        final displayName = d.isThisDevice
+                            ? l10n.manageDevicesThisDevice
+                            : d.nickname.isNotEmpty
+                                ? d.nickname
+                                : d.deviceFpDisplay;
+                        final roleLabel = d.role == 'admin'
+                            ? l10n.manageDevicesAdmin
+                            : l10n.manageDevicesEditor;
                         return ListTile(
                           leading: Icon(
                             d.role == 'admin'
                                 ? Icons.admin_panel_settings
                                 : Icons.person,
                           ),
-                          title: Text(
-                            d.isThisDevice
-                                ? l10n.manageDevicesThisDevice
-                                : '${d.role == 'admin' ? l10n.manageDevicesAdmin : l10n.manageDevicesEditor} · ${d.deviceFpDisplay}',
-                          ),
+                          title: Text(displayName),
                           subtitle: Text(
-                            d.joinedAt.toLocal().toString().substring(0, 10),
+                            d.isThisDevice
+                                ? d.joinedAt.toLocal().toString().substring(0, 10)
+                                : '$roleLabel · ${d.joinedAt.toLocal().toString().substring(0, 10)}',
                           ),
                           trailing: d.isThisDevice
                               ? null
-                              : IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  tooltip: l10n.manageDevicesRevokeButton,
-                                  onPressed: () => _revoke(d),
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined),
+                                      tooltip: l10n.deviceNicknameEdit,
+                                      onPressed: () => _renameDevice(d),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline),
+                                      tooltip: l10n.manageDevicesRevokeButton,
+                                      onPressed: () => _revoke(d),
+                                    ),
+                                  ],
                                 ),
                         );
                       },

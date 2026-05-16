@@ -7,13 +7,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/crypto/bip39_service.dart';
 import '../../../core/crypto/device_identity_service.dart';
+import '../../../core/crypto/recovery_code_service.dart';
 import '../../../core/crypto/family_key_service.dart';
 import '../../../core/crypto/recovery_service.dart';
 import '../../../core/l10n/l10n_ext.dart';
 import '../../../core/providers/shared_preferences_provider.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/sync/snapshot_repository.dart';
+import '../../../core/sync/sync_constants.dart';
 import '../../../core/sync/sync_lifecycle_controller.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../baby/data/baby_repository.dart';
@@ -21,7 +23,6 @@ import '../../baby/data/current_baby_provider.dart';
 import '../../../core/families/family_entry.dart';
 import '../../../core/families/family_provider.dart';
 
-const _kFamilyIdKey = 'family.id';
 const _kPhraseBackedUpKey = 'recovery.phrase_backed_up';
 
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
@@ -38,7 +39,7 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
   bool _restoring = false;
   String? _errorText;
 
-  final _bip39 = Bip39Service();
+  final _svc = RecoveryCodeService();
   final _recovery = RecoveryService();
 
   @override
@@ -52,7 +53,7 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
     if (raw.isEmpty) return;
 
     final l10nLocal = context.l10n;
-    if (!_bip39.validatePhrase(raw)) {
+    if (!_svc.validateCode(raw)) {
       if (!mounted) return;
       setState(() => _errorText = l10nLocal.recoveryRestoreInvalidChecksum);
       return;
@@ -70,7 +71,8 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
       }
 
       final identity = await DeviceIdentityService(_secureStorage).getOrCreate();
-      final lookupHash = await _bip39.lookupHash(raw);
+      final normalized = _svc.normalizeCode(raw);
+      final lookupHash = await _svc.lookupHash(raw);
 
       final resp = await supa.functions.invoke(
         'claim_recovery',
@@ -81,7 +83,41 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
       );
 
       if (resp.status == 404) {
-        throw Exception(l10nLocal.recoveryRestoreNotFound);
+        // Try snapshot fallback before giving up
+        try {
+          final repo = ref.read(snapshotRepositoryProvider);
+          final familyId = await repo.restore(
+            lookupHashB64: base64Encode(lookupHash),
+            normalizedCode: normalized,
+            devicePubKey: identity.publicKeyBytes,
+          );
+          // Post-restore setup (same as below but without FamilyKeyService.install — already done by repo)
+          final prefs = ref.read(sharedPreferencesProvider);
+          await ref.read(familyListProvider.notifier).register(FamilyEntry(
+            id: familyId,
+            label: 'Restored Family',
+            createdAt: DateTime.now().toUtc(),
+          ));
+          await prefs.setBool(_kPhraseBackedUpKey, true);
+          await prefs.setBool(kOnboardingDoneKey, true);
+          ref.invalidate(syncLifecycleControllerProvider);
+          if (!mounted) return;
+          await ref.read(syncLifecycleControllerProvider).syncNow();
+          final babies = await ref.read(babyRepositoryProvider).list();
+          if (babies.isNotEmpty) {
+            await ref.read(currentBabyIdProvider.notifier).select(babies.first.id);
+          }
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.recoveryRestoreSuccess)),
+          );
+          context.go(AppRoutes.home);
+          return;
+        } on SnapshotPassphraseError catch (_) {
+          rethrow; // let outer catch handle with passphrase-specific message
+        } catch (_) {
+          throw Exception(l10nLocal.recoveryRestoreNotFound); // keep for actual 404
+        }
       }
       if (resp.status == 429) {
         throw Exception(l10nLocal.recoveryRestoreRateLimit);
@@ -100,7 +136,6 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
       final familyId = data['family_id'] as String;
       final keyVersion = data['key_version'] as int;
 
-      final normalized = _bip39.normalizePhrase(raw);
       final familyKeyBytes = await _recovery.unwrapFamilyKey(
         normalizedPhrase: normalized,
         wrappedKey: Uint8List.fromList(wrappedKey),
@@ -116,7 +151,7 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
       );
 
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString(_kFamilyIdKey, familyId);
+      await prefs.setString(kFamilyIdPrefsKey, familyId);
       await ref.read(familyListProvider.notifier).register(FamilyEntry(
         id: familyId,
         label: 'Restored Family',
@@ -140,9 +175,12 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
         SnackBar(content: Text(context.l10n.recoveryRestoreSuccess)),
       );
       context.go(AppRoutes.home);
-    } catch (err) {
+    } on SnapshotPassphraseError catch (_) {
       if (!mounted) return;
-      setState(() => _errorText = context.l10n.recoveryRestoreError);
+      setState(() => _errorText = context.l10n.cloudRestoreWrongPassphrase);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorText = e.toString());
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -174,8 +212,9 @@ class _Bip39RestoreScreenState extends ConsumerState<Bip39RestoreScreen> {
                   labelText: l10n.recoveryRestoreLabel,
                   hintText: l10n.recoveryRestoreHint,
                 ),
-                maxLines: 3,
+                maxLines: 1,
                 keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.characters,
                 autocorrect: false,
                 enableSuggestions: false,
               ),

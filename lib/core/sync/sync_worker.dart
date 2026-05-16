@@ -95,7 +95,14 @@ class SyncWorker {
         whereArgs: [recordId],
       );
       if (rows.isEmpty) continue;
-      final plaintext = rows.first;
+      // Strip virtual / generated columns that the pull side can't write back.
+      // pump_session.total_oz is a GENERATED VIRTUAL column (m001_initial.dart);
+      // including it in plaintext makes peer devices throw "cannot UPDATE
+      // generated column" on the txn.insert in _applyIncoming.
+      final Map<String, dynamic> plaintext = Map.of(rows.first);
+      if (tableName == 'pump_session') {
+        plaintext.remove('total_oz');
+      }
 
       final aad = EncryptedRow.aadFor(
         tableName: tableName,
@@ -149,7 +156,7 @@ class SyncWorker {
           updatedAt: DateTime.now().toUtc(),
           deletedAt: (plaintext['deleted_at'] as String?) == null
               ? null
-              : DateTime.now().toUtc(),
+              : DateTime.parse(plaintext['deleted_at'] as String).toUtc(),
         ),
       );
 
@@ -191,11 +198,35 @@ class SyncWorker {
     if (kDebugMode) {
       debugPrint('[pull] got ${rows.length} rows from server');
     }
-    for (final row in rows) {
-      await _applyIncoming(row);
+    // Sort by FK dependency tier so parent rows insert before children.
+    // Server returns rows in updated_at order, which can place stash_bottle
+    // (FK→pump_session) before its parent pump_session and cause a 787 FK
+    // constraint failure that aborts the whole pull loop. Stable sort keeps
+    // updated_at order within each tier so LWW semantics are preserved.
+    final sorted = [...rows]
+      ..sort((a, b) {
+        final ta = _tableTier(a.tableName);
+        final tb = _tableTier(b.tableName);
+        if (ta != tb) return ta.compareTo(tb);
+        return a.updatedAt.compareTo(b.updatedAt);
+      });
+    final appliedRows = <RemoteEncryptedRow>[];
+    for (final row in sorted) {
+      try {
+        await _applyIncoming(row);
+        appliedRows.add(row);
+      } catch (e) {
+        // One bad row must not break the whole pull cycle — log and continue.
+        // Otherwise a single FK / schema mismatch leaves subsequent rows
+        // unsynced indefinitely until manual intervention.
+        if (kDebugMode) {
+          debugPrint('[pull-row-error] table=${row.tableName} '
+              'id=${row.recordId} ver=${row.version} err=$e');
+        }
+      }
     }
-    if (rows.isNotEmpty) {
-      final newCursor = rows
+    if (appliedRows.isNotEmpty) {
+      final newCursor = appliedRows
           .map((r) => r.updatedAt)
           .reduce((a, b) => a.isAfter(b) ? a : b);
       _lastPullAt = newCursor;
@@ -268,10 +299,18 @@ class SyncWorker {
     if (!_constantTimeEquals(expectedHash, row.aadHash)) {
       // Tampered metadata — discard silently in prod, log in debug.
       if (kDebugMode) {
+        final expectedHex = expectedHash
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+        final rowHex = row.aadHash
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
         debugPrint('[pull-drop] reason=aad_mismatch table=${row.tableName} '
             'id=${row.recordId} ver=${row.version} keyVer=${row.keyVersion} '
             'rowFamilyId=${row.familyId} workerFamilyId=$familyId '
             'localKeyVer=${key.keyVersion}');
+        debugPrint('[aad-debug] aad="$expectedAad" expectedLen=${expectedHash.length}'
+            ' rowLen=${row.aadHash.length} expected=$expectedHex row=$rowHex');
       }
       return;
     }
@@ -369,16 +408,15 @@ class SyncWorker {
     }
 
     // Tombstone branch: a row arriving with deletedAt set is a remote DELETE
-    // we must propagate locally. We've already cleared the version + LWW
-    // guards above, so applying the delete here is safe and won't clobber a
-    // newer local edit. The owning row is removed from its table and the
-    // sync_state ledger is updated so we don't try to re-push the deletion.
+    // we must propagate locally. The owning row is hard-deleted from its table
+    // so it truly disappears from all local queries. The sync_state ledger is
+    // updated (dirty=0, version=row.version) so we don't re-push the deletion
+    // and the LWW guard skips any future re-delivery of the same version.
     if (row.deletedAt != null) {
       await db.transaction((txn) async {
-        await txn.delete(
-          row.tableName,
-          where: 'id = ?',
-          whereArgs: [row.recordId],
+        await txn.rawDelete(
+          'DELETE FROM ${row.tableName} WHERE id = ?',
+          [row.recordId],
         );
         await txn.insert(
           'sync_state',
@@ -395,6 +433,39 @@ class SyncWorker {
         );
       });
       return;
+    }
+
+    // Strip virtual / generated columns on the pull side too — older rows
+    // pushed before the corresponding pushOnce strip was deployed still have
+    // them in the ciphertext, and SQLite refuses to write generated columns.
+    if (row.tableName == 'pump_session') {
+      plaintext.remove('total_oz');
+    }
+
+    // Null out logged_by when it references a caregiver row that doesn't
+    // exist on this device. Empty strings and orphan caregiver_ids both
+    // violate the FK to caregiver(id). A caregiver device receiving an
+    // admin-authored row may not have the admin's caregiver record locally —
+    // dropping logged_by avoids the FK failure without losing the row.
+    const loggedByCol = {
+      'pump_session', 'stash_bottle', 'feed', 'diaper', 'sleep'
+    };
+    if (loggedByCol.contains(row.tableName)) {
+      final lb = plaintext['logged_by'];
+      if (lb == null || (lb is String && lb.isEmpty)) {
+        plaintext['logged_by'] = null;
+      } else if (lb is String) {
+        final exists = await db.query(
+          'caregiver',
+          columns: ['id'],
+          where: 'id = ?',
+          whereArgs: [lb],
+          limit: 1,
+        );
+        if (exists.isEmpty) {
+          plaintext['logged_by'] = null;
+        }
+      }
     }
 
     await db.transaction((txn) async {
@@ -417,6 +488,33 @@ class SyncWorker {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
+    if (kDebugMode) {
+      debugPrint('[pull-applied] table=${row.tableName} '
+          'id=${row.recordId} ver=${row.version}');
+    }
+  }
+
+  /// Returns an FK-dependency tier so parents insert before children on pull.
+  /// Lower tier = inserted earlier. Unknown tables go last (tier 9).
+  static int _tableTier(String tableName) {
+    switch (tableName) {
+      case 'baby':
+        return 0;
+      case 'caregiver':
+        return 1;
+      case 'pump_session':
+      case 'diaper':
+      case 'sleep':
+      case 'daily_note':
+      case 'vaccination':
+        return 2;
+      case 'stash_bottle': // FK → pump_session
+        return 3;
+      case 'feed': // FK → stash_bottle
+        return 4;
+      default:
+        return 9;
+    }
   }
 
   static bool _constantTimeEquals(Uint8List a, Uint8List b) {
