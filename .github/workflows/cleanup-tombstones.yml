@@ -2,6 +2,7 @@ name: cleanup_tombstones
 on:
   schedule:
     - cron: "0 4 * * *"
+  workflow_dispatch:
 jobs:
   hit:
     runs-on: ubuntu-latest
