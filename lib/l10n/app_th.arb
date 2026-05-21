@@ -350,6 +350,14 @@
   "visitReportLockedMessage": "รายงานพบหมอเป็นฟีเจอร์พรีเมียม อัปเกรดได้เลยค่ะ",
   "visitReportDateRangeLabel": "ช่วงเวลา",
   "visitReportErrorGenerate": "สร้าง PDF ไม่สำเร็จ กรุณาลองใหม่",
+  "visitReportRange90": "90 วันล่าสุด",
+  "visitReportRangeCustom": "กำหนดเอง",
+  "visitReportPickRange": "เลือกช่วงวันที่",
+  "visitReportUnlockTitle": "ปลดล็อก Visit Reports",
+  "visitReportUnlockSubtitle": "สร้างและส่งรายงาน PDF ฉบับเต็ม\nให้กุมารแพทย์ของคุณ",
+  "visitReportUpgradeCta": "อัปเกรดเป็น Premium",
+  "visitReportPreviewLabel": "ตัวอย่าง PDF",
+  "visitReportConcernsHint": "มีเรื่องอยากปรึกษาหมอมั้ย?",
 
   "summaryLoadError": "โหลดสรุปไม่สำเร็จ",
   "summaryNoBabyProfile": "ยังไม่มีข้อมูลเด็ก",
@@ -359,6 +367,7 @@
   "summaryPumpLabel": "ปั๊มนม",
 
   "errorNoBabyProfile": "ยังไม่ได้เลือกเด็ก",
+  "errorSaveFailed": "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง",
 
   "settingsSectionMeasurements": "การวัด",
   "settingsSectionDisplay": "การแสดงผล",

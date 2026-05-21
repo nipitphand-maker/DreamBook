@@ -275,13 +275,12 @@ final summaryForRangeProvider =
   final feedOz = (feedRows.first['total_oz'] as num?)?.toDouble() ?? 0.0;
 
   // Pump totals
-  final pumpCount = Sqflite.firstIntValue(
-        await db.rawQuery(
-          'SELECT COUNT(*) FROM pump_session WHERE baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
-          [babyId, fromStr, toExclStr],
-        ),
-      ) ??
-      0;
+  final pumpRows = await db.rawQuery(
+    'SELECT COUNT(*) AS cnt, COALESCE(SUM(left_oz + right_oz), 0.0) AS total_oz FROM pump_session WHERE baby_id = ? AND deleted_at IS NULL AND started_at >= ? AND started_at < ?',
+    [babyId, fromStr, toExclStr],
+  );
+  final pumpCount = (pumpRows.first['cnt'] as num?)?.toInt() ?? 0;
+  final pumpOzRange = (pumpRows.first['total_oz'] as num?)?.toDouble() ?? 0.0;
 
   // Diaper totals
   final diaperCount = Sqflite.firstIntValue(
@@ -307,7 +306,7 @@ final summaryForRangeProvider =
     feedOz: feedOz,
     feedCount: feedCount,
     pumpCount: pumpCount,
-    pumpOz: 0, // range provider does not aggregate pumpOz (complex, deferred)
+    pumpOz: pumpOzRange,
     diaperCount: diaperCount,
     sleepMinutes: sleepMinutes,
     stashOz: stashOz,

@@ -345,7 +345,7 @@ class _DoseRow extends ConsumerWidget {
         child: Icon(Icons.delete_outline, color: scheme.onError),
       ),
       onDismissed: (_) async {
-        if (dose.nextDoseAt != null && dose.nextDoseAt!.isAfter(DateTime.now())) {
+        if (dose.nextDoseAt != null) {
           await NotificationService.cancel(_kNextDoseNotifId);
         }
         await ref.read(medicationRepositoryProvider).softDelete(dose.id);

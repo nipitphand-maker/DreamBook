@@ -121,6 +121,7 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _onStart() async {
+    if (_activeSleepId != null) return; // guard: prevent double-start
     final babyId = ref.read(currentBabyIdProvider);
     if (babyId == null) {
       if (!mounted) return;
@@ -134,22 +135,30 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     final now = DateTime.now();
     final note = _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim();
 
-    final sleep = await repo.start(
-      babyId: babyId,
-      startedAt: now,
-      location: _location,
-      note: note,
-    );
-    await prefs.setString(_kSleepStartedAt, now.toIso8601String());
-    await prefs.setString(_kSleepId, sleep.id);
+    try {
+      final sleep = await repo.start(
+        babyId: babyId,
+        startedAt: now,
+        location: _location,
+        note: note,
+      );
+      await prefs.setString(_kSleepStartedAt, now.toIso8601String());
+      await prefs.setString(_kSleepId, sleep.id);
 
-    if (!mounted) return;
-    setState(() {
-      _activeSleepId = sleep.id;
-      _activeSleepStartedAt = now;
-      _elapsed = Duration.zero;
-    });
-    _startTicker();
+      if (!mounted) return;
+      setState(() {
+        _activeSleepId = sleep.id;
+        _activeSleepStartedAt = now;
+        _elapsed = Duration.zero;
+      });
+      _startTicker();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.errorSaveFailed)),
+        );
+      }
+    }
   }
 
   Future<void> _onWakeUp() async {

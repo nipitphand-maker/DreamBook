@@ -353,6 +353,14 @@
   "visitReportLockedMessage": "Visit Report is a Premium feature.",
   "visitReportDateRangeLabel": "Date range",
   "visitReportErrorGenerate": "Failed to generate PDF. Please try again.",
+  "visitReportRange90": "Last 90 days",
+  "visitReportRangeCustom": "Custom range",
+  "visitReportPickRange": "Select date range",
+  "visitReportUnlockTitle": "Unlock Visit Reports",
+  "visitReportUnlockSubtitle": "Generate & share a full PDF report\nwith your pediatrician",
+  "visitReportUpgradeCta": "Upgrade to Premium",
+  "visitReportPreviewLabel": "PDF preview",
+  "visitReportConcernsHint": "Any concerns to discuss with the doctor?",
 
   "summaryLoadError": "Error loading summary.",
   "summaryNoBabyProfile": "No baby profile found.",
@@ -362,6 +370,7 @@
   "summaryPumpLabel": "Pump",
 
   "errorNoBabyProfile": "No baby selected.",
+  "errorSaveFailed": "Failed to save. Please try again.",
 
   "settingsSectionMeasurements": "Measurements",
   "settingsSectionDisplay": "Display",

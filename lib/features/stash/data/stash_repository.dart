@@ -122,7 +122,7 @@ class StashRepository {
       final rows = await txn.update(
         'stash_bottle',
         next.toRow(),
-        where: 'id = ? AND version = ?',
+        where: 'id = ? AND version = ? AND deleted_at IS NULL',
         whereArgs: [next.id, updated.version],
       );
       if (rows == 0) {

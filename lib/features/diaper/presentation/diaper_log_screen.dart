@@ -63,12 +63,21 @@ class _DiaperLogScreenState extends ConsumerState<DiaperLogScreen> {
     final note =
         _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim();
 
-    await repo.insert(
-      babyId: babyId,
-      type: _selectedType!,
-      occurredAt: _loggedAt,
-      note: note,
-    );
+    try {
+      await repo.insert(
+        babyId: babyId,
+        type: _selectedType!,
+        occurredAt: _loggedAt,
+        note: note,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.errorSaveFailed)),
+        );
+      }
+      return;
+    }
 
     unawaited(HapticFeedback.lightImpact());
     if (!mounted) return;

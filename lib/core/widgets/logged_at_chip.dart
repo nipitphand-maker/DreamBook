@@ -156,7 +156,7 @@ Future<DateTime?> pickPastDateTime(
   DateTime? current,
 ) async {
   final now = DateTime.now();
-  final yesterday = DateTime(now.year, now.month, now.day - 1);
+  final yesterday = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
   final initial = (current != null && current.isBefore(now)) ? current : yesterday;
   final date = await showDatePicker(
     context: context,
