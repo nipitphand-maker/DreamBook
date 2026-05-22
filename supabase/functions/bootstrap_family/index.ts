@@ -47,6 +47,11 @@ serve(async (req) => {
     auth: { persistSession: false },
   });
 
+  // Validate that the JWT represents a real Supabase auth user before
+  // creating or updating any family record.
+  const { data: userData } = await client.auth.getUser();
+  if (!userData?.user) return new Response("Unauthorized", { status: 401 });
+
   const { data, error } = await client.rpc("bootstrap_family_atomic", {
     p_device_fp_hex: deviceFpHex,
     p_device_pub_key: toByteaHex(devicePubKey),

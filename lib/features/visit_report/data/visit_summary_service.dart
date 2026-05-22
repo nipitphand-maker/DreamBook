@@ -30,7 +30,8 @@ class VisitSummaryService {
   /// the PDF is correct behavior, not a bug.
   Future<VisitSummaryData> buildSummary({
     required String babyId,
-    required int rangeDays,
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
   }) async {
     final db = await _ref.read(appDatabaseProvider.future);
 
@@ -40,22 +41,20 @@ class VisitSummaryService {
       orElse: () => throw StateError('Baby not found'),
     );
 
-    // Build per-day buckets using LOCAL midnight boundaries so the PDF report
-    // assigns events to the correct calendar day for non-UTC timezones (e.g.
-    // Thai users at UTC+7). Each day boundary is converted to UTC only when
-    // comparing against the UTC ISO strings stored in the DB.
-    final nowLocal = DateTime.now();
-    final todayLocal = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-    final rangeStartLocal = todayLocal.subtract(Duration(days: rangeDays - 1));
-    final rangeEndLocal = todayLocal.add(const Duration(days: 1));
+    // Normalise to LOCAL midnight boundaries so events are bucketed by the
+    // user's calendar day, not UTC day (e.g. Thai users at UTC+7).
+    final rangeStartLocal = DateTime(
+        rangeStart.year, rangeStart.month, rangeStart.day);
+    // rangeEnd is inclusive: advance to start-of-next-day for DB WHERE clause.
+    final rangeEndLocal = DateTime(
+        rangeEnd.year, rangeEnd.month, rangeEnd.day)
+        .add(const Duration(days: 1));
 
     // UTC strings for the DB WHERE clause
     final rangeStartUtc = rangeStartLocal.toUtc().toIso8601String();
     final rangeEndUtc = rangeEndLocal.toUtc().toIso8601String();
 
-    // Keep local DateTime references for returning in the result envelope
-    final rangeStart = rangeStartLocal;
-    final rangeEnd = DateTime(nowLocal.year, nowLocal.month, nowLocal.day, 23, 59, 59);
+    final rangeDays = rangeEndLocal.difference(rangeStartLocal).inDays;
 
     final feedRows = await db.query(
       'feed',
@@ -106,8 +105,6 @@ class VisitSummaryService {
 
     final days = <DaySummary>[];
     for (var i = 0; i < rangeDays; i++) {
-      // Use local midnight windows so events are bucketed by the user's calendar
-      // day, not by UTC day.
       final dayStart = rangeStartLocal.add(Duration(days: i));
       final dayEnd = dayStart.add(const Duration(days: 1));
 
@@ -165,11 +162,14 @@ class VisitSummaryService {
       ));
     }
 
+    final rangeEndDisplay = DateTime(
+        rangeEnd.year, rangeEnd.month, rangeEnd.day, 23, 59, 59);
+
     return VisitSummaryData(
       babyName: baby.nickname?.isNotEmpty == true ? baby.nickname! : baby.name,
       babyDob: baby.dob,
-      rangeStart: rangeStart,
-      rangeEnd: rangeEnd,
+      rangeStart: rangeStartLocal,
+      rangeEnd: rangeEndDisplay,
       days: days,
       vaccinations: vaccinations,
     );

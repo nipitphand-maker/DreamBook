@@ -445,6 +445,7 @@
   "recoveryVerifyWrongTryAgain": "Code doesn't match — please try again.",
   "recoveryVerifyWrongRegenerate": "Two wrong attempts — a new code has been generated. Save the new one.",
   "recoveryVerifySuccess": "Recovery code saved.",
+  "recoveryVerifySuccessRetry": "Code saved. First backup will retry automatically.",
   "recoveryRestoreHeadline": "Restore from recovery code",
   "recoveryRestoreSubcopy": "Enter your recovery code to restore your data on this device.",
   "recoveryRestoreLabel": "Recovery code",

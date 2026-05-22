@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -36,9 +37,9 @@ class NotificationService {
     try {
       final tzName = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(tzName));
-    } catch (_) {
-      // Best-effort: if the platform channel fails we keep the previous
-      // tz.local rather than crash the app on resume.
+    } catch (e) {
+      // Best-effort: keep previous tz.local rather than crash the app on resume.
+      debugPrint('[notifications] timezone refresh failed: $e');
     }
   }
 

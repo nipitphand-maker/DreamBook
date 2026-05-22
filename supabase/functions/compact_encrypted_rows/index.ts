@@ -1,6 +1,5 @@
 // compact_encrypted_rows — cron EF, runs daily. Calls compact_family_versions(family_id)
 // for each family. Returns total deleted count.
-// TODO: add event_type 'compaction_completed' to audit_events CHECK constraint in next migration cycle.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { writeAuditEvent } from "../_shared/audit.ts";
@@ -34,9 +33,7 @@ serve(async (req) => {
     }
   }
 
-  // TODO: change event_type to 'compaction_completed' once added to audit_events CHECK constraint
-  await writeAuditEvent(null, 'count_attestation_mismatch', null, {
-    event: 'compact_encrypted_rows',
+  await writeAuditEvent(null, 'compaction_completed', null, {
     total_deleted: totalDeleted,
     families_processed: families.length,
   }).catch(() => {});

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,11 +44,19 @@ class _Bip39SetupScreenState extends ConsumerState<Bip39SetupScreen> {
   }
 
   Future<void> _copyCode() async {
-    await Clipboard.setData(ClipboardData(text: _svc.formatCode(_code)));
+    final formatted = _svc.formatCode(_code);
+    await Clipboard.setData(ClipboardData(text: formatted));
     if (!mounted) return;
     setState(() => _copied = true);
     await Future<void>.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
+    // Clear the clipboard after 30 s — recovery codes are sensitive.
+    unawaited(Future<void>.delayed(const Duration(seconds: 30)).then((_) async {
+      final current = await Clipboard.getData(Clipboard.kTextPlain);
+      if (current?.text == formatted) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    }));
   }
 
   void _proceed() {

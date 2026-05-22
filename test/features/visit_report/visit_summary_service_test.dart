@@ -9,6 +9,7 @@ import 'package:dreambook/core/db/migrations/m007_sync_cursors.dart';
 import 'package:dreambook/core/db/migrations/m008_milestone.dart';
 import 'package:dreambook/core/db/migrations/m009_temp_reading.dart';
 import 'package:dreambook/core/db/migrations/m010_medication.dart';
+import 'package:dreambook/core/db/migrations/m011_medication_created_at.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/features/visit_report/data/visit_summary_service.dart';
@@ -33,12 +34,12 @@ void main() {
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 10,
+        version: 11,
         onCreate: (d, _) async {
           await Migrations([
             m001Initial, m002V2, m003V3, m004V4, m005DailyNote,
             m006SyncWrittenBy, m007SyncCursors, m008Milestone,
-            m009TempReading, m010Medication,
+            m009TempReading, m010Medication, m011MedicationCreatedAt,
           ]).runAll(d);
         },
       ),
@@ -145,13 +146,18 @@ void main() {
       'dose_unit': doseUnit,
       'given_at': givenAt.toIso8601String(),
       'version': 1,
+      'created_at': givenAt.toIso8601String(),
       'updated_at': givenAt.toIso8601String(),
     });
   }
 
   test('buildSummary returns empty days with zero totals when no data in range',
       () async {
-    final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+    final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
 
     expect(data.babyName, 'Mali');
     expect(data.days.length, 7);
@@ -174,7 +180,11 @@ void main() {
     await insertFeed(id: 'f1', startedAt: earlyToday, oz: 4.0);
     await insertFeed(id: 'f2', startedAt: laterToday, oz: 3.5);
 
-    final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+    final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
 
     // The last day in the window is today.
     final today = data.days.last;
@@ -204,7 +214,11 @@ void main() {
       await insertDiaper(
           id: 'd4', occurredAt: t.add(const Duration(minutes: 15)), type: 'dry');
 
-      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+      final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
       final today = data.days.last;
 
       expect(today.wetDiapers, 2, reason: '1 pee + 1 mixed');
@@ -226,7 +240,11 @@ void main() {
     await insertDiaper(id: 'old-d', occurredAt: farPast, type: 'pee');
     await insertDiaper(id: 'now-d', occurredAt: today, type: 'pee');
 
-    final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+    final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
 
     // Sum across all days must equal only the in-range entries.
     final totalOz = data.days.fold<double>(0, (a, d) => a + d.totalFeedOz);
@@ -245,7 +263,11 @@ void main() {
       await insertTempReading(id: 't1', takenAt: earlyToday, celsius: 37.5);
       await insertTempReading(id: 't2', takenAt: laterToday, celsius: 38.2);
 
-      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+      final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
       final today = data.days.last;
 
       expect(today.temperatures.length, 2);
@@ -270,7 +292,11 @@ void main() {
         drugName: 'Ibuprofen',
       );
 
-      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+      final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
       final today = data.days.last;
 
       expect(today.medications.length, 2);
@@ -296,7 +322,11 @@ void main() {
       await insertMedication(id: 'old-m', givenAt: farPast);
       await insertMedication(id: 'new-m', givenAt: today);
 
-      final data = await service.buildSummary(babyId: 'b1', rangeDays: 7);
+      final data = await service.buildSummary(
+        babyId: 'b1',
+        rangeStart: todayMidnightUtc.subtract(const Duration(days: 6)),
+        rangeEnd: todayMidnightUtc,
+      );
 
       final totalTemps =
           data.days.fold<int>(0, (a, d) => a + d.temperatures.length);

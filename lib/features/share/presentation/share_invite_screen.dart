@@ -259,6 +259,13 @@ class _ShareInviteScreenState extends ConsumerState<ShareInviteScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(context.l10n.actionDone)),
     );
+    // Clear the clipboard after 30 s — invite codes are one-time secrets.
+    unawaited(Future<void>.delayed(const Duration(seconds: 30)).then((_) async {
+      final current = await Clipboard.getData(Clipboard.kTextPlain);
+      if (current?.text == code) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    }));
   }
 
   Future<void> _onShare() async {

@@ -1,3 +1,8 @@
+/// Sentry DSN is injected at build time via `--dart-define=SENTRY_DSN=...`
+/// so it is never bundled in the APK asset and cannot be extracted by
+/// reverse-engineering the binary. Empty string means Sentry is disabled.
+const String kSentryDsn = String.fromEnvironment('SENTRY_DSN');
+
 /// Loads `.env` content into typed configuration.
 ///
 /// In production, [Env.load] reads the bundled `.env` asset (declared in
@@ -6,14 +11,10 @@ class Env {
   const Env({
     required this.supabaseUrl,
     required this.supabaseAnonKey,
-    this.sentryDsn,
   });
 
   final String supabaseUrl;
   final String supabaseAnonKey;
-
-  /// Optional Sentry DSN for opt-in crash reporting. Null when not configured.
-  final String? sentryDsn;
 
   /// Parses .env-style content. Lines starting with `#` are ignored.
   /// Values may be wrapped in single or double quotes (stripped on parse).
@@ -41,11 +42,9 @@ class Env {
     if (key == null || key.isEmpty) {
       throw const EnvMissingException('SUPABASE_ANON_KEY');
     }
-    final sentryDsn = map['SENTRY_DSN'];
     return Env(
       supabaseUrl: url,
       supabaseAnonKey: key,
-      sentryDsn: sentryDsn?.isEmpty == true ? null : sentryDsn,
     );
   }
 }

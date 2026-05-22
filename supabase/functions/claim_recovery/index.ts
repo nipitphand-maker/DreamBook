@@ -70,17 +70,32 @@ serve(async (req) => {
 
   const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  // Pre-resolution rate limit by auth_user_id — prevents 404-path brute-force.
+  // Rate limit by auth_user_id AND by IP — prevents both session-cycling and
+  // rotating-IP attacks from bypassing the per-user limit.
+  const clientIp = req.headers.get("cf-connecting-ip") ??
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null;
   const windowStart = new Date(Date.now() - RATE_WINDOW_HOURS * 3600 * 1000).toISOString();
-  const { count: preCount } = await svc
+
+  const { count: userCount } = await svc
     .from("recovery_attempts")
     .select("id", { count: "exact", head: true })
     .eq("auth_user_id", userData.user.id)
     .eq("success", false)
     .gte("attempted_at", windowStart);
-
-  if ((preCount ?? 0) >= RATE_LIMIT) {
+  if ((userCount ?? 0) >= RATE_LIMIT) {
     return new Response("Too Many Requests", { status: 429 });
+  }
+
+  if (clientIp) {
+    const { count: ipCount } = await svc
+      .from("recovery_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("client_ip", clientIp)
+      .eq("success", false)
+      .gte("attempted_at", windowStart);
+    if ((ipCount ?? 0) >= RATE_LIMIT) {
+      return new Response("Too Many Requests", { status: 429 });
+    }
   }
 
   // Look up family_id via recovery_lookup.
@@ -93,7 +108,7 @@ serve(async (req) => {
 
   if (lookupErr || !lookupRow) {
     await svc.from("recovery_attempts")
-      .insert({ family_id: null, auth_user_id: userData.user.id, success: false })
+      .insert({ family_id: null, auth_user_id: userData.user.id, success: false, client_ip: clientIp })
       .catch(() => {});
     await writeAuditEvent(null, "recovery_attempted", deviceFpHex, { reason: "not_found" }).catch(() => {});
     return new Response("Not Found", { status: 404 });
@@ -103,7 +118,7 @@ serve(async (req) => {
   // Record this attempt (initially failed; updated to success on completion).
   const { data: attemptRow } = await svc
     .from("recovery_attempts")
-    .insert({ family_id: familyId, auth_user_id: userData.user.id, success: false })
+    .insert({ family_id: familyId, auth_user_id: userData.user.id, success: false, client_ip: clientIp })
     .select("id")
     .single();
   const attemptId: string | null = attemptRow?.id ?? null;

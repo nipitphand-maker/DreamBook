@@ -1,3 +1,4 @@
+import 'package:dreambook/core/services/unit_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -8,19 +9,39 @@ import '../data/visit_summary_models.dart';
 ///
 /// Layout sections (in order):
 ///   1. Header — title, baby name, date range.
-///   2. Feeding table (skipped if every day has 0 oz).
+///   2. Feeding table (skipped if every day has 0 feed volume).
 ///   3. Diapers table.
 ///   4. Sleep table.
 ///   5. Vaccinations list (only if non-empty).
 ///   6. Concerns / Notes (only if [concerns] is non-empty after trim).
 ///   7. Footer disclaimer (printed on every page).
-pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
+pw.Document buildVisitPdf(
+  VisitSummaryData data, {
+  String? concerns,
+  pw.Font? regularFont,
+  pw.Font? boldFont,
+  VolumeUnit volumeUnit = VolumeUnit.oz,
+}) {
   final doc = pw.Document();
+
+  // Use bundled Thai-compatible fonts when provided.
+  final themeData = (regularFont != null || boldFont != null)
+      ? pw.ThemeData.withFont(
+          base: regularFont,
+          bold: boldFont,
+        )
+      : pw.ThemeData.base();
 
   final dayFmt = DateFormat.MMMd();
   final rangeFmt = DateFormat.yMMMMd();
 
   final hasAnyFeed = data.days.any((d) => d.totalFeedOz > 0);
+  final feedHeader = volumeUnit == VolumeUnit.oz ? 'Total oz' : 'Total ml';
+  String formatFeed(double oz) {
+    if (volumeUnit == VolumeUnit.oz) return '${oz.toStringAsFixed(1)} oz';
+    final ml = (oz * 29.5735).roundToDouble();
+    return '${ml.toInt()} ml';
+  }
   final hasVaccinations = data.vaccinations.isNotEmpty;
   final hasConcerns = concerns != null && concerns.trim().isNotEmpty;
   final hasAnyTemps = data.days.any((d) => d.temperatures.isNotEmpty);
@@ -55,6 +76,7 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
 
   doc.addPage(
     pw.MultiPage(
+      theme: themeData,
       pageFormat: PdfPageFormat.letter,
       margin: const pw.EdgeInsets.all(36),
       footer: (ctx) => pw.Padding(
@@ -98,13 +120,13 @@ pw.Document buildVisitPdf(VisitSummaryData data, {String? concerns}) {
                 decoration: const pw.BoxDecoration(color: PdfColors.grey100),
                 children: [
                   tableCell('Date', header: true),
-                  tableCell('Total oz', header: true),
+                  tableCell(feedHeader, header: true),
                 ],
               ),
               for (final d in data.days)
                 pw.TableRow(children: [
                   tableCell(dayFmt.format(d.date)),
-                  tableCell('${d.totalFeedOz.toStringAsFixed(1)} oz'),
+                  tableCell(formatFeed(d.totalFeedOz)),
                 ]),
             ],
           ));

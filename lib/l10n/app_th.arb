@@ -442,6 +442,7 @@
   "recoveryVerifyWrongTryAgain": "รหัสไม่ตรงกัน — ลองอีกครั้ง",
   "recoveryVerifyWrongRegenerate": "ผิดสองครั้ง — สร้างรหัสใหม่แล้ว บันทึกรหัสใหม่ด้วย",
   "recoveryVerifySuccess": "บันทึกรหัสกู้คืนแล้ว",
+  "recoveryVerifySuccessRetry": "บันทึกรหัสแล้ว สำรองข้อมูลจะลองใหม่โดยอัตโนมัติ",
   "recoveryRestoreHeadline": "กู้ข้อมูลจากรหัสกู้คืน",
   "recoveryRestoreSubcopy": "ป้อนรหัสกู้คืนเพื่อกู้ข้อมูลในเครื่องนี้",
   "recoveryRestoreLabel": "รหัสกู้คืน",

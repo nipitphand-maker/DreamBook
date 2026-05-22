@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -58,7 +59,8 @@ class FamilyKeyService {
       final ver = int.tryParse(parts[1]);
       if (ver == null) return null;
       return FamilyKey(bytes: Uint8List.fromList(bytes), keyVersion: ver);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[family_key] read failed for $familyId: $e');
       return null;
     }
   }

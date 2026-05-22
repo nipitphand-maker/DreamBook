@@ -9,7 +9,7 @@
 (DateTime start, DateTime end) logicalDayBounds(DateTime date, int dayStartHour) {
   if (date.isUtc) {
     final start = DateTime.utc(date.year, date.month, date.day, dayStartHour);
-    final end = DateTime.utc(date.year, date.month, date.day + 1, dayStartHour);
+    final end = start.add(const Duration(days: 1));
     return (start, end);
   }
   final start = DateTime(date.year, date.month, date.day, dayStartHour);

@@ -108,6 +108,7 @@ class _MedicationScreenState extends ConsumerState<MedicationScreen> {
         givenAt: (_givenAt ?? DateTime.now()).toUtc(),
         nextDoseAt: _nextDoseAt?.toUtc(),
         version: 1,
+        createdAt: now,
         updatedAt: now,
       );
 

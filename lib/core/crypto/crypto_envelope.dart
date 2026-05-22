@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:zstandard/zstandard.dart';
@@ -51,8 +51,8 @@ class CryptoEnvelope {
           payload = compressed;
           version = _vCompressed;
         }
-      } catch (_) {
-        // Compression failed — fall back to v1 silently.
+      } catch (e) {
+        debugPrint('[crypto] compression failed, using uncompressed: $e');
       }
     }
 
