@@ -24,6 +24,11 @@ const _kTimerStartedAt = 'pump.timerStartedAt'; // ISO-8601 string
 const _kTimerPausedAt = 'pump.timerPausedAt'; // ISO-8601 string
 const _kPausedDurSec = 'pump.timerPausedDurSec'; // int
 const _kTimerStopped = 'pump.timerStopped'; // bool — true when user tapped Stop
+// Wall-clock instant at which Stop was tapped. Required so that a kill+reopen
+// after Stop replays the same elapsed value the user saw on screen, instead
+// of re-evaluating DateTime.now() at restore time (which would silently
+// inflate the saved session duration by the offline gap).
+const _kTimerStoppedAt = 'pump.timerStoppedAt'; // ISO-8601 string
 const _kSaveToStash = 'pump.saveToStash'; // bool
 const _kStashStorage = 'pump.stashStorage'; // StorageType.name
 const _kSide = 'pump.side'; // 'both'|'left'|'right'
@@ -114,8 +119,15 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
       if (wasStopped) {
         // User tapped Stop — restore as stopped (elapsed locked, no ticker).
+        // Use the persisted stop instant so the displayed duration matches
+        // what the user saw before the kill, NOT the wall-clock gap between
+        // Stop and reopen (which would silently inflate the saved session).
         _timerRunning = false;
-        _elapsed = DateTime.now().difference(_timerStartedAt!) -
+        final stoppedAtStr = prefs.getString(_kTimerStoppedAt);
+        final stoppedAt = stoppedAtStr != null
+            ? DateTime.parse(stoppedAtStr)
+            : DateTime.now(); // fallback for pre-fix persisted state
+        _elapsed = stoppedAt.difference(_timerStartedAt!) -
             Duration(seconds: _pausedTotalSec);
       } else if (pausedAtStr != null) {
         // App was killed mid-pause — restore paused state.
@@ -191,13 +203,16 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
 
   Future<void> _onStop() async {
     final prefs = ref.read(sharedPreferencesProvider);
+    final now = DateTime.now();
     _ticker?.cancel();
     setState(() {
       _elapsed = _currentElapsed;
       _timerRunning = false;
     });
     // Mark stopped so a kill+restore shows stopped state, not running.
+    // Persist the stop instant so a kill+reopen restores the same elapsed.
     await prefs.setBool(_kTimerStopped, true);
+    await prefs.setString(_kTimerStoppedAt, now.toIso8601String());
     await prefs.remove(_kTimerPausedAt);
   }
 
@@ -220,6 +235,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
       });
     }
     await prefs.remove(_kTimerStopped);
+    await prefs.remove(_kTimerStoppedAt);
     await prefs.remove(_kTimerPausedAt);
     _startTicker();
   }
@@ -299,6 +315,7 @@ class _PumpSessionScreenState extends ConsumerState<PumpSessionScreen> {
     await prefs.remove(_kTimerPausedAt);
     await prefs.remove(_kPausedDurSec);
     await prefs.remove(_kTimerStopped);
+    await prefs.remove(_kTimerStoppedAt);
 
     unawaited(HapticFeedback.lightImpact());
     if (!mounted) return;

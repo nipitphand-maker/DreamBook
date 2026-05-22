@@ -13,6 +13,7 @@ class MedicationDose {
     this.note,
     required this.version,
     this.deletedAt,
+    required this.createdAt,
     required this.updatedAt,
   });
 
@@ -28,6 +29,7 @@ class MedicationDose {
   final String? note;
   final int version;
   final DateTime? deletedAt;
+  final DateTime createdAt;
   final DateTime updatedAt;
 
   MedicationDose copyWith({
@@ -41,6 +43,7 @@ class MedicationDose {
     String? note,
     int? version,
     DateTime? deletedAt,
+    DateTime? createdAt,
     DateTime? updatedAt,
   }) =>
       MedicationDose(
@@ -54,6 +57,7 @@ class MedicationDose {
         note: note ?? this.note,
         version: version ?? this.version,
         deletedAt: deletedAt ?? this.deletedAt,
+        createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
 
@@ -68,6 +72,7 @@ class MedicationDose {
         'note': note,
         'version': version,
         'deleted_at': deletedAt?.toUtc().toIso8601String(),
+        'created_at': createdAt.toUtc().toIso8601String(),
         'updated_at': updatedAt.toUtc().toIso8601String(),
       };
 
@@ -86,6 +91,11 @@ class MedicationDose {
         deletedAt: r['deleted_at'] == null
             ? null
             : DateTime.parse(r['deleted_at']! as String),
+        createdAt: DateTime.parse(
+          (r['created_at'] as String?)?.isNotEmpty == true
+              ? r['created_at']! as String
+              : r['updated_at']! as String,
+        ),
         updatedAt: DateTime.parse(r['updated_at']! as String),
       );
 }

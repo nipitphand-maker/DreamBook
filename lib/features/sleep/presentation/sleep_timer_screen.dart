@@ -169,7 +169,21 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
     final repo = ref.read(sleepRepositoryProvider);
     final now = DateTime.now();
 
-    final ended = await repo.end(_activeSleepId!, babyId: babyId, endedAt: now);
+    final Sleep ended;
+    try {
+      ended = await repo.end(_activeSleepId!, babyId: babyId, endedAt: now);
+    } catch (e, st) {
+      // DB lock, sqlcipher key miss, FK constraint, disk full — without this
+      // guard the throw bubbles to the framework, leaves prefs intact, and
+      // shows a "ghost active session" on next launch while the user
+      // believes their sleep was saved.
+      debugPrint('[sleep] _onWakeUp failed: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.errorGeneric)),
+      );
+      return;
+    }
     await prefs.remove(_kSleepStartedAt);
     await prefs.remove(_kSleepId);
     _ticker?.cancel();
@@ -213,13 +227,24 @@ class _SleepTimerScreenState extends ConsumerState<SleepTimerScreen> {
       return;
     }
     final note = _pastNotesCtrl.text.trim().isEmpty ? null : _pastNotesCtrl.text.trim();
-    await ref.read(sleepRepositoryProvider).insertPast(
-      babyId: babyId,
-      startedAt: effectiveStart,
-      endedAt: effectiveEnd,
-      location: _pastLocation,
-      note: note,
-    );
+    try {
+      await ref.read(sleepRepositoryProvider).insertPast(
+        babyId: babyId,
+        startedAt: effectiveStart,
+        endedAt: effectiveEnd,
+        location: _pastLocation,
+        note: note,
+      );
+    } catch (e, st) {
+      // Surface DB / FK errors instead of silently doing nothing — the user
+      // tapped Save and expects either a row written or an explanation.
+      debugPrint('[sleep] _onSavePast failed: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.errorGeneric)),
+      );
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.sleepPastSaved)),

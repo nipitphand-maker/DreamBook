@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/day_start_hour_provider.dart';
@@ -98,8 +100,8 @@ class DiaperRepository {
     final prefs = _ref.read(sharedPreferencesProvider);
     try {
       await DiaperStockService.decrement(prefs, babyId);
-    } catch (_) {
-      // Non-critical — stock counter UX, not data integrity.
+    } catch (e) {
+      debugPrint('[diaper] stock decrement failed: $e');
     }
     _ref.invalidate(diaperStockProvider(babyId));
 

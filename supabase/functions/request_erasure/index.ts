@@ -1,5 +1,6 @@
 // request_erasure — authenticated admin requests GDPR/PDPA right-to-erasure.
-// Calls right_to_be_forgotten SQL function which deletes all family data.
+// Deletes storage blobs first, then calls right_to_be_forgotten SQL function
+// which removes all database rows for the family.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { writeAuditEvent } from "../_shared/audit.ts";
@@ -7,6 +8,7 @@ import { writeAuditEvent } from "../_shared/audit.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SNAPSHOT_BUCKET = "family-snapshots";
 
 serve(async (req) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
@@ -39,11 +41,33 @@ serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+  // Delete storage blobs BEFORE deleting database rows. The right_to_be_forgotten
+  // SQL function removes encrypted_snapshots rows, which contain the storage_path
+  // pointers. Deleting storage after DB rows would leave orphaned blobs with no
+  // way to enumerate them.
+  const { data: snapshots } = await admin
+    .from("encrypted_snapshots")
+    .select("storage_path")
+    .eq("family_id", body.family_id);
+
+  if (snapshots && snapshots.length > 0) {
+    const paths = snapshots
+      .map((s: { storage_path: string }) => s.storage_path)
+      .filter(Boolean);
+    if (paths.length > 0) {
+      const { error: storageErr } = await admin.storage.from(SNAPSHOT_BUCKET).remove(paths);
+      if (storageErr) {
+        console.warn("[request_erasure] storage delete failed:", storageErr.message);
+        return new Response(JSON.stringify({ error: "storage_delete_failed" }), { status: 500 });
+      }
+    }
+  }
+
   await writeAuditEvent(
     body.family_id,
-    'erasure_requested',
+    "erasure_requested",
     null,
-    { source: 'request_erasure_ef', requested_by: userData.user.id },
+    { source: "request_erasure_ef", requested_by: userData.user.id },
   ).catch(() => {});
 
   const { error: eraseErr } = await admin.rpc("right_to_be_forgotten", {

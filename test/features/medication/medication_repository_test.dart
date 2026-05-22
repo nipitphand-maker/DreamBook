@@ -9,6 +9,7 @@ import 'package:dreambook/core/db/migrations/m007_sync_cursors.dart';
 import 'package:dreambook/core/db/migrations/m008_milestone.dart';
 import 'package:dreambook/core/db/migrations/m009_temp_reading.dart';
 import 'package:dreambook/core/db/migrations/m010_medication.dart';
+import 'package:dreambook/core/db/migrations/m011_medication_created_at.dart';
 import 'package:dreambook/core/db/migrations/migrations.dart';
 import 'package:dreambook/core/models/medication_dose.dart';
 import 'package:dreambook/core/providers/shared_preferences_provider.dart';
@@ -46,6 +47,7 @@ void main() {
       givenAt: givenAt,
       version: 1,
       updatedAt: now,
+      createdAt: now,
     );
   }
 
@@ -55,7 +57,7 @@ void main() {
     db = await databaseFactoryFfi.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
-        version: 10,
+        version: 11,
         onCreate: (d, _) async {
           await Migrations([
             m001Initial,
@@ -68,6 +70,7 @@ void main() {
             m008Milestone,
             m009TempReading,
             m010Medication,
+            m011MedicationCreatedAt,
           ]).runAll(d);
         },
       ),
@@ -147,6 +150,7 @@ void main() {
       note: 'After meal',
       version: 1,
       updatedAt: DateTime.now().toUtc(),
+      createdAt: DateTime.now().toUtc(),
     );
     await repo.insert(d);
 

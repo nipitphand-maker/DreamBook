@@ -1,7 +1,6 @@
 // cleanup_tombstones — cron EF, runs daily 03:00 UTC.
 // Hard-deletes tombstoned rows (deleted_at != null) older than each family's
-// tombstone_retention_days setting (default 90 days, per 0017 migration).
-// TODO: add event_type 'tombstone_purged' to audit_events CHECK constraint in next migration cycle.
+// tombstone_retention_days setting (default 365 days, per 0040 migration).
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { writeAuditEvent } from "../_shared/audit.ts";
@@ -44,9 +43,7 @@ serve(async (req) => {
 
   const total = results.reduce((s, r) => s + r.purged, 0);
 
-  // TODO: change event_type to 'tombstone_purged' once added to audit_events CHECK constraint
-  await writeAuditEvent(null, 'count_attestation_mismatch', null, {
-    event: 'cleanup_tombstones',
+  await writeAuditEvent(null, 'tombstone_purged', null, {
     total_purged: total,
     families_processed: results.length,
   }).catch(() => {});

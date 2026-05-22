@@ -214,6 +214,9 @@ class SyncWorker {
         return a.updatedAt.compareTo(b.updatedAt);
       });
     final appliedRows = <RemoteEncryptedRow>[];
+    // Track the earliest updatedAt among failed rows so the cursor never
+    // advances past them — they must be re-fetched on the next pull.
+    DateTime? earliestFailedAt;
     for (final row in sorted) {
       try {
         await _applyIncoming(row);
@@ -226,12 +229,22 @@ class SyncWorker {
           debugPrint('[pull-row-error] table=${row.tableName} '
               'id=${row.recordId} ver=${row.version} err=$e');
         }
+        if (earliestFailedAt == null ||
+            row.updatedAt.isBefore(earliestFailedAt)) {
+          earliestFailedAt = row.updatedAt;
+        }
       }
     }
     if (appliedRows.isNotEmpty) {
-      final newCursor = appliedRows
+      var newCursor = appliedRows
           .map((r) => r.updatedAt)
           .reduce((a, b) => a.isAfter(b) ? a : b);
+      // If any row failed, cap the cursor just before the earliest failure so
+      // the next pull re-fetches it rather than skipping it permanently.
+      if (earliestFailedAt != null && earliestFailedAt.isBefore(newCursor)) {
+        newCursor =
+            earliestFailedAt.subtract(const Duration(milliseconds: 1));
+      }
       _lastPullAt = newCursor;
       await _writeCursor(newCursor);
     }

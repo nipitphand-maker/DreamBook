@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/models/models.dart';
 import 'package:dreambook/core/providers/day_start_hour_provider.dart';
@@ -152,7 +154,9 @@ class FeedRepository {
 
     _ref.invalidate(feedTodayProvider(babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
-    unawaited(_scheduleAlert(babyId).catchError((_) {}));
+    unawaited(_scheduleAlert(babyId).catchError((Object e) {
+      debugPrint('[feed] alert schedule failed: $e');
+    }));
     return feed;
   }
 
@@ -193,7 +197,9 @@ class FeedRepository {
 
     _ref.invalidate(feedTodayProvider(next.babyId));
     _ref.read(syncLifecycleControllerProvider).schedulePush();
-    unawaited(_scheduleAlert(next.babyId).catchError((_) {}));
+    unawaited(_scheduleAlert(next.babyId).catchError((Object e) {
+      debugPrint('[feed] alert schedule failed: $e');
+    }));
     return next;
   }
 

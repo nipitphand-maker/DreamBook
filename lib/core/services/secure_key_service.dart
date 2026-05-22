@@ -56,12 +56,22 @@ class SecureKeyService {
         );
       }
 
-      // No DB file on disk — safe to generate a fresh key.
+      // No DB file on disk — safe to generate a fresh key. The write MUST
+      // succeed; if we return a key that was never persisted, the DB will be
+      // encrypted with a key that disappears at next launch, silently
+      // destroying every entry the user logs in this session.
       final newKey = _makeKey();
       try {
         await _storage.deleteAll();
         await _storage.write(key: _dbKeyAlias, value: newKey);
-      } catch (_) {/* swallow — return key anyway */}
+      } catch (e, st) {
+        throw SecureKeyPersistError(
+          'Failed to persist encryption key — cannot safely open database. '
+          'The device keystore is unavailable. Please restart the device.',
+          cause: e,
+          stackTrace: st,
+        );
+      }
       return newKey;
     }
   }
@@ -85,4 +95,19 @@ class SecureKeyService {
     // Strip '=' padding so the key matches url-safe-base64 alphabet only.
     return base64UrlEncode(bytes).replaceAll('=', '');
   }
+}
+
+/// Thrown when the device keystore is unavailable on a fresh install and the
+/// encryption key cannot be persisted. Returning the key anyway would let the
+/// app encrypt a brand-new database with a key that vanishes at the next
+/// launch — silently destroying every entry the user logs in this session.
+class SecureKeyPersistError implements Exception {
+  SecureKeyPersistError(this.message, {this.cause, this.stackTrace});
+
+  final String message;
+  final Object? cause;
+  final StackTrace? stackTrace;
+
+  @override
+  String toString() => 'SecureKeyPersistError: $message';
 }

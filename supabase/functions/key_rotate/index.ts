@@ -22,9 +22,24 @@ serve(async (req) => {
   const body = await req.json().catch(() => null) as { family_id?: string; new_key_version?: number } | null;
   if (!body?.family_id) return new Response("Bad Request", { status: 400 });
 
+  // Verify the caller is an active admin of the specified family before
+  // writing the audit event — otherwise any authenticated user could forge
+  // a key_rotated event for a family they don't belong to.
+  const { data: callerDevice } = await userClient
+    .from("family_devices")
+    .select("role")
+    .eq("auth_user_id", userData.user.id)
+    .eq("family_id", body.family_id)
+    .eq("role", "admin")
+    .is("revoked_at", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (!callerDevice) return new Response("Forbidden", { status: 403 });
+
   await writeAuditEvent(
     body.family_id,
-    'key_rotated',
+    "key_rotated",
     null,
     { new_key_version: body.new_key_version ?? null },
   ).catch(() => {});

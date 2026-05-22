@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/providers/premium_provider.dart';
+import 'package:dreambook/core/providers/unit_preferences_provider.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/theme/design_tokens.dart';
 import 'package:dreambook/features/baby/data/current_baby_provider.dart';
@@ -75,11 +76,13 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
         rangeEnd: _effectiveEnd,
       );
       final raw = _concernsController.text.trim();
+      final volumeUnit = ref.read(unitPreferencesProvider).volume;
       final pdf = buildVisitPdf(
         data,
         concerns: raw.isEmpty ? null : raw,
         regularFont: await _loadFont('assets/fonts/IBMPlexSansThai-Regular.ttf'),
         boldFont: await _loadFont('assets/fonts/IBMPlexSansThai-SemiBold.ttf'),
+        volumeUnit: volumeUnit,
       );
       final bytes = await pdf.save();
       await Printing.sharePdf(
@@ -111,12 +114,14 @@ class _VisitReportScreenState extends ConsumerState<VisitReportScreen> {
         rangeStart: _effectiveStart,
         rangeEnd: _effectiveEnd,
       );
+      final volumeUnit = ref.read(unitPreferencesProvider).volume;
       final pdf = buildVisitPdf(
         data,
         regularFont:
             await _loadFont('assets/fonts/IBMPlexSansThai-Regular.ttf'),
         boldFont:
             await _loadFont('assets/fonts/IBMPlexSansThai-SemiBold.ttf'),
+        volumeUnit: volumeUnit,
       );
       final pdfBytes = await pdf.save();
       await for (final raster

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -11,6 +13,7 @@ import 'app.dart';
 import 'core/background/workmanager_sync.dart';
 import 'core/crypto/device_identity_service.dart';
 import 'core/env.dart';
+import 'core/observability/boot_diagnostics.dart';
 import 'core/observability/sentry_init.dart';
 import 'core/providers/device_id_provider.dart';
 import 'core/providers/shared_preferences_provider.dart';
@@ -33,19 +36,20 @@ Future<Env?> _loadEnv() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Ensure encryption key exists (Keychain / EncryptedSharedPreferences).
+  // ── CRITICAL PATH ─────────────────────────────────────────────────────
+  // Only steps required before ProviderScope can render the first frame.
+  // Anything that touches the network MUST go to the deferred phase below.
+
+  // 1. Encryption key (Keychain / EncryptedSharedPreferences). Required
+  //    because the DB is encrypted with it and the home screen reads from
+  //    the DB on first build.
   await SecureKeyService.getOrCreateDbKey();
 
-  // 2. Notifications init (channels, timezone db).
-  await NotificationService.init();
-
-  // 3. SharedPreferences (sync provider override).
+  // 2. SharedPreferences — needed for the prefs override below.
   final prefs = await SharedPreferences.getInstance();
 
-  // 4. Device-level Ed25519 keypair (used for caregiver invite handshake +
-  //    fingerprint that RLS checks against `family_devices.device_fp`).
-  //    Created independently of Supabase init so local-only flows still
-  //    have a stable fingerprint for the deviceIdProvider override below.
+  // 3. Device Ed25519 keypair — produces the deviceFp override that RLS
+  //    relies on for `family_devices.device_fp` lookups.
   const secureStorage = FlutterSecureStorage();
   final deviceIdentity = await DeviceIdentityService(secureStorage).getOrCreate();
   final deviceId = await deviceIdentity.fingerprintHex();
@@ -53,56 +57,8 @@ Future<void> main() async {
     debugPrint('[boot] deviceFp=$deviceId pubKeyLen=${deviceIdentity.publicKeyBytes.length}');
   }
 
-  // 5. Supabase: initialise the client + ensure anonymous session.
-  //    Missing .env (no secrets bundled) skips Supabase init so local-only
-  //    flows still work.
+  // 4. Bundled env (file-only I/O, no network). Safe in the critical path.
   final env = await _loadEnv();
-  if (env != null) {
-    try {
-      await SupabaseClientService.initialize(env: env, storage: secureStorage);
-      await SupabaseClientService.instance.ensureAnonymousSession();
-    } catch (_) {
-      // Supabase init or anon-auth failed (e.g. provider disabled, no network).
-      // App still boots in local-only mode; caregiver screens surface the
-      // error themselves rather than blocking startup.
-    }
-  }
-
-  // 6. WorkManager — inexact periodic background sync. Safe to call every
-  //    app launch; WorkManager deduplicates by unique task name.
-  //    Wrapped in try/catch so unit tests (no Android runtime) don't crash.
-  try {
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
-    await registerBackgroundSync();
-  } catch (_) {
-    // WorkManager init failed (e.g. unit-test host, no Android runtime).
-    // App still boots in local-only mode.
-  }
-
-  // 7. RevenueCat — Android public API key. Wrapped in try/catch so missing
-  //    Play Services on emulator / dev devices never blocks app boot.
-  //    `isPremiumProvider` handles the not-configured case via try/catch too.
-  try {
-    await Purchases.setLogLevel(LogLevel.error);
-    await Purchases.configure(
-      PurchasesConfiguration('goog_AjoINZEXfCpIXYfKgLbWXTPnCdt'),
-    );
-  } catch (_) {
-    // RC init failed (e.g. emulator without Play Services). App still boots;
-    // premium gates will resolve to `false` and paywall will surface an
-    // empty offering rather than crashing.
-  }
-
-  // 8. Sentry — opt-in crash reporting. Only initialised when the user has
-  //    explicitly enabled it and a DSN is configured in .env.
-  final sentryOptIn = prefs.getBool('sentry_opt_in') ?? false;
-  if (sentryOptIn && env?.sentryDsn != null) {
-    try {
-      await initSentry(dsn: env!.sentryDsn!);
-    } catch (_) {
-      // Sentry init failure must never crash the app.
-    }
-  }
 
   runApp(
     ProviderScope(
@@ -114,4 +70,69 @@ Future<void> main() async {
       child: const DreamBookApp(),
     ),
   );
+
+  // ── DEFERRED PATH ─────────────────────────────────────────────────────
+  // Runs after the first frame is on screen. Network calls, plugin
+  // initialisation, and any SDK that can fail without blocking a logged
+  // event live here. Errors record into BootDiagnostics so the user can
+  // tell support "Supabase init failed" instead of "app feels broken."
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_secondaryInit(env: env, prefs: prefs, secureStorage: secureStorage));
+  });
+}
+
+Future<void> _secondaryInit({
+  required Env? env,
+  required SharedPreferences prefs,
+  required FlutterSecureStorage secureStorage,
+}) async {
+  // Notifications: channel registration + timezone db load. Wrapped so a
+  // missing plugin (unit-test host) never blocks subsequent steps.
+  try {
+    await NotificationService.init();
+  } catch (e, st) {
+    BootDiagnostics.instance.recordError('notifications', e, st);
+  }
+
+  // Supabase init + anon sign-in (THE network call). Failure is non-fatal:
+  // local features keep working; share/sync screens surface a banner.
+  if (env != null) {
+    try {
+      await SupabaseClientService.initialize(env: env, storage: secureStorage);
+      await SupabaseClientService.instance.ensureAnonymousSession();
+    } catch (e, st) {
+      BootDiagnostics.instance.recordError('supabase', e, st);
+    }
+  }
+
+  // WorkManager: registers the periodic background sync. Safe to call every
+  // launch; deduplicated by unique task name.
+  try {
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+    await registerBackgroundSync();
+  } catch (e, st) {
+    BootDiagnostics.instance.recordError('workmanager', e, st);
+  }
+
+  // RevenueCat. Premium gate already tolerates a missing config via
+  // `isPremiumProvider`'s cached-fallback path.
+  try {
+    await Purchases.setLogLevel(LogLevel.error);
+    await Purchases.configure(
+      PurchasesConfiguration('goog_AjoINZEXfCpIXYfKgLbWXTPnCdt'),
+    );
+  } catch (e, st) {
+    BootDiagnostics.instance.recordError('revenuecat', e, st);
+  }
+
+  // Sentry — opt-in only. DSN supplied via --dart-define=SENTRY_DSN=...
+  // at build time (never bundled in the APK asset).
+  final sentryOptIn = prefs.getBool('sentry_opt_in') ?? false;
+  if (sentryOptIn && kSentryDsn.isNotEmpty) {
+    try {
+      await initSentry(dsn: kSentryDsn);
+    } catch (e, st) {
+      BootDiagnostics.instance.recordError('sentry', e, st);
+    }
+  }
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -97,10 +96,16 @@ class _Bip39VerifyScreenState extends ConsumerState<Bip39VerifyScreen> {
 
       await _secureStorage.write(key: 'recovery.code', value: normalized);
 
-      unawaited(ref.read(snapshotRepositoryProvider).upload(
-        familyId: familyId,
-        passphrase: normalized,
-      ).catchError((_) => 0));
+      bool snapshotUploaded = true;
+      try {
+        await ref.read(snapshotRepositoryProvider).upload(
+          familyId: familyId,
+          passphrase: normalized,
+        );
+      } catch (e) {
+        snapshotUploaded = false;
+        debugPrint('[bip39_verify] snapshot upload failed: $e');
+      }
 
       await prefs.setBool(_kPhraseBackedUpKey, true);
       await prefs.setBool(kOnboardingDoneKey, true);
@@ -110,7 +115,13 @@ class _Bip39VerifyScreenState extends ConsumerState<Bip39VerifyScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.recoveryVerifySuccess)),
+        SnackBar(
+          content: Text(
+            snapshotUploaded
+                ? context.l10n.recoveryVerifySuccess
+                : context.l10n.recoveryVerifySuccessRetry,
+          ),
+        ),
       );
 
       final pendingDeepLink = prefs.getString('router.pendingDeepLink');
