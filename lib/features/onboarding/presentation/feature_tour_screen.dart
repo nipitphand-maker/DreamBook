@@ -24,10 +24,6 @@ class _FeatureTourScreenState extends State<FeatureTourScreen> {
 
   void _goHome() => context.go(AppRoutes.home);
 
-  // Tour sits on top of Home (pushed). Swap it for the feed-logging screen so
-  // a new parent lands directly in their first log; backing out returns Home.
-  void _finish() => context.pushReplacement(AppRoutes.feedNew);
-
   void _nextPage() {
     _controller.nextPage(
       duration: const Duration(milliseconds: 300),
@@ -131,7 +127,7 @@ class _FeatureTourScreenState extends State<FeatureTourScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: isLastPage ? _finish : _nextPage,
+                      onPressed: isLastPage ? _goHome : _nextPage,
                       child: Text(
                         isLastPage ? l10n.tourGetStarted : l10n.tourNext,
                       ),
