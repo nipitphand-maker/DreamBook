@@ -83,9 +83,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       }
       if (!mounted) return;
       context.go(AppRoutes.home);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.push(AppRoutes.feedNew);
-      });
+      // First-run users see the feature tour (triggered from HomeScreen),
+      // and its final CTA opens feed logging. Only auto-open feed logging
+      // here once the tour has already been seen — otherwise both would
+      // push at once and the tour's context.go would discard the feed screen.
+      if (prefs.getBool(kFeatureTourSeenKey) ?? false) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.push(AppRoutes.feedNew);
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

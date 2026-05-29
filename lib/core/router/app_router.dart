@@ -61,6 +61,7 @@ class AppRoutes {
 }
 
 const kOnboardingDoneKey = 'onboarding.done';
+const kFeatureTourSeenKey = 'feature.tour.seen';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);

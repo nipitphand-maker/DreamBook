@@ -20,8 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-const _kFeatureTourSeenKey = 'feature.tour.seen';
-
 const double _mlPerOz = 29.5735;
 
 String _fmtVol(double oz, VolumeUnit unit) => unit == VolumeUnit.oz
@@ -42,9 +40,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final prefs = ref.read(sharedPreferencesProvider);
-      final seen = prefs.getBool(_kFeatureTourSeenKey) ?? false;
+      final seen = prefs.getBool(kFeatureTourSeenKey) ?? false;
       if (!seen) {
-        prefs.setBool(_kFeatureTourSeenKey, true);
+        prefs.setBool(kFeatureTourSeenKey, true);
         context.push(AppRoutes.featureTour);
       }
     });
