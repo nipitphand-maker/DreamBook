@@ -2,6 +2,7 @@ import 'package:dreambook/core/db/database_provider.dart';
 import 'package:dreambook/core/families/family_provider.dart';
 import 'package:dreambook/core/l10n/l10n_ext.dart';
 import 'package:dreambook/core/models/models.dart';
+import 'package:dreambook/core/providers/shared_preferences_provider.dart';
 import 'package:dreambook/core/router/app_router.dart';
 import 'package:dreambook/core/sync/sync_lifecycle_controller.dart';
 import 'package:dreambook/core/sync/sync_status_provider.dart';
@@ -19,17 +20,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+const _kFeatureTourSeenKey = 'feature.tour.seen';
+
 const double _mlPerOz = 29.5735;
 
 String _fmtVol(double oz, VolumeUnit unit) => unit == VolumeUnit.oz
     ? '${oz.toStringAsFixed(1)} oz'
     : '${(oz * _mlPerOz).round()} ml';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final prefs = ref.read(sharedPreferencesProvider);
+      final seen = prefs.getBool(_kFeatureTourSeenKey) ?? false;
+      if (!seen) {
+        prefs.setBool(_kFeatureTourSeenKey, true);
+        context.push(AppRoutes.featureTour);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final babyId = ref.watch(currentBabyIdProvider);
     final syncStatus = ref.watch(syncStatusProvider);

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/baby/presentation/baby_switcher_screen.dart';
+import '../../features/onboarding/presentation/feature_tour_screen.dart';
 import '../../features/diaper/presentation/diaper_log_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/medication/presentation/medication_screen.dart';
@@ -56,6 +57,7 @@ class AppRoutes {
   static const milestones     = '/milestones';
   static const temperatureNew = '/temperature/new';
   static const medicationNew  = '/medication/new';
+  static const featureTour    = '/feature-tour';
 }
 
 const kOnboardingDoneKey = 'onboarding.done';
@@ -73,7 +75,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state.matchedLocation != AppRoutes.bip39Setup &&
           state.matchedLocation != AppRoutes.bip39Verify &&
           state.matchedLocation != AppRoutes.bip39Restore &&
-          state.matchedLocation != AppRoutes.cloudRestore) {
+          state.matchedLocation != AppRoutes.cloudRestore &&
+          state.matchedLocation != AppRoutes.featureTour) {
         // B-2: Save the intended deep-link path so WelcomeScreen can
         // resume it after onboarding completes.
         final intended = state.uri.toString();
@@ -210,6 +213,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.medicationNew,
         builder: (_, __) => const MedicationScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.featureTour,
+        builder: (_, __) => const FeatureTourScreen(),
       ),
     ],
   );

@@ -397,6 +397,9 @@
   "babiesUpdateCta": "บันทึกการเปลี่ยนแปลง",
   "settingsVersion": "เวอร์ชัน",
   "settingsPrivacyPolicy": "นโยบายความเป็นส่วนตัว",
+  "settingsRateApp": "ให้คะแนน DreamBook",
+  "settingsRateAppSubtitle": "ชอบแอปนี้ไหม? ฝากรีวิวด้วยนะ",
+  "settingsRateAppError": "ไม่สามารถเปิด Store ได้",
 
   "shareInviteExpired": "รหัสหมดอายุแล้ว แตะ \"รหัสใหม่\" เพื่อสร้างคำเชิญใหม่",
   "claimInviteNotAdmin": "คุณไม่ใช่ผู้ดูแลครอบครัวนี้ ขอให้ผู้ดูแลส่งคำเชิญใหม่อีกครั้ง",
@@ -770,5 +773,17 @@
   "medSaved": "บันทึกแล้ว",
   "medPdfSectionTitle": "ยาที่ได้รับ",
   "medErrorEmptyDrugName": "กรุณาระบุชื่อยา",
-  "medErrorInvalidAmount": "กรุณาระบุปริมาณยาที่ถูกต้อง"
+  "medErrorInvalidAmount": "กรุณาระบุปริมาณยาที่ถูกต้อง",
+
+  "tourSkip": "ข้ามไปก่อน",
+  "tourNext": "ถัดไป",
+  "tourGetStarted": "เริ่มเลย",
+  "tourPage1Title": "บันทึกทุกช่วงเวลา",
+  "tourPage1Body": "จดบันทึกนม ปั๊มนม ผ้าอ้อม และการนอน — ทุกอย่างในที่เดียว",
+  "tourPage2Title": "แชร์กับครอบครัว",
+  "tourPage2Body": "เชิญผู้ดูแลด้วยรหัส 8 ตัว ไม่ต้องสร้างบัญชี",
+  "tourPage3Title": "ความเป็นส่วนตัวของคุณ",
+  "tourPage3Body": "ข้อมูลทั้งหมดอยู่ในอุปกรณ์ ไม่มีการอัปโหลดคลาวด์ นอกจากคุณจะเลือกซิงค์",
+  "tourPage4Title": "พร้อมแล้ว!",
+  "tourPage4Body": "DreamBook พร้อมใช้งาน เริ่มบันทึกเพื่อเก็บเรื่องราวของลูกน้อย"
 }

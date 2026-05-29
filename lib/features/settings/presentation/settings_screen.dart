@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _kPortionOz = 'settings.pump.portionOz';
@@ -401,6 +402,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(l10n.settingsPrivacyPolicy),
             trailing: const Icon(Icons.open_in_new_outlined, size: 16),
             onTap: _launchPrivacy,
+          ),
+          ListTile(
+            leading: const Icon(Icons.star_outline),
+            title: Text(l10n.settingsRateApp),
+            subtitle: Text(l10n.settingsRateAppSubtitle),
+            trailing: const Icon(Icons.open_in_new_outlined, size: 16),
+            onTap: () async {
+              try {
+                await InAppReview.instance.openStoreListing();
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.settingsRateAppError)),
+                  );
+                }
+              }
+            },
           ),
         ],
       ),

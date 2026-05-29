@@ -400,6 +400,9 @@
   "babiesUpdateCta": "Save changes",
   "settingsVersion": "Version",
   "settingsPrivacyPolicy": "Privacy Policy",
+  "settingsRateApp": "Rate DreamBook",
+  "settingsRateAppSubtitle": "Love the app? Leave us a review",
+  "settingsRateAppError": "Could not open the store",
 
   "shareInviteExpired": "Code expired. Tap \"New code\" to generate a fresh invite.",
   "claimInviteNotAdmin": "You are not an admin of this family. Ask the family admin to send a new invite.",
@@ -773,5 +776,17 @@
   "medSaved": "Saved",
   "medPdfSectionTitle": "Medications",
   "medErrorEmptyDrugName": "Please enter a drug name.",
-  "medErrorInvalidAmount": "Please enter a valid dose amount."
+  "medErrorInvalidAmount": "Please enter a valid dose amount.",
+
+  "tourSkip": "Skip",
+  "tourNext": "Next",
+  "tourGetStarted": "Get Started",
+  "tourPage1Title": "Track Every Moment",
+  "tourPage1Body": "Log feeds, pumping, diapers, sleep, and more — all in one place.",
+  "tourPage2Title": "Share with Family",
+  "tourPage2Body": "Invite caregivers with a secure 8-character code. No account needed.",
+  "tourPage3Title": "Your Privacy, Guaranteed",
+  "tourPage3Body": "All data stays on your device. No cloud uploads unless you choose to sync.",
+  "tourPage4Title": "Ready to Begin",
+  "tourPage4Body": "DreamBook is ready. Start logging to see your baby's story unfold."
 }
